@@ -11,4 +11,5 @@ return [
     App\Modules\Onboarding\Providers\OnboardingServiceProvider::class,
     App\Modules\HomepageAnalytics\Providers\HomepageAnalyticsServiceProvider::class,
     App\Modules\Clients\Providers\ClientsServiceProvider::class,
+    App\Modules\Communications\Providers\CommunicationsServiceProvider::class,
 ];

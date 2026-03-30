@@ -2,8 +2,9 @@ import { apiHttpClient } from '@/lib/api/http'
 import {
   deleteSettingsAccount,
   getAuthMe,
-  getClients,
   getClient,
+  getClientCommunications,
+  getClients,
   getDashboardProduction,
   getDashboardSummary,
   getOnboardingState,
@@ -19,6 +20,9 @@ import {
   patchSettingsTheme,
   postAuthSignIn,
   postAuthSignOut,
+  postClientCommunicationsCall,
+  postClientCommunicationsEmail,
+  postClientCommunicationsSms,
   postClientDocuments,
   postClientNotes,
   postClients,
@@ -33,6 +37,7 @@ import {
   type IndustrySelectionRequest,
   type ProfileConfirmationRequest,
   type SignInRequest,
+  type StartCallRequest,
   type ThemeSummary,
   type UpdateAccountRequest,
   type UpdateProfileRequest
@@ -46,10 +51,8 @@ export const authApi = {
 
 export const onboardingApi = {
   state: () => getOnboardingState(apiHttpClient),
-  confirmProfile: (body: ProfileConfirmationRequest) =>
-    patchOnboardingProfileConfirmation(apiHttpClient, body),
-  selectIndustry: (body: IndustrySelectionRequest) =>
-    patchOnboardingIndustrySelection(apiHttpClient, body),
+  confirmProfile: (body: ProfileConfirmationRequest) => patchOnboardingProfileConfirmation(apiHttpClient, body),
+  selectIndustry: (body: IndustrySelectionRequest) => patchOnboardingIndustrySelection(apiHttpClient, body),
   complete: () => postOnboardingComplete(apiHttpClient)
 }
 
@@ -77,8 +80,7 @@ export const industryConfigurationsApi = {
 
 export const dashboardApi = {
   summary: () => getDashboardSummary(apiHttpClient),
-  production: (queryParams?: Parameters<typeof getDashboardProduction>[1]): Promise<DashboardProductionEnvelope> =>
-    getDashboardProduction(apiHttpClient, queryParams)
+  production: (queryParams?: Parameters<typeof getDashboardProduction>[1]): Promise<DashboardProductionEnvelope> => getDashboardProduction(apiHttpClient, queryParams)
 }
 
 export const clientsApi = {
@@ -88,4 +90,11 @@ export const clientsApi = {
   update: (clientId: string, body: CreateOrUpdateClientRequest) => patchClient(apiHttpClient, { clientId }, body),
   createNote: (clientId: string, body: CreateClientNoteRequest) => postClientNotes(apiHttpClient, { clientId }, body),
   uploadDocument: (clientId: string, body: FormData) => postClientDocuments(apiHttpClient, { clientId }, body)
+}
+
+export const communicationsApi = {
+  list: (clientId: string, queryParams?: Parameters<typeof getClientCommunications>[2]) => getClientCommunications(apiHttpClient, { clientId }, queryParams),
+  sendSms: (clientId: string, body: FormData) => postClientCommunicationsSms(apiHttpClient, { clientId }, body),
+  sendEmail: (clientId: string, body: FormData) => postClientCommunicationsEmail(apiHttpClient, { clientId }, body),
+  startCall: (clientId: string, body: StartCallRequest) => postClientCommunicationsCall(apiHttpClient, { clientId }, body)
 }

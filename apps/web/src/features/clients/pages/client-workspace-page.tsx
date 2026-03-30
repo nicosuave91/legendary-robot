@@ -8,6 +8,7 @@ import { PageHeader, AppButton, AppCard, AppCardBody, AppCardHeader, AppInput, A
 import { ClientStatusBadge } from '@/features/clients/components/client-status-badge'
 import { ClientWorkspaceTabs } from '@/features/clients/components/client-workspace-tabs'
 import { WorkspacePlaceholderPanel } from '@/features/clients/components/workspace-placeholder-panel'
+import { ClientCommunicationsPanel } from '@/features/communications/components/client-communications-panel'
 import { clientsApi } from '@/lib/api/client'
 import { queryKeys } from '@/lib/api/query-keys'
 import { useToast } from '@/components/shell/toast-host'
@@ -243,6 +244,16 @@ export function ClientWorkspacePage() {
             </div>
           </AppCardBody>
         </AppCard>
+      )
+    }
+
+    if (activeTab === 'communications') {
+      return (
+        <ClientCommunicationsPanel
+          clientId={payload.client.id}
+          fallbackEmail={payload.client.primaryEmail}
+          fallbackPhone={payload.client.primaryPhone}
+        />
       )
     }
 

@@ -12,11 +12,41 @@ final class TenantFileStorage
 {
     public function storeClientDocument(string $tenantId, string $clientId, string $documentId, UploadedFile $file): array
     {
+        return $this->storeFile(
+            directory: sprintf('tenants/%s/clients/%s/documents/%s', $tenantId, $clientId, $documentId),
+            fallbackFilename: $documentId,
+            file: $file,
+        );
+    }
+
+    public function storeCommunicationAttachment(
+        string $tenantId,
+        string $clientId,
+        string $subjectId,
+        string $attachmentId,
+        UploadedFile $file,
+        string $channel,
+    ): array {
+        return $this->storeFile(
+            directory: sprintf(
+                'tenants/%s/clients/%s/communications/%s/%s/attachments/%s',
+                $tenantId,
+                $clientId,
+                $channel,
+                $subjectId,
+                $attachmentId,
+            ),
+            fallbackFilename: $attachmentId,
+            file: $file,
+        );
+    }
+
+    private function storeFile(string $directory, string $fallbackFilename, UploadedFile $file): array
+    {
         $disk = 'local';
         $extension = strtolower((string) ($file->getClientOriginalExtension() ?: $file->extension() ?: 'bin'));
         $baseName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME));
-        $storedFilename = trim($baseName, '-') !== '' ? sprintf('%s.%s', $baseName, $extension) : sprintf('%s.%s', $documentId, $extension);
-        $directory = sprintf('tenants/%s/clients/%s/documents/%s', $tenantId, $clientId, $documentId);
+        $storedFilename = trim($baseName, '-') !== '' ? sprintf('%s.%s', $baseName, $extension) : sprintf('%s.%s', $fallbackFilename, $extension);
         $storagePath = Storage::disk($disk)->putFileAs($directory, $file, $storedFilename);
 
         return [

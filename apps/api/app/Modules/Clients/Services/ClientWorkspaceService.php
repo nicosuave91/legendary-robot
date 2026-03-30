@@ -102,9 +102,9 @@ final class ClientWorkspaceService
             'recentAudit' => $recentAudit,
             'tabs' => [
                 ['key' => 'overview', 'label' => 'Overview', 'href' => '/app/clients/' . $client->id . '/overview', 'available' => true],
-                ['key' => 'communications', 'label' => 'Communications', 'href' => '/app/clients/' . $client->id . '/communications', 'available' => false],
-                ['key' => 'events', 'label' => 'Events', 'href' => '/app/clients/' . $client->id . '/events', 'available' => false],
-                ['key' => 'applications', 'label' => 'Applications', 'href' => '/app/clients/' . $client->id . '/applications', 'available' => false],
+                ['key' => 'communications', 'label' => 'Communications', 'href' => '/app/clients/' . $client->id . '/communications', 'available' => true],
+                ['key' => 'events', 'label' => 'Events', 'href' => '/app/clients/' . $client->id . '/events', 'available' => true],
+                ['key' => 'applications', 'label' => 'Applications', 'href' => '/app/clients/' . $client->id . '/applications', 'available' => true],
                 ['key' => 'notes', 'label' => 'Notes', 'href' => '/app/clients/' . $client->id . '/notes', 'available' => true],
                 ['key' => 'documents', 'label' => 'Documents', 'href' => '/app/clients/' . $client->id . '/documents', 'available' => true],
                 ['key' => 'audit', 'label' => 'Audit', 'href' => '/app/clients/' . $client->id . '/audit', 'available' => true],

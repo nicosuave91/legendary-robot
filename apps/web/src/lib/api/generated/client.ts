@@ -466,6 +466,123 @@ export type ClientDocumentEnvelope = {
   "meta": ResponseMeta;
 };
 
+export type SendSmsRequest = {
+  "body"?: string | null;
+  "toPhone"?: string | null;
+  "idempotencyKey"?: string | null;
+  "retryOfMessageId"?: string | null;
+  "attachments"?: (File)[];
+};
+
+export type SendEmailRequest = {
+  "to": (string)[];
+  "cc"?: (string)[];
+  "bcc"?: (string)[];
+  "subject": string;
+  "bodyText"?: string | null;
+  "bodyHtml"?: string | null;
+  "idempotencyKey"?: string | null;
+  "retryOfMessageId"?: string | null;
+  "attachments"?: (File)[];
+};
+
+export type StartCallRequest = {
+  "toPhone"?: string | null;
+  "purposeNote"?: string | null;
+  "idempotencyKey"?: string | null;
+  "retryOfCallLogId"?: string | null;
+};
+
+export type CommunicationAttachmentSummary = {
+  "id": string;
+  "originalFilename": string;
+  "mimeType": string;
+  "sizeBytes": number;
+  "provenance": string;
+  "storageReference": string;
+  "scanStatus": string;
+};
+
+export type DeliveryStatusProjection = {
+  "lifecycle": string;
+  "providerStatus": string | null;
+  "displayLabel": string;
+  "tone": "neutral" | "success" | "warning" | "danger";
+  "isTerminal": boolean;
+  "updatedAt": string | null;
+  "reasonCode": string | null;
+  "reasonMessage": string | null;
+  "source": "internal" | "provider_submit" | "provider_callback";
+};
+
+export type CommunicationTimelineCounterpart = {
+  "name": string | null;
+  "address": string | null;
+};
+
+export type CommunicationTimelineContent = {
+  "subject": string | null;
+  "bodyText": string | null;
+  "preview": string | null;
+};
+
+export type CommunicationTimelineEvidence = {
+  "source": "internal" | "provider_submit" | "provider_callback";
+  "lastEventAt": string | null;
+  "lastEventType": string | null;
+  "eventCount": number;
+};
+
+export type CommunicationTimelineCall = {
+  "durationSeconds": number | null;
+};
+
+export type CommunicationTimelineActions = {
+  "canRetry": boolean;
+};
+
+export type CommunicationTimelineItem = {
+  "id": string;
+  "kind": "message" | "call" | "system_event";
+  "channel": "sms" | "mms" | "email" | "voice";
+  "direction": "inbound" | "outbound" | "system";
+  "occurredAt": string | null;
+  "counterpart": CommunicationTimelineCounterpart;
+  "content": CommunicationTimelineContent;
+  "attachments": (CommunicationAttachmentSummary)[];
+  "status": DeliveryStatusProjection;
+  "evidence": CommunicationTimelineEvidence;
+  "call": CommunicationTimelineCall | unknown;
+  "actions": CommunicationTimelineActions;
+};
+
+export type ClientCommunicationsResponse = {
+  "clientId": string;
+  "items": (CommunicationTimelineItem)[];
+  "paging": {
+  "nextCursor": string | null;
+  "hasMore": boolean;
+};
+  "filters": {
+  "channel": string;
+  "status": string;
+};
+  "refresh": {
+  "hasPendingRecentItems": boolean;
+  "recommendedPollSeconds": number | null;
+};
+};
+
+export type ClientCommunicationsEnvelope = {
+  "data": ClientCommunicationsResponse;
+  "meta": ResponseMeta;
+};
+
+export type CommunicationTimelineItemEnvelope = {
+  "data": CommunicationTimelineItem;
+  "meta": ResponseMeta;
+};
+
 
 export async function postAuthSignIn(client: ApiHttpClient, body: SignInRequest): Promise<AuthContextEnvelope> {
   return client.request<AuthContextEnvelope>({
@@ -716,6 +833,93 @@ export async function postClientDocuments(client: ApiHttpClient, pathParams: {
     pathParams,
     body,
     contentType: "multipart/form-data"
+  });
+}
+
+
+export async function getClientCommunications(client: ApiHttpClient, pathParams: {
+  "clientId": string;
+}, queryParams?: {
+  "channel"?: "all" | "sms" | "email" | "voice";
+  "status"?: "all" | "pending" | "failed";
+  "limit"?: number;
+}): Promise<ClientCommunicationsEnvelope> {
+  return client.request<ClientCommunicationsEnvelope>({
+    method: "GET",
+    path: "/api/v1/clients/{clientId}/communications",
+    pathParams,
+    queryParams
+  });
+}
+
+
+export async function postClientCommunicationsSms(client: ApiHttpClient, pathParams: {
+  "clientId": string;
+}, body: FormData): Promise<CommunicationTimelineItemEnvelope> {
+  return client.request<CommunicationTimelineItemEnvelope>({
+    method: "POST",
+    path: "/api/v1/clients/{clientId}/communications/sms",
+    pathParams,
+    body,
+    contentType: "multipart/form-data"
+  });
+}
+
+
+export async function postClientCommunicationsEmail(client: ApiHttpClient, pathParams: {
+  "clientId": string;
+}, body: FormData): Promise<CommunicationTimelineItemEnvelope> {
+  return client.request<CommunicationTimelineItemEnvelope>({
+    method: "POST",
+    path: "/api/v1/clients/{clientId}/communications/email",
+    pathParams,
+    body,
+    contentType: "multipart/form-data"
+  });
+}
+
+
+export async function postClientCommunicationsCall(client: ApiHttpClient, pathParams: {
+  "clientId": string;
+}, body: StartCallRequest): Promise<CommunicationTimelineItemEnvelope> {
+  return client.request<CommunicationTimelineItemEnvelope>({
+    method: "POST",
+    path: "/api/v1/clients/{clientId}/communications/call",
+    pathParams,
+    body,
+    contentType: "application/json"
+  });
+}
+
+
+export async function postWebhookTwilioMessaging(client: ApiHttpClient): Promise<void> {
+  return client.request<void>({
+    method: "POST",
+    path: "/webhooks/twilio/messaging"
+  });
+}
+
+
+export async function postWebhookTwilioVoice(client: ApiHttpClient): Promise<void> {
+  return client.request<void>({
+    method: "POST",
+    path: "/webhooks/twilio/voice"
+  });
+}
+
+
+export async function postWebhookSendgridInbound(client: ApiHttpClient): Promise<void> {
+  return client.request<void>({
+    method: "POST",
+    path: "/webhooks/sendgrid/inbound"
+  });
+}
+
+
+export async function postWebhookSendgridEvents(client: ApiHttpClient): Promise<void> {
+  return client.request<void>({
+    method: "POST",
+    path: "/webhooks/sendgrid/events"
   });
 }
 
