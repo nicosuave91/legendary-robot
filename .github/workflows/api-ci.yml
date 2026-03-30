@@ -1,0 +1,26 @@
+name: api-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+
+      - name: Validate PHP syntax
+        run: find app -name "*.php" -print0 | xargs -0 -n1 php -l
+
+      - name: Publish contracts
+        run: php scripts/publish-openapi.php
