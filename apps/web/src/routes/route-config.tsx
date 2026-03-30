@@ -5,13 +5,16 @@ import { AppShellLayout } from '@/layouts/app-shell-layout'
 import { AuthLayout } from '@/layouts/auth-layout'
 import { BlankLayout } from '@/layouts/blank-layout'
 import { SignInPage } from '@/features/identity-access/pages/sign-in-page'
-import { DashboardPage } from '@/features/identity-access/pages/dashboard-page'
+import { HomepagePage } from '@/features/homepage-analytics/pages/homepage-page'
 import { SettingsProfilePage } from '@/features/identity-access/pages/settings-profile-page'
 import { SettingsAccountsPage } from '@/features/identity-access/pages/settings-accounts-page'
 import { SettingsThemePage } from '@/features/identity-access/pages/settings-theme-page'
 import { SettingsIndustryConfigurationsPage } from '@/features/identity-access/pages/settings-industry-configurations-page'
 import { OnboardingPage } from '@/features/onboarding/pages/onboarding-page'
 import { PlaceholderPage } from '@/features/shared/pages/placeholder-page'
+import { ClientListPage } from '@/features/clients/pages/client-list-page'
+import { ClientCreatePage } from '@/features/clients/pages/client-create-page'
+import { ClientWorkspacePage } from '@/features/clients/pages/client-workspace-page'
 import { routeMeta } from '@/routes/route-meta'
 
 export const routeConfig: RouteObject[] = [
@@ -63,7 +66,7 @@ export const routeConfig: RouteObject[] = [
             handle: { meta: routeMeta.dashboard },
             element: (
               <RouteGate meta={routeMeta.dashboard}>
-                <DashboardPage />
+                <HomepagePage />
               </RouteGate>
             )
           },
@@ -108,7 +111,25 @@ export const routeConfig: RouteObject[] = [
             handle: { meta: routeMeta.clients },
             element: (
               <RouteGate meta={routeMeta.clients}>
-                <PlaceholderPage title="Clients" />
+                <ClientListPage />
+              </RouteGate>
+            )
+          },
+          {
+            path: 'clients/new',
+            handle: { meta: routeMeta.clients },
+            element: (
+              <RouteGate meta={routeMeta.clients}>
+                <ClientCreatePage />
+              </RouteGate>
+            )
+          },
+          {
+            path: 'clients/:clientId/:tab?',
+            handle: { meta: routeMeta.clients },
+            element: (
+              <RouteGate meta={routeMeta.clients}>
+                <ClientWorkspacePage />
               </RouteGate>
             )
           },

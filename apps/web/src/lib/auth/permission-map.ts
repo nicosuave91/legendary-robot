@@ -11,15 +11,23 @@ export type PermissionCode =
   | 'settings.theme.update'
   | 'settings.industry-configurations.read'
   | 'settings.industry-configurations.create'
+  | 'dashboard.summary.read'
+  | 'dashboard.production.read'
+  | 'clients.read'
+  | 'clients.read.all'
+  | 'clients.create'
+  | 'clients.update'
+  | 'clients.notes.create'
+  | 'clients.documents.create'
   | 'onboarding.state.read'
   | 'onboarding.profile.confirm'
   | 'onboarding.industry.select'
   | 'onboarding.complete'
 
-export function hasPermission(permissions: string[], permission: PermissionCode) {
+export function hasPermission(permissions: readonly string[], permission: PermissionCode) {
   return permissions.includes(permission)
 }
 
-export function hasAllPermissions(permissions: string[], required: PermissionCode[] = []) {
+export function hasAllPermissions(permissions: readonly string[], required: readonly PermissionCode[] = []) {
   return required.every((permission) => hasPermission(permissions, permission))
 }

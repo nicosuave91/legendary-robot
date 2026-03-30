@@ -9,4 +9,6 @@ return [
     App\Modules\TenantGovernance\Providers\TenantGovernanceServiceProvider::class,
     App\Modules\IdentityAccess\Providers\IdentityAccessServiceProvider::class,
     App\Modules\Onboarding\Providers\OnboardingServiceProvider::class,
+    App\Modules\HomepageAnalytics\Providers\HomepageAnalyticsServiceProvider::class,
+    App\Modules\Clients\Providers\ClientsServiceProvider::class,
 ];

@@ -2,11 +2,16 @@ import { apiHttpClient } from '@/lib/api/http'
 import {
   deleteSettingsAccount,
   getAuthMe,
+  getClients,
+  getClient,
+  getDashboardProduction,
+  getDashboardSummary,
   getOnboardingState,
   getSettingsAccounts,
   getSettingsIndustryConfigurations,
   getSettingsProfile,
   getSettingsTheme,
+  patchClient,
   patchOnboardingIndustrySelection,
   patchOnboardingProfileConfirmation,
   patchSettingsAccount,
@@ -14,11 +19,17 @@ import {
   patchSettingsTheme,
   postAuthSignIn,
   postAuthSignOut,
+  postClientDocuments,
+  postClientNotes,
+  postClients,
   postOnboardingComplete,
   postSettingsAccounts,
   postSettingsIndustryConfigurations,
   type CreateAccountRequest,
+  type CreateClientNoteRequest,
   type CreateIndustryConfigurationRequest,
+  type CreateOrUpdateClientRequest,
+  type DashboardProductionEnvelope,
   type IndustrySelectionRequest,
   type ProfileConfirmationRequest,
   type SignInRequest,
@@ -62,4 +73,19 @@ export const accountsApi = {
 export const industryConfigurationsApi = {
   list: () => getSettingsIndustryConfigurations(apiHttpClient),
   create: (body: CreateIndustryConfigurationRequest) => postSettingsIndustryConfigurations(apiHttpClient, body)
+}
+
+export const dashboardApi = {
+  summary: () => getDashboardSummary(apiHttpClient),
+  production: (queryParams?: Parameters<typeof getDashboardProduction>[1]): Promise<DashboardProductionEnvelope> =>
+    getDashboardProduction(apiHttpClient, queryParams)
+}
+
+export const clientsApi = {
+  list: (queryParams?: Parameters<typeof getClients>[1]) => getClients(apiHttpClient, queryParams),
+  create: (body: CreateOrUpdateClientRequest) => postClients(apiHttpClient, body),
+  get: (clientId: string) => getClient(apiHttpClient, { clientId }),
+  update: (clientId: string, body: CreateOrUpdateClientRequest) => patchClient(apiHttpClient, { clientId }, body),
+  createNote: (clientId: string, body: CreateClientNoteRequest) => postClientNotes(apiHttpClient, { clientId }, body),
+  uploadDocument: (clientId: string, body: FormData) => postClientDocuments(apiHttpClient, { clientId }, body)
 }
