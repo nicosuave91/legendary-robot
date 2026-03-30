@@ -13,5 +13,15 @@ export const queryKeys = {
     profile: () => [...queryKeys.settings.all, 'profile'] as const,
     theme: () => [...queryKeys.settings.all, 'theme'] as const,
     industryConfigurations: () => [...queryKeys.settings.all, 'industry-configurations'] as const
+  },
+  dashboard: {
+    all: ['dashboard'] as const,
+    summary: () => [...queryKeys.dashboard.all, 'summary'] as const,
+    production: (window: string) => [...queryKeys.dashboard.all, 'production', window] as const
+  },
+  clients: {
+    all: ['clients'] as const,
+    list: (filters: Record<string, string | number | null | undefined>) => [...queryKeys.clients.all, 'list', filters] as const,
+    detail: (clientId: string) => [...queryKeys.clients.all, 'detail', clientId] as const
   }
 }

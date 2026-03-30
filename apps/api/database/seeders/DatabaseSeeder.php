@@ -11,6 +11,8 @@ use App\Modules\IdentityAccess\Models\Role;
 use App\Modules\IdentityAccess\Models\User;
 use App\Modules\Onboarding\Models\OnboardingState;
 use App\Modules\Onboarding\Models\UserProfile;
+use App\Modules\Clients\Models\Client;
+use App\Modules\Clients\Models\ClientNote;
 use App\Modules\TenantGovernance\Models\Tenant;
 use App\Modules\TenantGovernance\Models\ThemeSetting;
 use App\Modules\TenantGovernance\Models\TenantIndustryConfiguration;
@@ -47,6 +49,14 @@ final class DatabaseSeeder extends Seeder
             'settings.theme.update' => 'Update tenant theme settings',
             'settings.industry-configurations.read' => 'Read tenant industry configuration versions',
             'settings.industry-configurations.create' => 'Create tenant industry configuration versions',
+            'dashboard.summary.read' => 'Read homepage dashboard summary',
+            'dashboard.production.read' => 'Read homepage production metrics',
+            'clients.read' => 'Read client records',
+            'clients.read.all' => 'Read all tenant client records',
+            'clients.create' => 'Create client records',
+            'clients.update' => 'Update client records',
+            'clients.notes.create' => 'Create client notes',
+            'clients.documents.create' => 'Create client documents',
             'onboarding.state.read' => 'Read onboarding state',
             'onboarding.profile.confirm' => 'Confirm onboarding profile',
             'onboarding.industry.select' => 'Select onboarding industry',
@@ -73,6 +83,11 @@ final class DatabaseSeeder extends Seeder
             'identity-access.auth.sign-out',
             'settings.profile.read',
             'settings.profile.update',
+            'dashboard.summary.read',
+            'dashboard.production.read',
+            'clients.read',
+            'clients.notes.create',
+            'clients.documents.create',
             'onboarding.state.read',
             'onboarding.profile.confirm',
             'onboarding.industry.select',
@@ -179,5 +194,48 @@ final class DatabaseSeeder extends Seeder
                 'activated_at' => now(),
             ]);
         }
+
+        $seededClient = Client::query()->withoutGlobalScopes()->firstOrCreate([
+            'id' => 'client-jamie-foster',
+        ], [
+            'tenant_id' => $tenant->id,
+            'owner_user_id' => $admin->id,
+            'created_by' => $admin->id,
+            'display_name' => 'Jamie Foster',
+            'first_name' => 'Jamie',
+            'last_name' => 'Foster',
+            'company_name' => 'Foster Family Holdings',
+            'primary_email' => 'jamie.foster@example.com',
+            'primary_phone' => '804-555-0101',
+            'preferred_contact_channel' => 'email',
+            'status' => 'active',
+            'last_activity_at' => now(),
+        ]);
+
+        Client::query()->withoutGlobalScopes()->firstOrCreate([
+            'id' => 'client-horizon-medical',
+        ], [
+            'tenant_id' => $tenant->id,
+            'owner_user_id' => $user->id,
+            'created_by' => $admin->id,
+            'display_name' => 'Horizon Medical',
+            'company_name' => 'Horizon Medical',
+            'primary_email' => 'intake@horizon-medical.example.com',
+            'primary_phone' => '804-555-0102',
+            'preferred_contact_channel' => 'phone',
+            'status' => 'lead',
+            'last_activity_at' => now(),
+        ]);
+
+        ClientNote::query()->withoutGlobalScopes()->firstOrCreate([
+            'id' => 'note-jamie-foster-001',
+        ], [
+            'tenant_id' => $tenant->id,
+            'client_id' => $seededClient->id,
+            'author_user_id' => $admin->id,
+            'source_type' => 'user',
+            'body' => 'Seeded note to make the homepage KPI and workspace baseline immediately visible after migration.',
+            'is_editable' => true,
+        ]);
     }
 }

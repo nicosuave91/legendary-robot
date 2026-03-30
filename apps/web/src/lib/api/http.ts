@@ -22,16 +22,43 @@ function resolvePath(path: string, pathParams?: Record<string, string | number>)
   }, path)
 }
 
+function resolveQueryString(queryParams?: Record<string, string | number | boolean | null | undefined>) {
+  if (!queryParams) return ''
+
+  const searchParams = new URLSearchParams()
+  Object.entries(queryParams).forEach(([key, value]) => {
+    if (value === null || value === undefined || value === '') {
+      return
+    }
+    searchParams.set(key, String(value))
+  })
+
+  const queryString = searchParams.toString()
+  return queryString ? `?${queryString}` : ''
+}
+
 export class BrowserApiClient implements ApiHttpClient {
   async request<T>(options: ApiRequestOptions): Promise<T> {
-    const response = await fetch(`${API_BASE_URL}${resolvePath(options.path, options.pathParams)}`, {
+    const url = `${API_BASE_URL}${resolvePath(options.path, options.pathParams)}${resolveQueryString(options.queryParams)}`
+    const isMultipart = options.contentType === 'multipart/form-data' || options.body instanceof FormData
+
+    const headers: HeadersInit = {
+      Accept: 'application/json'
+    }
+
+    if (options.body && !isMultipart) {
+      headers['Content-Type'] = 'application/json'
+    }
+
+    const response = await fetch(url, {
       method: options.method,
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json'
-      },
+      headers,
       credentials: 'include',
-      body: options.body ? JSON.stringify(options.body) : undefined
+      body: options.body
+        ? isMultipart
+          ? (options.body as FormData)
+          : JSON.stringify(options.body)
+        : undefined
     })
 
     const contentType = response.headers.get('content-type') ?? ''

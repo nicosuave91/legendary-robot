@@ -6,12 +6,12 @@ import { useAuth } from '@/lib/auth/auth-hooks'
 import { hasAllPermissions } from '@/lib/auth/permission-map'
 
 const items = [
-  { to: '/app/dashboard', label: 'Dashboard', icon: LayoutGrid },
+  { to: '/app/dashboard', label: 'Homepage', icon: LayoutGrid, permissions: ['dashboard.summary.read', 'dashboard.production.read'] as const },
   { to: '/app/settings/profile', label: 'My Profile', icon: UserRound, permissions: ['settings.profile.read'] as const },
   { to: '/app/settings/accounts', label: 'Accounts', icon: Settings, permissions: ['settings.accounts.read'] as const },
   { to: '/app/settings/theme', label: 'Branding', icon: Palette, permissions: ['settings.theme.read'] as const },
   { to: '/app/settings/industry-configurations', label: 'Industry Config', icon: Network, permissions: ['settings.industry-configurations.read'] as const },
-  { to: '/app/clients', label: 'Clients', icon: Users },
+  { to: '/app/clients', label: 'Clients', icon: Users, permissions: ['clients.read'] as const },
   { to: '/app/calendar', label: 'Calendar', icon: CalendarDays },
   { to: '/app/communications', label: 'Communications', icon: MessageSquare },
   { to: '/app/audit', label: 'Audit', icon: Shield }
@@ -42,7 +42,7 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           <AppButton type="button" variant="secondary" size="sm" onClick={onToggle} aria-label="Toggle sidebar">
             {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
           </AppButton>
-          {!collapsed ? <AppBadge variant="info">Sprint 3</AppBadge> : null}
+          {!collapsed ? <AppBadge variant="info">Sprint 4</AppBadge> : null}
         </div>
       </div>
 

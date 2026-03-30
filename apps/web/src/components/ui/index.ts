@@ -12,3 +12,5 @@ export * from '@/components/ui/empty-state/empty-state'
 
 export * from '@/components/ui/select/select'
 export * from '@/components/ui/selection-tile/selection-tile'
+
+export * from '@/components/ui/textarea/textarea'

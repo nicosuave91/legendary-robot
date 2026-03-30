@@ -20,9 +20,10 @@ export const routeMeta = {
     requiresOnboardingComplete: false
   },
   dashboard: {
-    title: 'Dashboard',
+    title: 'Homepage',
     requiresAuth: true,
     requiresOnboardingComplete: true,
+    permissions: ['dashboard.summary.read', 'dashboard.production.read'],
     navVisible: true
   },
   settingsProfile: {
@@ -57,6 +58,7 @@ export const routeMeta = {
     title: 'Clients',
     requiresAuth: true,
     requiresOnboardingComplete: true,
+    permissions: ['clients.read'],
     navVisible: true
   },
   calendar: {
