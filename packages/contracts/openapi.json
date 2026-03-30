@@ -1,0 +1,238 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "Snowball CRM API",
+        "version": "1.0.0",
+        "description": "Sprint 1 contract baseline for auth bootstrap."
+    },
+    "paths": {
+        "/api/v1/auth/sign-in": {
+            "post": {
+                "operationId": "postAuthSignIn",
+                "summary": "Authenticate and return auth bootstrap context",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SignInRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Authentication response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AuthContextEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/sign-out": {
+            "post": {
+                "operationId": "postAuthSignOut",
+                "summary": "Invalidate the current session",
+                "responses": {
+                    "200": {
+                        "description": "Sign out response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/me": {
+            "get": {
+                "operationId": "getAuthMe",
+                "summary": "Return current authenticated session context",
+                "responses": {
+                    "200": {
+                        "description": "Authenticated context",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AuthContextEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "SignInRequest": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "email",
+                    "password"
+                ]
+            },
+            "AuthContextEnvelope": {
+                "type": "object",
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/AuthContextResponse"
+                    },
+                    "meta": {
+                        "$ref": "#/components/schemas/ResponseMeta"
+                    }
+                },
+                "required": [
+                    "data",
+                    "meta"
+                ]
+            },
+            "ResponseMeta": {
+                "type": "object",
+                "properties": {
+                    "apiVersion": {
+                        "type": "string",
+                        "enum": [
+                            "v1"
+                        ]
+                    },
+                    "correlationId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "apiVersion",
+                    "correlationId"
+                ]
+            },
+            "AuthContextResponse": {
+                "type": "object",
+                "properties": {
+                    "isAuthenticated": {
+                        "type": "boolean"
+                    },
+                    "user": {
+                        "$ref": "#/components/schemas/UserSummary"
+                    },
+                    "tenant": {
+                        "$ref": "#/components/schemas/TenantSummary"
+                    },
+                    "roles": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "permissions": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "onboardingState": {
+                        "type": "string",
+                        "enum": [
+                            "not_applicable",
+                            "required",
+                            "in_progress",
+                            "completed"
+                        ]
+                    },
+                    "theme": {
+                        "$ref": "#/components/schemas/ThemeSummary"
+                    },
+                    "landingRoute": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "isAuthenticated",
+                    "user",
+                    "tenant",
+                    "roles",
+                    "permissions",
+                    "onboardingState",
+                    "theme",
+                    "landingRoute"
+                ]
+            },
+            "UserSummary": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "displayName": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "email",
+                    "displayName"
+                ]
+            },
+            "TenantSummary": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name"
+                ]
+            },
+            "ThemeSummary": {
+                "type": "object",
+                "properties": {
+                    "primary": {
+                        "type": "string"
+                    },
+                    "secondary": {
+                        "type": "string"
+                    },
+                    "tertiary": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "primary",
+                    "secondary",
+                    "tertiary"
+                ]
+            }
+        }
+    }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "snowball/crm-api",
+  "type": "project",
+  "require": {
+    "php": "^8.4",
+    "laravel/framework": "^12.0",
+    "laravel/sanctum": "^4.0"
+  },
+  "require-dev": {
+    "pestphp/pest": "^3.8",
+    "nunomaduro/larastan": "^3.7"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "app/"
+    }
+  },
+  "scripts": {
+    "contracts:publish": "php scripts/publish-openapi.php"
+  }
+}
