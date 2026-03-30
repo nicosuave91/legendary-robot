@@ -1,0 +1,126 @@
+import { Navigate } from 'react-router-dom'
+import type { RouteObject } from 'react-router-dom'
+import { ProtectedRoute, PublicOnlyRoute, RouteGate } from '@/routes/route-guards'
+import { AppShellLayout } from '@/layouts/app-shell-layout'
+import { AuthLayout } from '@/layouts/auth-layout'
+import { BlankLayout } from '@/layouts/blank-layout'
+import { SignInPage } from '@/features/identity-access/pages/sign-in-page'
+import { DashboardPage } from '@/features/identity-access/pages/dashboard-page'
+import { SettingsProfilePage } from '@/features/identity-access/pages/settings-profile-page'
+import { SettingsAccountsPage } from '@/features/identity-access/pages/settings-accounts-page'
+import { OnboardingPage } from '@/features/onboarding/pages/onboarding-page'
+import { PlaceholderPage } from '@/features/shared/pages/placeholder-page'
+import { routeMeta } from '@/routes/route-meta'
+
+export const routeConfig: RouteObject[] = [
+  {
+    path: '/',
+    element: <Navigate to="/app/dashboard" replace />
+  },
+  {
+    element: <PublicOnlyRoute />,
+    children: [
+      {
+        path: '/sign-in',
+        element: <AuthLayout />,
+        children: [
+          {
+            index: true,
+            handle: { meta: routeMeta.signIn },
+            element: <SignInPage />
+          }
+        ]
+      }
+    ]
+  },
+  {
+    element: <ProtectedRoute />,
+    children: [
+      {
+        path: '/onboarding',
+        element: <BlankLayout />,
+        children: [
+          {
+            index: true,
+            handle: { meta: routeMeta.onboarding },
+            element: (
+              <RouteGate meta={routeMeta.onboarding}>
+                <OnboardingPage />
+              </RouteGate>
+            )
+          }
+        ]
+      },
+      {
+        path: '/app',
+        element: <AppShellLayout />,
+        children: [
+          { index: true, element: <Navigate to="/app/dashboard" replace /> },
+          {
+            path: 'dashboard',
+            handle: { meta: routeMeta.dashboard },
+            element: (
+              <RouteGate meta={routeMeta.dashboard}>
+                <DashboardPage />
+              </RouteGate>
+            )
+          },
+          {
+            path: 'settings/profile',
+            handle: { meta: routeMeta.settingsProfile },
+            element: (
+              <RouteGate meta={routeMeta.settingsProfile}>
+                <SettingsProfilePage />
+              </RouteGate>
+            )
+          },
+          {
+            path: 'settings/accounts',
+            handle: { meta: routeMeta.settingsAccounts },
+            element: (
+              <RouteGate meta={routeMeta.settingsAccounts}>
+                <SettingsAccountsPage />
+              </RouteGate>
+            )
+          },
+          {
+            path: 'clients',
+            handle: { meta: routeMeta.clients },
+            element: (
+              <RouteGate meta={routeMeta.clients}>
+                <PlaceholderPage title="Clients" />
+              </RouteGate>
+            )
+          },
+          {
+            path: 'calendar',
+            handle: { meta: routeMeta.calendar },
+            element: (
+              <RouteGate meta={routeMeta.calendar}>
+                <PlaceholderPage title="Calendar & Tasks" />
+              </RouteGate>
+            )
+          },
+          {
+            path: 'communications',
+            handle: { meta: routeMeta.communications },
+            element: (
+              <RouteGate meta={routeMeta.communications}>
+                <PlaceholderPage title="Communications" />
+              </RouteGate>
+            )
+          },
+          {
+            path: 'audit',
+            handle: { meta: routeMeta.audit },
+            element: (
+              <RouteGate meta={routeMeta.audit}>
+                <PlaceholderPage title="Audit" />
+              </RouteGate>
+            )
+          }
+        ]
+      }
+    ]
+  }
+]
