@@ -1,10 +1,18 @@
 import { AppBadge } from '@/components/ui'
 
 type ClientStatusBadgeProps = {
-  status: 'lead' | 'active' | 'inactive'
+  status: 'lead' | 'qualified' | 'applied' | 'active' | 'inactive'
 }
 
 export function ClientStatusBadge({ status }: ClientStatusBadgeProps) {
-  const variant = status === 'active' ? 'success' : status === 'inactive' ? 'warning' : 'info'
-  return <AppBadge variant={variant}>{status}</AppBadge>
+  const variant =
+    status === 'active'
+      ? 'success'
+      : status === 'inactive'
+        ? 'warning'
+        : status === 'qualified' || status === 'applied'
+          ? 'info'
+          : 'neutral'
+
+  return <AppBadge variant={variant}>{status.replaceAll('_', ' ')}</AppBadge>
 }

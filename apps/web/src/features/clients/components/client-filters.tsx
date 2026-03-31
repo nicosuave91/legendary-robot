@@ -26,6 +26,8 @@ export function ClientFilters({ defaultSearch, defaultStatus, onApply, onReset }
           <AppSelect value={status} onChange={(event) => setStatus(event.currentTarget.value)}>
             <option value="">All statuses</option>
             <option value="lead">Lead</option>
+            <option value="qualified">Qualified</option>
+            <option value="applied">Applied</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </AppSelect>

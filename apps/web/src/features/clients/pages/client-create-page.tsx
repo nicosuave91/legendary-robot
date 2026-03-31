@@ -17,7 +17,6 @@ const clientSchema = z.object({
   primaryPhone: z.string().optional().or(z.literal('')),
   preferredContactChannel: z.enum(['email', 'sms', 'phone']).optional(),
   dateOfBirth: z.string().optional().or(z.literal('')),
-  status: z.enum(['lead', 'active', 'inactive']),
   addressLine1: z.string().optional().or(z.literal('')),
   addressLine2: z.string().optional().or(z.literal('')),
   city: z.string().optional().or(z.literal('')),
@@ -34,7 +33,6 @@ export function ClientCreatePage() {
   const form = useForm<ClientValues>({
     resolver: zodResolver(clientSchema),
     defaultValues: {
-      status: 'lead',
       preferredContactChannel: 'email'
     }
   })
@@ -56,13 +54,13 @@ export function ClientCreatePage() {
     <div className="space-y-6">
       <PageHeader
         title="Create client"
-        description="Create a tenant-scoped client master record through the generated Sprint 4 API client, not handwritten fetch logic."
+        description="Create a tenant-scoped client master record through the generated API client. Lifecycle starts under server-owned disposition governance."
       />
 
       <AppCard>
         <AppCardHeader>
           <div className="heading-md">Client profile</div>
-          <div className="body-sm text-text-muted">This baseline captures the fields required for list views, workspace summary, and operational homepage metrics.</div>
+          <div className="body-sm text-text-muted">Lifecycle state is no longer entered here. Sprint 7 transitions happen through the disposition engine after creation.</div>
         </AppCardHeader>
         <AppCardBody>
           <form
@@ -102,14 +100,6 @@ export function ClientCreatePage() {
                 <option value="email">Email</option>
                 <option value="sms">SMS</option>
                 <option value="phone">Phone</option>
-              </AppSelect>
-            </div>
-            <div className="space-y-2">
-              <label className="label-sm text-text" htmlFor="status">Status</label>
-              <AppSelect id="status" {...form.register('status')}>
-                <option value="lead">Lead</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
               </AppSelect>
             </div>
             <div className="space-y-2">

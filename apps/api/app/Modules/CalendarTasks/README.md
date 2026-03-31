@@ -1,3 +1,3 @@
 # CalendarTasks
 
-Sprint 1 placeholder module. The directory exists now to lock module boundaries before feature development begins.
+Sprint 11 implementation module for governed calendar, event, and task workflows.

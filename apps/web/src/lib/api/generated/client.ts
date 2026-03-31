@@ -314,7 +314,7 @@ export type ClientDetail = {
   "firstName": string | null;
   "lastName": string | null;
   "companyName": string | null;
-  "status": "lead" | "active" | "inactive";
+  "status": "lead" | "qualified" | "applied" | "active" | "inactive";
   "primaryEmail": string | null;
   "primaryPhone": string | null;
   "preferredContactChannel": "email" | "sms" | "phone" | null | null;
@@ -334,7 +334,7 @@ export type ClientEnvelope = {
 export type ClientListItem = {
   "id": string;
   "displayName": string;
-  "status": "lead" | "active" | "inactive";
+  "status": "lead" | "qualified" | "applied" | "active" | "inactive";
   "primaryEmail": string | null;
   "primaryPhone": string | null;
   "city": string | null;
@@ -342,8 +342,9 @@ export type ClientListItem = {
   "ownerDisplayName": string | null;
   "notesCount": number;
   "documentsCount": number;
-  "updatedAt": string | null;
+  "lastActivityAt": string | null;
   "createdAt": string | null;
+  "updatedAt": string | null;
 };
 
 export type ClientListPagination = {
@@ -417,6 +418,9 @@ export type ClientWorkspaceSummary = {
 
 export type ClientWorkspaceResponse = {
   "client": ClientDetail;
+  "currentDisposition": DispositionProjection;
+  "availableDispositionTransitions": (DispositionTransitionOption)[];
+  "dispositionHistory": (DispositionHistoryItem)[];
   "summary": ClientWorkspaceSummary;
   "recentNotes": (ClientNoteSummary)[];
   "recentDocuments": (ClientDocumentSummary)[];
@@ -463,6 +467,948 @@ export type ClientNoteEnvelope = {
 
 export type ClientDocumentEnvelope = {
   "data": ClientDocumentSummary;
+  "meta": ResponseMeta;
+};
+
+export type SendSmsRequest = {
+  "body"?: string | null;
+  "toPhone"?: string | null;
+  "idempotencyKey"?: string | null;
+  "retryOfMessageId"?: string | null;
+  "attachments"?: (File)[];
+};
+
+export type SendEmailRequest = {
+  "to": (string)[];
+  "cc"?: (string)[];
+  "bcc"?: (string)[];
+  "subject": string;
+  "bodyText"?: string | null;
+  "bodyHtml"?: string | null;
+  "idempotencyKey"?: string | null;
+  "retryOfMessageId"?: string | null;
+  "attachments"?: (File)[];
+};
+
+export type StartCallRequest = {
+  "toPhone"?: string | null;
+  "purposeNote"?: string | null;
+  "idempotencyKey"?: string | null;
+  "retryOfCallLogId"?: string | null;
+};
+
+export type CommunicationAttachmentSummary = {
+  "id": string;
+  "originalFilename": string;
+  "mimeType": string;
+  "sizeBytes": number;
+  "provenance": string;
+  "storageReference": string;
+  "scanStatus": string;
+};
+
+export type DeliveryStatusProjection = {
+  "lifecycle": string;
+  "providerStatus": string | null;
+  "displayLabel": string;
+  "tone": "neutral" | "success" | "warning" | "danger";
+  "isTerminal": boolean;
+  "updatedAt": string | null;
+  "reasonCode": string | null;
+  "reasonMessage": string | null;
+  "source": "internal" | "provider_submit" | "provider_callback";
+};
+
+export type CommunicationTimelineCounterpart = {
+  "name": string | null;
+  "address": string | null;
+};
+
+export type CommunicationTimelineContent = {
+  "subject": string | null;
+  "bodyText": string | null;
+  "preview": string | null;
+};
+
+export type CommunicationTimelineEvidence = {
+  "source": "internal" | "provider_submit" | "provider_callback";
+  "lastEventAt": string | null;
+  "lastEventType": string | null;
+  "eventCount": number;
+};
+
+export type CommunicationTimelineCall = {
+  "durationSeconds": number | null;
+};
+
+export type CommunicationTimelineActions = {
+  "canRetry": boolean;
+};
+
+export type CommunicationTimelineItem = {
+  "id": string;
+  "kind": "message" | "call" | "system_event";
+  "channel": "sms" | "mms" | "email" | "voice";
+  "direction": "inbound" | "outbound" | "system";
+  "occurredAt": string | null;
+  "counterpart": CommunicationTimelineCounterpart;
+  "content": CommunicationTimelineContent;
+  "attachments": (CommunicationAttachmentSummary)[];
+  "status": DeliveryStatusProjection;
+  "evidence": CommunicationTimelineEvidence;
+  "call": CommunicationTimelineCall | unknown;
+  "actions": CommunicationTimelineActions;
+};
+
+export type ClientCommunicationsResponse = {
+  "clientId": string;
+  "items": (CommunicationTimelineItem)[];
+  "paging": {
+  "nextCursor": string | null;
+  "hasMore": boolean;
+};
+  "filters": {
+  "channel": string;
+  "status": string;
+};
+  "refresh": {
+  "hasPendingRecentItems": boolean;
+  "recommendedPollSeconds": number | null;
+};
+};
+
+export type ClientCommunicationsEnvelope = {
+  "data": ClientCommunicationsResponse;
+  "meta": ResponseMeta;
+};
+
+export type CommunicationTimelineItemEnvelope = {
+  "data": CommunicationTimelineItem;
+  "meta": ResponseMeta;
+};
+
+export type DispositionProjection = {
+  "code": string;
+  "label": string;
+  "tone": "neutral" | "success" | "warning" | "danger" | "info";
+  "isTerminal": boolean;
+  "changedAt": string | null;
+  "changedByDisplayName": string | null;
+};
+
+export type DispositionTransitionOption = {
+  "code": string;
+  "label": string;
+  "tone": "neutral" | "success" | "warning" | "danger" | "info";
+};
+
+export type DispositionHistoryItem = {
+  "id": string;
+  "fromDispositionCode": string | null;
+  "toDispositionCode": string;
+  "reason": string | null;
+  "occurredAt": string | null;
+  "actorDisplayName": string | null;
+};
+
+export type TransitionIssue = {
+  "code": string;
+  "message": string;
+  "severity": "warning" | "blocking";
+};
+
+export type DispositionTransitionRequest = {
+  "targetDispositionCode": string;
+  "reason"?: string | null;
+  "acknowledgeWarnings"?: boolean;
+};
+
+export type DispositionTransitionResponse = {
+  "result": "transitioned" | "blocked" | "warning_confirmation_required";
+  "currentDisposition": DispositionProjection;
+  "availableTransitions": (DispositionTransitionOption)[];
+  "warnings": (TransitionIssue)[];
+  "blockingIssues": (TransitionIssue)[];
+  "historyEntry": DispositionHistoryItem | unknown;
+};
+
+export type DispositionTransitionEnvelope = {
+  "data": DispositionTransitionResponse;
+  "meta": ResponseMeta;
+};
+
+export type CreateClientRequest = {
+  "displayName": string;
+  "firstName"?: string | null;
+  "lastName"?: string | null;
+  "companyName"?: string | null;
+  "primaryEmail"?: string | null;
+  "primaryPhone"?: string | null;
+  "preferredContactChannel"?: "email" | "sms" | "phone" | null | null;
+  "dateOfBirth"?: string | null;
+  "ownerUserId"?: string | null;
+  "addressLine1"?: string | null;
+  "addressLine2"?: string | null;
+  "city"?: string | null;
+  "stateCode"?: string | null;
+  "postalCode"?: string | null;
+};
+
+export type UpdateClientRequest = {
+  "displayName": string;
+  "firstName"?: string | null;
+  "lastName"?: string | null;
+  "companyName"?: string | null;
+  "primaryEmail"?: string | null;
+  "primaryPhone"?: string | null;
+  "preferredContactChannel"?: "email" | "sms" | "phone" | null | null;
+  "dateOfBirth"?: string | null;
+  "ownerUserId"?: string | null;
+  "addressLine1"?: string | null;
+  "addressLine2"?: string | null;
+  "city"?: string | null;
+  "stateCode"?: string | null;
+  "postalCode"?: string | null;
+};
+
+export type ApplicationStatusTransitionOption = {
+  "code": string;
+  "label": string;
+  "tone": "neutral" | "success" | "warning" | "danger" | "info";
+};
+
+export type ApplicationStatusSummary = {
+  "code": string;
+  "label": string;
+  "tone": "neutral" | "success" | "warning" | "danger" | "info";
+  "changedAt": string | null;
+};
+
+export type ApplicationRuleSummary = {
+  "infoCount": number;
+  "warningCount": number;
+  "blockingCount": number;
+  "lastAppliedAt": string | null;
+};
+
+export type ApplicationSummary = {
+  "id": string;
+  "applicationNumber": string;
+  "productType": string;
+  "ownerDisplayName": string | null;
+  "currentStatus": ApplicationStatusSummary;
+  "ruleSummary": ApplicationRuleSummary;
+  "createdAt": string | null;
+  "updatedAt": string | null;
+};
+
+export type ClientApplicationsListResponse = {
+  "items": (ApplicationSummary)[];
+  "meta": {
+  "total": number;
+};
+};
+
+export type ClientApplicationsListEnvelope = {
+  "data": ClientApplicationsListResponse;
+  "meta": ResponseMeta;
+};
+
+export type ApplicationStatusHistoryItem = {
+  "id": string;
+  "fromStatus": string | null;
+  "toStatus": string;
+  "reason": string | null;
+  "occurredAt": string | null;
+  "actorDisplayName": string | null;
+};
+
+export type ApplicationRuleNote = {
+  "id": string;
+  "ruleKey": string;
+  "ruleVersion": string;
+  "outcome": "info" | "warning" | "blocking";
+  "title": string;
+  "body": string;
+  "appliedAt": string | null;
+  "isViewOnly": boolean;
+};
+
+export type ApplicationDetailApplication = {
+  "id": string;
+  "applicationNumber": string;
+  "productType": string;
+  "ownerDisplayName": string | null;
+  "currentStatus": ApplicationStatusSummary;
+  "ruleSummary": ApplicationRuleSummary;
+  "createdAt": string | null;
+  "updatedAt": string | null;
+  "externalReference": string | null;
+  "amountRequested": string | null;
+  "submittedAt": string | null;
+  "availableStatusTransitions": (ApplicationStatusTransitionOption)[];
+};
+
+export type ApplicationDetailResponse = {
+  "application": ApplicationDetailApplication;
+  "statusHistory": (ApplicationStatusHistoryItem)[];
+  "ruleNotes": (ApplicationRuleNote)[];
+};
+
+export type ApplicationDetailEnvelope = {
+  "data": ApplicationDetailResponse;
+  "meta": ResponseMeta;
+};
+
+export type CreateApplicationRequest = {
+  "productType": string;
+  "ownerUserId"?: string | null;
+  "externalReference"?: string | null;
+  "amountRequested"?: number | null;
+  "submittedAt"?: string | null;
+  "metadata"?: {
+
+} | null;
+};
+
+export type TransitionApplicationStatusRequest = {
+  "targetStatus": "draft" | "submitted" | "in_review" | "approved" | "declined" | "withdrawn";
+  "submittedAt"?: string | null;
+  "reason"?: string | null;
+};
+
+export type ApplicationTransitionResponse = {
+  "result": "transitioned" | "blocked";
+  "blockingIssues": (TransitionIssue)[];
+  "warnings": (TransitionIssue)[];
+  "application": ApplicationDetailResponse;
+};
+
+export type ApplicationTransitionEnvelope = {
+  "data": ApplicationTransitionResponse;
+  "meta": ResponseMeta;
+};
+
+export type PublishLifecycleRequest = {
+  "publishNotes"?: string | null;
+};
+
+export type RuleListItem = {
+  "id": string;
+  "ruleKey": string;
+  "name": string;
+  "description": string | null;
+  "moduleScope": string;
+  "subjectType": string;
+  "status": string;
+  "latestPublishedVersionNumber": number | null;
+  "currentDraftVersionNumber": number | null;
+  "latestPublishedAt": string | null;
+  "updatedAt": string | null;
+};
+
+export type RuleVersionDto = {
+  "id": string;
+  "versionNumber": number;
+  "lifecycleState": string;
+  "triggerEvent": string;
+  "severity": string;
+  "conditionDefinition": {
+
+};
+  "actionDefinition": {
+
+};
+  "executionLabel": string | null;
+  "noteTemplate": string | null;
+  "checksum": string;
+  "publishedAt": string | null;
+  "publishedBy": string | null;
+  "createdAt": string | null;
+  "updatedAt": string | null;
+};
+
+export type RuleExecutionLogDto = {
+  "id": string;
+  "ruleId": string;
+  "ruleVersionId": string;
+  "subjectType": string;
+  "subjectId": string;
+  "triggerEvent": string;
+  "executionSource": string;
+  "outcome": string;
+  "correlationId": string | null;
+  "actorUserId": string | null;
+  "contextSnapshot": {
+
+};
+  "outcomeSummary": {
+
+};
+  "executedAt": string | null;
+};
+
+export type RuleDetailResponse = {
+  "rule": RuleListItem;
+  "versions": (RuleVersionDto)[];
+  "executionLogs": (RuleExecutionLogDto)[];
+};
+
+export type RuleListResponse = {
+  "items": (RuleListItem)[];
+  "meta": {
+  "total": number;
+};
+};
+
+export type RuleExecutionLogResponse = {
+  "items": (RuleExecutionLogDto)[];
+  "meta": {
+  "total": number;
+};
+};
+
+export type CreateRuleRequest = {
+  "ruleKey": string;
+  "name": string;
+  "description"?: string | null;
+  "moduleScope": string;
+  "subjectType": string;
+  "triggerEvent": string;
+  "severity": string;
+  "industryScope"?: {
+
+} | null;
+  "conditionDefinition": {
+
+};
+  "actionDefinition": {
+
+};
+  "executionLabel"?: string | null;
+  "noteTemplate"?: string | null;
+};
+
+export type UpdateRuleDraftRequest = {
+  "name"?: string;
+  "description"?: string | null;
+  "moduleScope"?: string;
+  "subjectType"?: string;
+  "triggerEvent"?: string;
+  "severity"?: string;
+  "industryScope"?: {
+
+} | null;
+  "conditionDefinition"?: {
+
+};
+  "actionDefinition"?: {
+
+};
+  "executionLabel"?: string | null;
+  "noteTemplate"?: string | null;
+};
+
+export type WorkflowListItem = {
+  "id": string;
+  "workflowKey": string;
+  "name": string;
+  "description": string | null;
+  "status": string;
+  "triggerSummary": string;
+  "latestPublishedVersionNumber": number | null;
+  "currentDraftVersionNumber": number | null;
+  "latestPublishedAt": string | null;
+  "updatedAt": string | null;
+};
+
+export type WorkflowVersionDto = {
+  "id": string;
+  "versionNumber": number;
+  "lifecycleState": string;
+  "triggerDefinition": {
+
+};
+  "stepsDefinition": ({
+
+})[];
+  "checksum": string;
+  "publishedAt": string | null;
+  "publishedBy": string | null;
+  "createdAt": string | null;
+  "updatedAt": string | null;
+};
+
+export type WorkflowRunDto = {
+  "id": string;
+  "workflowId": string;
+  "workflowVersionId": string;
+  "triggerEvent": string;
+  "subjectType": string;
+  "subjectId": string;
+  "status": string;
+  "currentStepIndex": number | null;
+  "correlationId": string | null;
+  "queuedAt": string | null;
+  "startedAt": string | null;
+  "completedAt": string | null;
+  "failedAt": string | null;
+  "failureSummary": {
+
+};
+};
+
+export type WorkflowRunLogDto = {
+  "id": string;
+  "workflowRunId": string;
+  "workflowVersionId": string;
+  "stepIndex": number | null;
+  "logType": string;
+  "message": string;
+  "payloadSnapshot": {
+
+};
+  "occurredAt": string | null;
+};
+
+export type WorkflowDetailResponse = {
+  "workflow": WorkflowListItem;
+  "versions": (WorkflowVersionDto)[];
+  "meta": {
+
+};
+};
+
+export type WorkflowRunDetailResponse = {
+  "run": WorkflowRunDto;
+  "logs": (WorkflowRunLogDto)[];
+};
+
+export type WorkflowListResponse = {
+  "items": (WorkflowListItem)[];
+  "meta": {
+  "total": number;
+};
+};
+
+export type WorkflowRunListResponse = {
+  "items": (WorkflowRunDto)[];
+  "meta": {
+  "total": number;
+};
+};
+
+export type CreateWorkflowRequest = {
+  "workflowKey": string;
+  "name": string;
+  "description"?: string | null;
+  "triggerDefinition": {
+
+};
+  "stepsDefinition": ({
+
+})[];
+};
+
+export type UpdateWorkflowDraftRequest = {
+  "name"?: string;
+  "description"?: string | null;
+  "triggerDefinition"?: {
+
+};
+  "stepsDefinition"?: ({
+
+})[];
+};
+
+export type RuleListEnvelope = {
+  "data": RuleListResponse;
+  "meta": ResponseMeta;
+};
+
+export type RuleDetailEnvelope = {
+  "data": RuleDetailResponse;
+  "meta": ResponseMeta;
+};
+
+export type RuleExecutionLogEnvelope = {
+  "data": RuleExecutionLogResponse;
+  "meta": ResponseMeta;
+};
+
+export type WorkflowListEnvelope = {
+  "data": WorkflowListResponse;
+  "meta": ResponseMeta;
+};
+
+export type WorkflowDetailEnvelope = {
+  "data": WorkflowDetailResponse;
+  "meta": ResponseMeta;
+};
+
+export type WorkflowRunListEnvelope = {
+  "data": WorkflowRunListResponse;
+  "meta": ResponseMeta;
+};
+
+export type WorkflowRunDetailEnvelope = {
+  "data": WorkflowRunDetailResponse;
+  "meta": ResponseMeta;
+};
+
+export type ImportListItem = {
+  "id": string;
+  "importType": string;
+  "fileFormat": string;
+  "originalFilename": string;
+  "status": string;
+  "rowCount": number;
+  "validRowCount": number;
+  "invalidRowCount": number;
+  "committedRowCount": number;
+  "uploadedByUserId": string | null;
+  "validatedByUserId": string | null;
+  "committedByUserId": string | null;
+  "parserVersion": string | null;
+  "canValidate": boolean;
+  "canCommit": boolean;
+  "uploadedAt": string | null;
+  "validatedAt": string | null;
+  "committedAt": string | null;
+};
+
+export type ImportPreviewRow = {
+  "id": string;
+  "rowNumber": number;
+  "rowStatus": string;
+  "normalizedPayload": {
+
+};
+  "targetSubjectType": string | null;
+  "targetSubjectId": string | null;
+};
+
+export type ImportErrorItem = {
+  "id": string;
+  "rowNumber": number;
+  "fieldName": string | null;
+  "errorCode": string;
+  "severity": string;
+  "message": string;
+  "contextSnapshot": {
+
+};
+};
+
+export type ImportDetailSummary = {
+  "blockingErrorCount": number;
+  "warningCount": number;
+  "createdTargetCount": number;
+};
+
+export type ImportDetailResponse = {
+  "import": unknown;
+};
+
+export type ImportListResponse = {
+  "items": (ImportListItem)[];
+  "meta": {
+  "total": number;
+};
+};
+
+export type ImportErrorResponse = {
+  "items": (ImportErrorItem)[];
+  "meta": {
+  "total": number;
+};
+};
+
+export type CreateImportRequest = {
+  "importType": string;
+  "file": File;
+};
+
+export type NotificationListItem = {
+  "id": string;
+  "category": string;
+  "notificationType": string;
+  "title": string;
+  "body": string | null;
+  "tone": string;
+  "actionUrl": string | null;
+  "sourceEventType": string;
+  "sourceEventId": string | null;
+  "isRead": boolean;
+  "readAt": string | null;
+  "isDismissed": boolean;
+  "dismissedAt": string | null;
+  "emittedAt": string | null;
+  "payloadSnapshot": {
+
+};
+};
+
+export type NotificationListResponse = {
+  "items": (NotificationListItem)[];
+  "meta": {
+  "total": number;
+  "unread": number;
+};
+};
+
+export type DismissNotificationRequest = {
+  "surface"?: string | null;
+};
+
+export type NotificationDismissResponse = {
+  "notificationId": string;
+  "dismissed": boolean;
+  "dismissedAt": string | null;
+  "surface": string;
+};
+
+export type NotificationReadResponse = {
+  "notificationId": string;
+  "read": boolean;
+  "readAt": string | null;
+};
+
+export type AuditListItem = {
+  "id": number;
+  "action": string;
+  "subjectType": string;
+  "subjectId": string | null;
+  "actorId": string | null;
+  "actorDisplayName": string | null;
+  "correlationId": string | null;
+  "beforeSummary": {
+
+};
+  "afterSummary": {
+
+};
+  "occurredAt": string | null;
+};
+
+export type AuditListResponse = {
+  "items": (AuditListItem)[];
+  "meta": {
+  "total": number;
+  "page": number;
+  "perPage": number;
+};
+};
+
+export type ImportListEnvelope = {
+  "data": ImportListResponse;
+  "meta": ResponseMeta;
+};
+
+export type ImportDetailEnvelope = {
+  "data": ImportDetailResponse;
+  "meta": ResponseMeta;
+};
+
+export type ImportErrorEnvelope = {
+  "data": ImportErrorResponse;
+  "meta": ResponseMeta;
+};
+
+export type NotificationListEnvelope = {
+  "data": NotificationListResponse;
+  "meta": ResponseMeta;
+};
+
+export type NotificationDismissEnvelope = {
+  "data": NotificationDismissResponse;
+  "meta": ResponseMeta;
+};
+
+export type NotificationReadEnvelope = {
+  "data": NotificationReadResponse;
+  "meta": ResponseMeta;
+};
+
+export type AuditListEnvelope = {
+  "data": AuditListResponse;
+  "meta": ResponseMeta;
+};
+
+export type CalendarSummaryCounts = {
+  "eventCount": number;
+  "openTaskCount": number;
+  "completedTaskCount": number;
+  "blockedTaskCount": number;
+  "skippedTaskCount": number;
+};
+
+export type CalendarLinkedRecordSummary = {
+  "id": string;
+  "displayName": string;
+};
+
+export type EventTaskSummary = {
+  "total": number;
+  "open": number;
+  "completed": number;
+  "blocked": number;
+  "skipped": number;
+};
+
+export type CalendarEventSummary = {
+  "id": string;
+  "title": string;
+  "description": string | null;
+  "eventType": "appointment" | "follow_up" | "document_review" | "call" | "deadline" | "task_batch";
+  "status": "scheduled" | "completed" | "cancelled";
+  "startsAt": string | null;
+  "endsAt": string | null;
+  "isAllDay": boolean;
+  "location": string | null;
+  "client": CalendarLinkedRecordSummary | null;
+  "owner": CalendarLinkedRecordSummary | null;
+  "taskSummary": EventTaskSummary;
+};
+
+export type EventTaskHistoryItem = {
+  "id": string;
+  "fromStatus": string | null;
+  "toStatus": "open" | "completed" | "skipped" | "blocked";
+  "reason": string | null;
+  "occurredAt": string | null;
+  "actorDisplayName": string;
+};
+
+export type EventTaskDetail = {
+  "id": string;
+  "title": string;
+  "description": string | null;
+  "status": "open" | "completed" | "skipped" | "blocked";
+  "isRequired": boolean;
+  "sortOrder": number;
+  "dueAt": string | null;
+  "completedAt": string | null;
+  "blockedReason": string | null;
+  "assignedUser": CalendarLinkedRecordSummary | null;
+  "availableActions": (string)[];
+  "history": (EventTaskHistoryItem)[];
+};
+
+export type CalendarDayResponse = {
+  "selectedDate": string;
+  "isToday": boolean;
+  "summary": CalendarSummaryCounts;
+  "events": (CalendarEventSummary)[];
+};
+
+export type CalendarDayEnvelope = {
+  "data": CalendarDayResponse;
+  "meta": ResponseMeta;
+};
+
+export type EventListResponse = {
+  "items": (CalendarEventSummary)[];
+  "range": {
+  "startDate": string;
+  "endDate": string;
+};
+};
+
+export type EventListEnvelope = {
+  "data": EventListResponse;
+  "meta": ResponseMeta;
+};
+
+export type EventDetailResponse = {
+  "id": string;
+  "title": string;
+  "description": string | null;
+  "eventType": "appointment" | "follow_up" | "document_review" | "call" | "deadline" | "task_batch";
+  "status": "scheduled" | "completed" | "cancelled";
+  "startsAt": string | null;
+  "endsAt": string | null;
+  "isAllDay": boolean;
+  "location": string | null;
+  "client": CalendarLinkedRecordSummary | null;
+  "owner": CalendarLinkedRecordSummary | null;
+  "taskSummary": EventTaskSummary;
+  "tasks": (EventTaskDetail)[];
+};
+
+export type EventDetailEnvelope = {
+  "data": EventDetailResponse;
+  "meta": ResponseMeta;
+};
+
+export type CreateEventTaskRequest = {
+  "title": string;
+  "description"?: string;
+  "assignedUserId"?: string;
+  "isRequired"?: boolean;
+  "sortOrder"?: number;
+  "dueAt"?: string;
+  "metadata"?: {
+
+};
+};
+
+export type CreateEventRequest = {
+  "title": string;
+  "description"?: string;
+  "eventType": "appointment" | "follow_up" | "document_review" | "call" | "deadline" | "task_batch";
+  "status"?: "scheduled" | "completed" | "cancelled";
+  "startsAt": string;
+  "endsAt"?: string;
+  "isAllDay"?: boolean;
+  "location"?: string;
+  "clientId"?: string;
+  "ownerUserId"?: string;
+  "metadata"?: {
+
+};
+  "tasks"?: (CreateEventTaskRequest)[];
+};
+
+export type UpdateEventRequest = {
+  "title"?: string;
+  "description"?: string;
+  "eventType"?: "appointment" | "follow_up" | "document_review" | "call" | "deadline" | "task_batch";
+  "status"?: "scheduled" | "completed" | "cancelled";
+  "startsAt"?: string;
+  "endsAt"?: string;
+  "isAllDay"?: boolean;
+  "location"?: string;
+  "clientId"?: string;
+  "ownerUserId"?: string;
+  "metadata"?: {
+
+};
+};
+
+export type UpdateTaskStatusRequest = {
+  "targetStatus": "open" | "completed" | "skipped" | "blocked";
+  "reason"?: string;
+  "blockedReason"?: string;
+};
+
+export type TaskStatusTransitionResponse = {
+  "result": string;
+  "mutatedTaskId": string;
+  "event": EventDetailResponse;
+};
+
+export type TaskStatusTransitionEnvelope = {
+  "data": TaskStatusTransitionResponse;
+  "meta": ResponseMeta;
+};
+
+export type ClientEventListResponse = {
+  "items": (CalendarEventSummary)[];
+};
+
+export type ClientEventListEnvelope = {
+  "data": ClientEventListResponse;
   "meta": ResponseMeta;
 };
 
@@ -646,7 +1592,7 @@ export async function getDashboardProduction(client: ApiHttpClient, queryParams?
 
 export async function getClients(client: ApiHttpClient, queryParams?: {
   "search"?: string;
-  "status"?: "lead" | "active" | "inactive";
+  "status"?: "lead" | "qualified" | "applied" | "active" | "inactive";
   "sort"?: "display_name" | "created_at" | "updated_at" | "last_activity_at";
   "direction"?: "asc" | "desc";
   "page"?: number;
@@ -660,7 +1606,7 @@ export async function getClients(client: ApiHttpClient, queryParams?: {
 }
 
 
-export async function postClients(client: ApiHttpClient, body: CreateOrUpdateClientRequest): Promise<ClientEnvelope> {
+export async function postClients(client: ApiHttpClient, body: CreateClientRequest): Promise<ClientEnvelope> {
   return client.request<ClientEnvelope>({
     method: "POST",
     path: "/api/v1/clients",
@@ -683,7 +1629,7 @@ export async function getClient(client: ApiHttpClient, pathParams: {
 
 export async function patchClient(client: ApiHttpClient, pathParams: {
   "clientId": string;
-}, body: CreateOrUpdateClientRequest): Promise<ClientEnvelope> {
+}, body: UpdateClientRequest): Promise<ClientEnvelope> {
   return client.request<ClientEnvelope>({
     method: "PATCH",
     path: "/api/v1/clients/{clientId}",
@@ -716,6 +1662,516 @@ export async function postClientDocuments(client: ApiHttpClient, pathParams: {
     pathParams,
     body,
     contentType: "multipart/form-data"
+  });
+}
+
+
+export async function getClientCommunications(client: ApiHttpClient, pathParams: {
+  "clientId": string;
+}, queryParams?: {
+  "channel"?: "all" | "sms" | "email" | "voice";
+  "status"?: "all" | "pending" | "failed";
+  "limit"?: number;
+}): Promise<ClientCommunicationsEnvelope> {
+  return client.request<ClientCommunicationsEnvelope>({
+    method: "GET",
+    path: "/api/v1/clients/{clientId}/communications",
+    pathParams,
+    queryParams
+  });
+}
+
+
+export async function postClientCommunicationsSms(client: ApiHttpClient, pathParams: {
+  "clientId": string;
+}, body: FormData): Promise<CommunicationTimelineItemEnvelope> {
+  return client.request<CommunicationTimelineItemEnvelope>({
+    method: "POST",
+    path: "/api/v1/clients/{clientId}/communications/sms",
+    pathParams,
+    body,
+    contentType: "multipart/form-data"
+  });
+}
+
+
+export async function postClientCommunicationsEmail(client: ApiHttpClient, pathParams: {
+  "clientId": string;
+}, body: FormData): Promise<CommunicationTimelineItemEnvelope> {
+  return client.request<CommunicationTimelineItemEnvelope>({
+    method: "POST",
+    path: "/api/v1/clients/{clientId}/communications/email",
+    pathParams,
+    body,
+    contentType: "multipart/form-data"
+  });
+}
+
+
+export async function postClientCommunicationsCall(client: ApiHttpClient, pathParams: {
+  "clientId": string;
+}, body: StartCallRequest): Promise<CommunicationTimelineItemEnvelope> {
+  return client.request<CommunicationTimelineItemEnvelope>({
+    method: "POST",
+    path: "/api/v1/clients/{clientId}/communications/call",
+    pathParams,
+    body,
+    contentType: "application/json"
+  });
+}
+
+
+export async function postWebhookTwilioMessaging(client: ApiHttpClient): Promise<void> {
+  return client.request<void>({
+    method: "POST",
+    path: "/webhooks/twilio/messaging"
+  });
+}
+
+
+export async function postWebhookTwilioVoice(client: ApiHttpClient): Promise<void> {
+  return client.request<void>({
+    method: "POST",
+    path: "/webhooks/twilio/voice"
+  });
+}
+
+
+export async function postWebhookSendgridInbound(client: ApiHttpClient): Promise<void> {
+  return client.request<void>({
+    method: "POST",
+    path: "/webhooks/sendgrid/inbound"
+  });
+}
+
+
+export async function postWebhookSendgridEvents(client: ApiHttpClient): Promise<void> {
+  return client.request<void>({
+    method: "POST",
+    path: "/webhooks/sendgrid/events"
+  });
+}
+
+
+export async function postClientDispositionTransitions(client: ApiHttpClient, pathParams: {
+  "clientId": string;
+}, body: DispositionTransitionRequest): Promise<DispositionTransitionEnvelope> {
+  return client.request<DispositionTransitionEnvelope>({
+    method: "POST",
+    path: "/api/v1/clients/{clientId}/disposition-transitions",
+    pathParams,
+    body,
+    contentType: "application/json"
+  });
+}
+
+
+export async function getClientApplications(client: ApiHttpClient, pathParams: {
+  "clientId": string;
+}): Promise<ClientApplicationsListEnvelope> {
+  return client.request<ClientApplicationsListEnvelope>({
+    method: "GET",
+    path: "/api/v1/clients/{clientId}/applications",
+    pathParams
+  });
+}
+
+
+export async function postClientApplications(client: ApiHttpClient, pathParams: {
+  "clientId": string;
+}, body: CreateApplicationRequest): Promise<ApplicationDetailEnvelope> {
+  return client.request<ApplicationDetailEnvelope>({
+    method: "POST",
+    path: "/api/v1/clients/{clientId}/applications",
+    pathParams,
+    body,
+    contentType: "application/json"
+  });
+}
+
+
+export async function getClientApplication(client: ApiHttpClient, pathParams: {
+  "clientId": string;
+  "applicationId": string;
+}): Promise<ApplicationDetailEnvelope> {
+  return client.request<ApplicationDetailEnvelope>({
+    method: "GET",
+    path: "/api/v1/clients/{clientId}/applications/{applicationId}",
+    pathParams
+  });
+}
+
+
+export async function postClientApplicationStatusTransitions(client: ApiHttpClient, pathParams: {
+  "clientId": string;
+  "applicationId": string;
+}, body: TransitionApplicationStatusRequest): Promise<ApplicationTransitionEnvelope> {
+  return client.request<ApplicationTransitionEnvelope>({
+    method: "POST",
+    path: "/api/v1/clients/{clientId}/applications/{applicationId}/status-transitions",
+    pathParams,
+    body,
+    contentType: "application/json"
+  });
+}
+
+
+export async function getRules(client: ApiHttpClient, queryParams?: {
+  "moduleScope"?: string;
+  "status"?: string;
+}): Promise<RuleListEnvelope> {
+  return client.request<RuleListEnvelope>({
+    method: "GET",
+    path: "/api/v1/rules",
+    queryParams
+  });
+}
+
+
+export async function postRules(client: ApiHttpClient, body: CreateRuleRequest): Promise<RuleDetailEnvelope> {
+  return client.request<RuleDetailEnvelope>({
+    method: "POST",
+    path: "/api/v1/rules",
+    body,
+    contentType: "application/json"
+  });
+}
+
+
+export async function getRule(client: ApiHttpClient, pathParams: {
+  "ruleId": string;
+}): Promise<RuleDetailEnvelope> {
+  return client.request<RuleDetailEnvelope>({
+    method: "GET",
+    path: "/api/v1/rules/{ruleId}",
+    pathParams
+  });
+}
+
+
+export async function patchRule(client: ApiHttpClient, pathParams: {
+  "ruleId": string;
+}, body: UpdateRuleDraftRequest): Promise<RuleDetailEnvelope> {
+  return client.request<RuleDetailEnvelope>({
+    method: "PATCH",
+    path: "/api/v1/rules/{ruleId}",
+    pathParams,
+    body,
+    contentType: "application/json"
+  });
+}
+
+
+export async function postRulePublish(client: ApiHttpClient, pathParams: {
+  "ruleId": string;
+}, body: PublishLifecycleRequest): Promise<RuleDetailEnvelope> {
+  return client.request<RuleDetailEnvelope>({
+    method: "POST",
+    path: "/api/v1/rules/{ruleId}/publish",
+    pathParams,
+    body,
+    contentType: "application/json"
+  });
+}
+
+
+export async function getRuleExecutionLogs(client: ApiHttpClient, pathParams: {
+  "ruleId": string;
+}): Promise<RuleExecutionLogEnvelope> {
+  return client.request<RuleExecutionLogEnvelope>({
+    method: "GET",
+    path: "/api/v1/rules/{ruleId}/execution-logs",
+    pathParams
+  });
+}
+
+
+export async function getWorkflows(client: ApiHttpClient, queryParams?: {
+  "status"?: string;
+}): Promise<WorkflowListEnvelope> {
+  return client.request<WorkflowListEnvelope>({
+    method: "GET",
+    path: "/api/v1/workflows",
+    queryParams
+  });
+}
+
+
+export async function postWorkflows(client: ApiHttpClient, body: CreateWorkflowRequest): Promise<WorkflowDetailEnvelope> {
+  return client.request<WorkflowDetailEnvelope>({
+    method: "POST",
+    path: "/api/v1/workflows",
+    body,
+    contentType: "application/json"
+  });
+}
+
+
+export async function getWorkflow(client: ApiHttpClient, pathParams: {
+  "workflowId": string;
+}): Promise<WorkflowDetailEnvelope> {
+  return client.request<WorkflowDetailEnvelope>({
+    method: "GET",
+    path: "/api/v1/workflows/{workflowId}",
+    pathParams
+  });
+}
+
+
+export async function patchWorkflow(client: ApiHttpClient, pathParams: {
+  "workflowId": string;
+}, body: UpdateWorkflowDraftRequest): Promise<WorkflowDetailEnvelope> {
+  return client.request<WorkflowDetailEnvelope>({
+    method: "PATCH",
+    path: "/api/v1/workflows/{workflowId}",
+    pathParams,
+    body,
+    contentType: "application/json"
+  });
+}
+
+
+export async function postWorkflowPublish(client: ApiHttpClient, pathParams: {
+  "workflowId": string;
+}, body: PublishLifecycleRequest): Promise<WorkflowDetailEnvelope> {
+  return client.request<WorkflowDetailEnvelope>({
+    method: "POST",
+    path: "/api/v1/workflows/{workflowId}/publish",
+    pathParams,
+    body,
+    contentType: "application/json"
+  });
+}
+
+
+export async function getWorkflowRuns(client: ApiHttpClient, pathParams: {
+  "workflowId": string;
+}): Promise<WorkflowRunListEnvelope> {
+  return client.request<WorkflowRunListEnvelope>({
+    method: "GET",
+    path: "/api/v1/workflows/{workflowId}/runs",
+    pathParams
+  });
+}
+
+
+export async function getWorkflowRun(client: ApiHttpClient, pathParams: {
+  "workflowId": string;
+  "runId": string;
+}): Promise<WorkflowRunDetailEnvelope> {
+  return client.request<WorkflowRunDetailEnvelope>({
+    method: "GET",
+    path: "/api/v1/workflows/{workflowId}/runs/{runId}",
+    pathParams
+  });
+}
+
+
+export async function getImports(client: ApiHttpClient, queryParams?: {
+  "status"?: string;
+  "importType"?: string;
+}): Promise<ImportListEnvelope> {
+  return client.request<ImportListEnvelope>({
+    method: "GET",
+    path: "/api/v1/imports",
+    queryParams
+  });
+}
+
+
+export async function postImports(client: ApiHttpClient, body: FormData): Promise<ImportDetailEnvelope> {
+  return client.request<ImportDetailEnvelope>({
+    method: "POST",
+    path: "/api/v1/imports",
+    body,
+    contentType: "multipart/form-data"
+  });
+}
+
+
+export async function getImport(client: ApiHttpClient, pathParams: {
+  "importId": string;
+}): Promise<ImportDetailEnvelope> {
+  return client.request<ImportDetailEnvelope>({
+    method: "GET",
+    path: "/api/v1/imports/{importId}",
+    pathParams
+  });
+}
+
+
+export async function getImportErrors(client: ApiHttpClient, pathParams: {
+  "importId": string;
+}, queryParams?: {
+  "severity"?: string;
+}): Promise<ImportErrorEnvelope> {
+  return client.request<ImportErrorEnvelope>({
+    method: "GET",
+    path: "/api/v1/imports/{importId}/errors",
+    pathParams,
+    queryParams
+  });
+}
+
+
+export async function postImportValidate(client: ApiHttpClient, pathParams: {
+  "importId": string;
+}): Promise<ImportDetailEnvelope> {
+  return client.request<ImportDetailEnvelope>({
+    method: "POST",
+    path: "/api/v1/imports/{importId}/validate",
+    pathParams
+  });
+}
+
+
+export async function postImportCommit(client: ApiHttpClient, pathParams: {
+  "importId": string;
+}): Promise<ImportDetailEnvelope> {
+  return client.request<ImportDetailEnvelope>({
+    method: "POST",
+    path: "/api/v1/imports/{importId}/commit",
+    pathParams
+  });
+}
+
+
+export async function getNotifications(client: ApiHttpClient, queryParams?: {
+  "includeDismissed"?: boolean;
+}): Promise<NotificationListEnvelope> {
+  return client.request<NotificationListEnvelope>({
+    method: "GET",
+    path: "/api/v1/notifications",
+    queryParams
+  });
+}
+
+
+export async function postNotificationDismiss(client: ApiHttpClient, pathParams: {
+  "notificationId": string;
+}, body: DismissNotificationRequest): Promise<NotificationDismissEnvelope> {
+  return client.request<NotificationDismissEnvelope>({
+    method: "POST",
+    path: "/api/v1/notifications/{notificationId}/dismiss",
+    pathParams,
+    body,
+    contentType: "application/json"
+  });
+}
+
+
+export async function postNotificationRead(client: ApiHttpClient, pathParams: {
+  "notificationId": string;
+}): Promise<NotificationReadEnvelope> {
+  return client.request<NotificationReadEnvelope>({
+    method: "POST",
+    path: "/api/v1/notifications/{notificationId}/read",
+    pathParams
+  });
+}
+
+
+export async function getAudit(client: ApiHttpClient, queryParams?: {
+  "action"?: string;
+  "subjectType"?: string;
+  "subjectId"?: string;
+  "actorId"?: string;
+  "correlationId"?: string;
+  "q"?: string;
+  "from"?: string;
+  "to"?: string;
+}): Promise<AuditListEnvelope> {
+  return client.request<AuditListEnvelope>({
+    method: "GET",
+    path: "/api/v1/audit",
+    queryParams
+  });
+}
+
+
+export async function getCalendarDay(client: ApiHttpClient, queryParams: {
+  "date": string;
+}): Promise<CalendarDayEnvelope> {
+  return client.request<CalendarDayEnvelope>({
+    method: "GET",
+    path: "/api/v1/calendar/day",
+    queryParams
+  });
+}
+
+
+export async function getEvents(client: ApiHttpClient, queryParams: {
+  "startDate": string;
+  "endDate": string;
+  "clientId"?: string;
+  "ownerUserId"?: string;
+}): Promise<EventListEnvelope> {
+  return client.request<EventListEnvelope>({
+    method: "GET",
+    path: "/api/v1/events",
+    queryParams
+  });
+}
+
+
+export async function postEvents(client: ApiHttpClient, body: CreateEventRequest): Promise<EventDetailEnvelope> {
+  return client.request<EventDetailEnvelope>({
+    method: "POST",
+    path: "/api/v1/events",
+    body,
+    contentType: "application/json"
+  });
+}
+
+
+export async function getEvent(client: ApiHttpClient, pathParams: {
+  "eventId": string;
+}): Promise<EventDetailEnvelope> {
+  return client.request<EventDetailEnvelope>({
+    method: "GET",
+    path: "/api/v1/events/{eventId}",
+    pathParams
+  });
+}
+
+
+export async function patchEvent(client: ApiHttpClient, pathParams: {
+  "eventId": string;
+}, body: UpdateEventRequest): Promise<EventDetailEnvelope> {
+  return client.request<EventDetailEnvelope>({
+    method: "PATCH",
+    path: "/api/v1/events/{eventId}",
+    pathParams,
+    body,
+    contentType: "application/json"
+  });
+}
+
+
+export async function patchTaskStatus(client: ApiHttpClient, pathParams: {
+  "taskId": string;
+}, body: UpdateTaskStatusRequest): Promise<TaskStatusTransitionEnvelope> {
+  return client.request<TaskStatusTransitionEnvelope>({
+    method: "PATCH",
+    path: "/api/v1/tasks/{taskId}/status",
+    pathParams,
+    body,
+    contentType: "application/json"
+  });
+}
+
+
+export async function getClientEvents(client: ApiHttpClient, pathParams: {
+  "clientId": string;
+}, queryParams?: {
+  "startDate"?: string;
+  "endDate"?: string;
+}): Promise<ClientEventListEnvelope> {
+  return client.request<ClientEventListEnvelope>({
+    method: "GET",
+    path: "/api/v1/clients/{clientId}/events",
+    pathParams,
+    queryParams
   });
 }
 

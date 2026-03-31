@@ -9,19 +9,38 @@ import { queryKeys } from '@/lib/api/query-keys'
 import { useAuth } from '@/lib/auth/auth-hooks'
 import { hasPermission } from '@/lib/auth/permission-map'
 
+const validStatuses = ['lead', 'qualified', 'applied', 'active', 'inactive'] as const
+const validSorts = ['display_name', 'created_at', 'updated_at', 'last_activity_at'] as const
+const validDirections = ['asc', 'desc'] as const
+
+type ClientListFilters = {
+  search?: string
+  status?: 'lead' | 'qualified' | 'applied' | 'active' | 'inactive'
+  sort?: 'display_name' | 'created_at' | 'updated_at' | 'last_activity_at'
+  direction?: 'asc' | 'desc'
+  page?: number
+  perPage?: number
+}
+
 export function ClientListPage() {
   const navigate = useNavigate()
   const { data: auth } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  const filters = useMemo(() => ({
-    search: searchParams.get('search') ?? undefined,
-    status: searchParams.get('status') ?? undefined,
-    sort: searchParams.get('sort') ?? 'updated_at',
-    direction: searchParams.get('direction') ?? 'desc',
-    page: Number(searchParams.get('page') ?? '1'),
-    perPage: Number(searchParams.get('perPage') ?? '20')
-  }), [searchParams])
+  const filters = useMemo<ClientListFilters>(() => {
+    const status = searchParams.get('status')
+    const sort = searchParams.get('sort')
+    const direction = searchParams.get('direction')
+
+    return {
+      search: searchParams.get('search') ?? undefined,
+      status: validStatuses.includes((status ?? '') as typeof validStatuses[number]) ? (status as ClientListFilters['status']) : undefined,
+      sort: validSorts.includes((sort ?? '') as typeof validSorts[number]) ? (sort as ClientListFilters['sort']) : 'updated_at',
+      direction: validDirections.includes((direction ?? '') as typeof validDirections[number]) ? (direction as ClientListFilters['direction']) : 'desc',
+      page: Number(searchParams.get('page') ?? '1'),
+      perPage: Number(searchParams.get('perPage') ?? '20')
+    }
+  }, [searchParams])
 
   const clientsQuery = useQuery({
     queryKey: queryKeys.clients.list(filters),
@@ -85,7 +104,7 @@ export function ClientListPage() {
       {!clientsQuery.isLoading && !payload?.items?.length ? (
         <EmptyState
           title="No clients found"
-          description={filters.search || filters.status ? 'Try adjusting the current search or status filter.' : 'Create the first client record to establish the Sprint 4 workspace baseline.'}
+          description={filters.search || filters.status ? 'Try adjusting the current search or status filter.' : 'Create the first client record to establish the client workspace baseline.'}
         />
       ) : null}
     </div>

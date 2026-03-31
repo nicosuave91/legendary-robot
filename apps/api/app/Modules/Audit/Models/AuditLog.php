@@ -26,4 +26,12 @@ final class AuditLog extends Model
         'before_summary',
         'after_summary',
     ];
+
+    /**
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'before_summary' => 'array',
+        'after_summary' => 'array',
+    ];
 }

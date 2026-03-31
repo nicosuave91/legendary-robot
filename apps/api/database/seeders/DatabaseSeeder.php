@@ -11,8 +11,16 @@ use App\Modules\IdentityAccess\Models\Role;
 use App\Modules\IdentityAccess\Models\User;
 use App\Modules\Onboarding\Models\OnboardingState;
 use App\Modules\Onboarding\Models\UserProfile;
+use App\Modules\Applications\Models\Application;
+use App\Modules\Applications\Models\ApplicationRuleApplication;
+use App\Modules\Applications\Models\ApplicationStatusHistory;
+use App\Modules\CalendarTasks\Models\TaskStatusHistory;
+use App\Modules\CalendarTasks\Models\EventTask;
+use App\Modules\CalendarTasks\Models\CalendarEvent;
 use App\Modules\Clients\Models\Client;
 use App\Modules\Clients\Models\ClientNote;
+use App\Modules\Disposition\Models\ClientDispositionHistory;
+use App\Modules\Disposition\Models\DispositionDefinition;
 use App\Modules\TenantGovernance\Models\Tenant;
 use App\Modules\TenantGovernance\Models\ThemeSetting;
 use App\Modules\TenantGovernance\Models\TenantIndustryConfiguration;
@@ -57,6 +65,37 @@ final class DatabaseSeeder extends Seeder
             'clients.update' => 'Update client records',
             'clients.notes.create' => 'Create client notes',
             'clients.documents.create' => 'Create client documents',
+            'clients.communications.read' => 'Read client communications',
+            'clients.communications.sms.send' => 'Send outbound SMS',
+            'clients.communications.email.send' => 'Send outbound email',
+            'clients.communications.call.create' => 'Create outbound call requests',
+            'clients.disposition.read' => 'Read client disposition state',
+            'clients.disposition.transition' => 'Transition client disposition state',
+            'clients.applications.read' => 'Read client applications',
+            'clients.applications.create' => 'Create client applications',
+            'clients.applications.status.transition' => 'Transition application status',
+            'calendar.read' => 'Read governed calendar views',
+            'calendar.create' => 'Create governed events',
+            'calendar.update' => 'Update governed events',
+            'calendar.tasks.update' => 'Update event task statuses',
+            'clients.events.read' => 'Read client-linked events',
+            'rules.read' => 'Read governed rules',
+            'rules.create' => 'Create governed rules',
+            'rules.update-draft' => 'Update draft rule versions',
+            'rules.publish' => 'Publish immutable rule versions',
+            'rules.execution-logs.read' => 'Read rule execution evidence',
+            'workflows.read' => 'Read governed workflows',
+            'workflows.create' => 'Create governed workflows',
+            'workflows.update-draft' => 'Update draft workflow versions',
+            'workflows.publish' => 'Publish immutable workflow versions',
+            'workflows.runs.read' => 'Read workflow run evidence',
+            'imports.read' => 'Read governed imports ledger',
+            'imports.create' => 'Upload governed import files',
+            'imports.validate' => 'Validate staged imports',
+            'imports.commit' => 'Commit validated staged imports',
+            'notifications.read' => 'Read persistent notifications',
+            'notifications.dismiss' => 'Dismiss persistent notifications',
+            'audit.read' => 'Read tenant audit search',
             'onboarding.state.read' => 'Read onboarding state',
             'onboarding.profile.confirm' => 'Confirm onboarding profile',
             'onboarding.industry.select' => 'Select onboarding industry',
@@ -88,6 +127,24 @@ final class DatabaseSeeder extends Seeder
             'clients.read',
             'clients.notes.create',
             'clients.documents.create',
+            'clients.communications.read',
+            'clients.communications.sms.send',
+            'clients.communications.email.send',
+            'clients.communications.call.create',
+            'clients.disposition.read',
+            'clients.disposition.transition',
+            'clients.applications.read',
+            'clients.applications.create',
+            'clients.applications.status.transition',
+            'calendar.read',
+            'calendar.tasks.update',
+            'clients.events.read',
+            'rules.read',
+            'rules.execution-logs.read',
+            'workflows.read',
+            'workflows.runs.read',
+            'notifications.read',
+            'notifications.dismiss',
             'onboarding.state.read',
             'onboarding.profile.confirm',
             'onboarding.industry.select',
@@ -236,6 +293,199 @@ final class DatabaseSeeder extends Seeder
             'source_type' => 'user',
             'body' => 'Seeded note to make the homepage KPI and workspace baseline immediately visible after migration.',
             'is_editable' => true,
+        ]);
+
+        foreach ([
+            ['code' => 'lead', 'label' => 'Lead', 'sort_order' => 10, 'is_initial' => true, 'is_terminal' => false, 'allowed_next_codes' => ['qualified', 'inactive'], 'prerequisites' => []],
+            ['code' => 'qualified', 'label' => 'Qualified', 'sort_order' => 20, 'is_initial' => false, 'is_terminal' => false, 'allowed_next_codes' => ['applied', 'inactive'], 'prerequisites' => [['type' => 'any_contact_method', 'severity' => 'blocking']]],
+            ['code' => 'applied', 'label' => 'Applied', 'sort_order' => 30, 'is_initial' => false, 'is_terminal' => false, 'allowed_next_codes' => ['active', 'inactive'], 'prerequisites' => [['type' => 'application_exists', 'severity' => 'blocking']]],
+            ['code' => 'active', 'label' => 'Active', 'sort_order' => 40, 'is_initial' => false, 'is_terminal' => false, 'allowed_next_codes' => ['inactive'], 'prerequisites' => [['type' => 'approved_application_exists', 'severity' => 'blocking']]],
+            ['code' => 'inactive', 'label' => 'Inactive', 'sort_order' => 50, 'is_initial' => false, 'is_terminal' => true, 'allowed_next_codes' => [], 'prerequisites' => []],
+        ] as $definition) {
+            DispositionDefinition::query()->withoutGlobalScopes()->firstOrCreate([
+                'tenant_id' => $tenant->id,
+                'code' => $definition['code'],
+            ], [
+                'id' => 'seed-disposition-' . $definition['code'],
+                'label' => $definition['label'],
+                'description' => $definition['label'] . ' lifecycle state',
+                'sort_order' => $definition['sort_order'],
+                'is_initial' => $definition['is_initial'],
+                'is_terminal' => $definition['is_terminal'],
+                'allowed_next_codes' => $definition['allowed_next_codes'],
+                'prerequisites' => $definition['prerequisites'],
+                'role_permissions' => null,
+                'is_active' => true,
+                'created_by' => $owner->id,
+            ]);
+        }
+
+        ClientDispositionHistory::query()->withoutGlobalScopes()->firstOrCreate([
+            'tenant_id' => $tenant->id,
+            'client_id' => $seededClient->id,
+            'to_disposition_code' => 'active',
+        ], [
+            'id' => 'seed-disposition-history-client-jamie',
+            'actor_user_id' => $admin->id,
+            'from_disposition_code' => null,
+            'reason' => 'Seeded active client disposition.',
+            'warnings_snapshot' => null,
+            'occurred_at' => now(),
+        ]);
+
+        ClientDispositionHistory::query()->withoutGlobalScopes()->firstOrCreate([
+            'tenant_id' => $tenant->id,
+            'client_id' => 'client-horizon-medical',
+            'to_disposition_code' => 'lead',
+        ], [
+            'id' => 'seed-disposition-history-client-horizon',
+            'actor_user_id' => $admin->id,
+            'from_disposition_code' => null,
+            'reason' => 'Seeded lead client disposition.',
+            'warnings_snapshot' => null,
+            'occurred_at' => now(),
+        ]);
+
+        $seededApplication = Application::query()->withoutGlobalScopes()->firstOrCreate([
+            'id' => 'application-jamie-foster-001',
+        ], [
+            'tenant_id' => $tenant->id,
+            'client_id' => $seededClient->id,
+            'application_number' => 'APP-SEED001',
+            'owner_user_id' => $admin->id,
+            'product_type' => 'mortgage',
+            'external_reference' => 'EXT-001',
+            'amount_requested' => 350000,
+            'status' => 'in_review',
+            'submitted_at' => now()->subDay(),
+            'metadata' => ['seeded' => true],
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
+        ]);
+
+        ApplicationStatusHistory::query()->withoutGlobalScopes()->firstOrCreate([
+            'tenant_id' => $tenant->id,
+            'application_id' => $seededApplication->id,
+            'to_status' => 'in_review',
+        ], [
+            'id' => 'application-status-jamie-foster-001',
+            'actor_user_id' => $admin->id,
+            'from_status' => null,
+            'reason' => 'Seeded application status history.',
+            'occurred_at' => now()->subHours(12),
+            'metadata' => null,
+        ]);
+
+        ApplicationRuleApplication::query()->withoutGlobalScopes()->firstOrCreate([
+            'tenant_id' => $tenant->id,
+            'application_id' => $seededApplication->id,
+            'rule_key' => 'application.high_value.review',
+        ], [
+            'id' => 'application-rule-jamie-foster-001',
+            'rule_version' => 'sprint7-v1',
+            'trigger_event' => 'application.created',
+            'outcome' => 'info',
+            'title' => 'High-value application review note',
+            'note_body' => 'Seeded rule-note evidence for the Sprint 7 application workspace.',
+            'is_blocking' => false,
+            'evidence' => ['threshold' => 250000, 'amountRequested' => 350000],
+            'applied_at' => now()->subHours(11),
+        ]);
+
+        $jamieEvent = CalendarEvent::query()->withoutGlobalScopes()->firstOrCreate([
+            'id' => 'seed-event-jamie-intake',
+        ], [
+            'tenant_id' => $tenant->id,
+            'client_id' => $seededClient->id,
+            'owner_user_id' => $admin->id,
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
+            'title' => 'Borrower intake review',
+            'description' => 'Seeded event to validate homepage selected-day drilldown and client event integration.',
+            'event_type' => 'appointment',
+            'status' => 'scheduled',
+            'starts_at' => now()->setTime(10, 0),
+            'ends_at' => now()->setTime(10, 45),
+            'is_all_day' => false,
+            'location' => 'Operations queue',
+            'metadata' => ['seeded' => true],
+        ]);
+
+        $jamieTaskOne = EventTask::query()->withoutGlobalScopes()->firstOrCreate([
+            'id' => 'seed-event-task-jamie-1',
+        ], [
+            'tenant_id' => $tenant->id,
+            'event_id' => $jamieEvent->id,
+            'assigned_user_id' => $admin->id,
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
+            'title' => 'Confirm intake packet completeness',
+            'description' => 'Verify required borrower paperwork before disposition follow-up.',
+            'status' => 'open',
+            'sort_order' => 0,
+            'is_required' => true,
+            'due_at' => now()->setTime(9, 45),
+        ]);
+
+        $jamieTaskTwo = EventTask::query()->withoutGlobalScopes()->firstOrCreate([
+            'id' => 'seed-event-task-jamie-2',
+        ], [
+            'tenant_id' => $tenant->id,
+            'event_id' => $jamieEvent->id,
+            'assigned_user_id' => $admin->id,
+            'created_by' => $admin->id,
+            'updated_by' => $admin->id,
+            'title' => 'Open client file and verify communication preferences',
+            'description' => 'Carry the drilldown into the governed client workspace.',
+            'status' => 'blocked',
+            'sort_order' => 1,
+            'is_required' => true,
+            'due_at' => now()->setTime(10, 30),
+            'blocked_reason' => 'Awaiting intake packet confirmation',
+        ]);
+
+        TaskStatusHistory::query()->withoutGlobalScopes()->firstOrCreate([
+            'id' => 'seed-task-history-jamie-1',
+        ], [
+            'tenant_id' => $tenant->id,
+            'event_task_id' => $jamieTaskOne->id,
+            'event_id' => $jamieEvent->id,
+            'actor_user_id' => $admin->id,
+            'from_status' => null,
+            'to_status' => 'open',
+            'reason' => 'Task created',
+            'occurred_at' => now()->subMinutes(30),
+        ]);
+
+        TaskStatusHistory::query()->withoutGlobalScopes()->firstOrCreate([
+            'id' => 'seed-task-history-jamie-2',
+        ], [
+            'tenant_id' => $tenant->id,
+            'event_task_id' => $jamieTaskTwo->id,
+            'event_id' => $jamieEvent->id,
+            'actor_user_id' => $admin->id,
+            'from_status' => 'open',
+            'to_status' => 'blocked',
+            'reason' => 'Awaiting intake packet confirmation',
+            'occurred_at' => now()->subMinutes(10),
+        ]);
+
+        \App\Modules\Notifications\Models\Notification::query()->withoutGlobalScopes()->firstOrCreate([
+            'id' => 'seed-notification-import-ready',
+        ], [
+            'tenant_id' => $tenant->id,
+            'target_user_id' => $admin->id,
+            'audience_scope' => 'user',
+            'notification_type' => 'import.validation',
+            'category' => 'imports',
+            'title' => 'Seeded import notification',
+            'body' => 'Sprint 9 seeded notification proving the persistent center can render durable items.',
+            'tone' => 'info',
+            'action_url' => '/app/imports',
+            'source_event_type' => 'seed',
+            'source_event_id' => 'seed-notification-import-ready',
+            'payload_snapshot' => ['seeded' => true],
+            'emitted_at' => now()->subMinutes(15),
         ]);
     }
 }

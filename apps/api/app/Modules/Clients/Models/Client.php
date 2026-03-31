@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Modules\CalendarTasks\Models\CalendarEvent;
 use App\Modules\IdentityAccess\Models\User;
 use App\Modules\Shared\Tenancy\TenantScoped;
 use App\Modules\TenantGovernance\Models\Tenant;
@@ -29,4 +30,6 @@ final class Client extends Model
     public function notes(): HasMany { return $this->hasMany(ClientNote::class, 'client_id'); }
     public function documents(): HasMany { return $this->hasMany(ClientDocument::class, 'client_id'); }
     public function statusHistory(): HasMany { return $this->hasMany(ClientStatusHistory::class, 'client_id'); }
+    public function events(): HasMany { return $this->hasMany(CalendarEvent::class, 'client_id'); }
 }
+

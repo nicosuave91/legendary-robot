@@ -1,0 +1,80 @@
+name: release-candidate
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  verify-release-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install API dependencies
+        working-directory: apps/api
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Prepare sqlite database
+        working-directory: apps/api
+        run: |
+          mkdir -p database
+          touch database/database.sqlite
+
+      - name: Publish contracts
+        run: php apps/api/scripts/publish-openapi.php
+
+      - name: Generate frontend client
+        run: node scripts/generate-web-client.mjs
+
+      - name: Verify no handwritten API drift
+        run: node scripts/verify-no-handwritten-api.mjs
+
+      - name: Run API test suite
+        working-directory: apps/api
+        run: |
+          vendor/bin/phpunit
+          vendor/bin/phpstan analyse --memory-limit=1G
+
+      - name: Install workspace dependencies
+        run: npm install
+
+      - name: Run web checks
+        run: |
+          npm run --workspace apps/web typecheck
+          npm run --workspace apps/web test
+          npm run --workspace apps/web build
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser smoke suite
+        run: npm run --workspace apps/web test:e2e
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sprint12-release-artifacts
+          path: |
+            packages/contracts/openapi.json
+            apps/web/src/lib/api/generated/client.ts
+            SPRINT12-IMPLEMENTATION-STATUS.md
+            SPRINT12-EXECUTION-PLAN.md
+            SPRINT12-CHANGED-FILES.txt
+            docs/release-readiness-checklist.md
+            docs/environment-checklist.md
+            docs/deployment-runbook.md
+            docs/rollback-plan.md
+            docs/incident-monitoring-baseline.md
+            docs/known-issues-and-accepted-risks.md

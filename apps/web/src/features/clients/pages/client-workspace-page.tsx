@@ -8,6 +8,10 @@ import { PageHeader, AppButton, AppCard, AppCardBody, AppCardHeader, AppInput, A
 import { ClientStatusBadge } from '@/features/clients/components/client-status-badge'
 import { ClientWorkspaceTabs } from '@/features/clients/components/client-workspace-tabs'
 import { WorkspacePlaceholderPanel } from '@/features/clients/components/workspace-placeholder-panel'
+import { ClientEventsPanel } from '@/features/calendar-tasks/components/client-events-panel'
+import { ClientCommunicationsPanel } from '@/features/communications/components/client-communications-panel'
+import { ClientDispositionPanel } from '@/features/disposition/components/client-disposition-panel'
+import { ClientApplicationsPanel } from '@/features/applications/components/client-applications-panel'
 import { clientsApi } from '@/lib/api/client'
 import { queryKeys } from '@/lib/api/query-keys'
 import { useToast } from '@/components/shell/toast-host'
@@ -21,7 +25,6 @@ const workspaceSchema = z.object({
   primaryPhone: z.string().optional().or(z.literal('')),
   preferredContactChannel: z.enum(['email', 'sms', 'phone']).optional(),
   dateOfBirth: z.string().optional().or(z.literal('')),
-  status: z.enum(['lead', 'active', 'inactive']),
   addressLine1: z.string().optional().or(z.literal('')),
   addressLine2: z.string().optional().or(z.literal('')),
   city: z.string().optional().or(z.literal('')),
@@ -32,7 +35,6 @@ const workspaceSchema = z.object({
 type WorkspaceValues = z.infer<typeof workspaceSchema>
 
 const validTabs = ['overview', 'communications', 'events', 'applications', 'notes', 'documents', 'audit'] as const
-
 type WorkspaceTab = typeof validTabs[number]
 
 export function ClientWorkspacePage() {
@@ -69,7 +71,6 @@ export function ClientWorkspacePage() {
       primaryPhone: payload.client.primaryPhone ?? '',
       preferredContactChannel: (payload.client.preferredContactChannel as 'email' | 'sms' | 'phone' | undefined) ?? 'email',
       dateOfBirth: payload.client.dateOfBirth ?? '',
-      status: payload.client.status,
       addressLine1: payload.client.address?.addressLine1 ?? '',
       addressLine2: payload.client.address?.addressLine2 ?? '',
       city: payload.client.address?.city ?? '',
@@ -136,7 +137,7 @@ export function ClientWorkspacePage() {
         <AppCard>
           <AppCardHeader>
             <div className="heading-md">Client summary</div>
-            <div className="body-sm text-text-muted">Editable profile fields remain server-authoritative and auditable through the Sprint 4 client APIs.</div>
+            <div className="body-sm text-text-muted">Editable profile fields remain server-authoritative and auditable. Lifecycle status now moves only through the disposition engine.</div>
           </AppCardHeader>
           <AppCardBody>
             <form className="grid gap-4 lg:grid-cols-2" onSubmit={form.handleSubmit(async (values) => updateClientMutation.mutateAsync(values))}>
@@ -147,7 +148,6 @@ export function ClientWorkspacePage() {
               <div className="space-y-2"><label className="label-sm text-text">Email</label><AppInput type="email" {...form.register('primaryEmail')} /></div>
               <div className="space-y-2"><label className="label-sm text-text">Phone</label><AppInput {...form.register('primaryPhone')} /></div>
               <div className="space-y-2"><label className="label-sm text-text">Preferred contact channel</label><AppSelect {...form.register('preferredContactChannel')}><option value="email">Email</option><option value="sms">SMS</option><option value="phone">Phone</option></AppSelect></div>
-              <div className="space-y-2"><label className="label-sm text-text">Status</label><AppSelect {...form.register('status')}><option value="lead">Lead</option><option value="active">Active</option><option value="inactive">Inactive</option></AppSelect></div>
               <div className="space-y-2"><label className="label-sm text-text">Date of birth</label><AppInput type="date" {...form.register('dateOfBirth')} /></div>
               <div className="space-y-2 lg:col-span-2"><label className="label-sm text-text">Address line 1</label><AppInput {...form.register('addressLine1')} /></div>
               <div className="space-y-2 lg:col-span-2"><label className="label-sm text-text">Address line 2</label><AppInput {...form.register('addressLine2')} /></div>
@@ -166,7 +166,7 @@ export function ClientWorkspacePage() {
         <AppCard>
           <AppCardHeader>
             <div className="heading-md">Notes</div>
-            <div className="body-sm text-text-muted">User-authored notes are distinct from future system-generated note flows.</div>
+            <div className="body-sm text-text-muted">User-authored notes remain distinct from immutable rule notes produced by the Applications workflow.</div>
           </AppCardHeader>
           <AppCardBody>
             <div className="space-y-4">
@@ -238,7 +238,7 @@ export function ClientWorkspacePage() {
                     </div>
                     <div className="body-sm mt-2 text-text-muted">Uploaded by {document.uploadedByDisplayName}{document.attachmentCategory ? ` • ${document.attachmentCategory}` : ''}</div>
                   </div>
-                )) : <EmptyState title="No documents yet" description="Upload the first document to validate Sprint 4 governed storage and metadata handling." />}
+                )) : <EmptyState title="No documents yet" description="Upload the first document to validate governed storage and metadata handling." />}
               </div>
             </div>
           </AppCardBody>
@@ -246,12 +246,30 @@ export function ClientWorkspacePage() {
       )
     }
 
+    if (activeTab === 'communications') {
+      return (
+        <ClientCommunicationsPanel
+          clientId={payload.client.id}
+          fallbackEmail={payload.client.primaryEmail}
+          fallbackPhone={payload.client.primaryPhone}
+        />
+      )
+    }
+
+    if (activeTab === 'applications') {
+      return <ClientApplicationsPanel clientId={payload.client.id} />
+    }
+
+    if (activeTab === 'events') {
+      return <ClientEventsPanel clientId={payload.client.id} />
+    }
+
     if (activeTab === 'audit') {
       return payload.recentAudit.length ? (
         <AppCard>
           <AppCardHeader>
             <div className="heading-md">Recent audit evidence</div>
-            <div className="body-sm text-text-muted">Client create, update, note, and document actions stay reviewable through immutable audit records.</div>
+            <div className="body-sm text-text-muted">Disposition transitions, application actions, notes, and documents stay reviewable through immutable audit records.</div>
           </AppCardHeader>
           <AppCardBody>
             <div className="space-y-3">
@@ -274,7 +292,7 @@ export function ClientWorkspacePage() {
     <div className="space-y-6">
       <PageHeader
         title={payload.client.displayName}
-        description="The client workspace centralizes profile data, notes, documents, and audit evidence without fragmenting record ownership across separate pages."
+        description="The client workspace centralizes profile data, disposition state, applications, notes, documents, communications, and audit evidence without fragmenting record ownership."
         actions={<AppButton type="button" variant="secondary" onClick={() => navigate('/app/clients')}>Back to list</AppButton>}
       />
 
@@ -302,6 +320,7 @@ export function ClientWorkspacePage() {
         </AppCardBody>
       </AppCard>
 
+      <ClientDispositionPanel clientId={payload.client.id} payload={payload} />
       <ClientWorkspaceTabs tabs={payload.tabs} />
       {renderActivePanel()}
     </div>

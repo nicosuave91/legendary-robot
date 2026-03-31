@@ -1,8 +1,9 @@
-import { Bell, Search, LogOut, PanelLeft } from 'lucide-react'
+import { Search, LogOut, PanelLeft } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { AppButton, AppInput } from '@/components/ui'
 import { useAuth } from '@/lib/auth/auth-hooks'
 import { useToast } from '@/components/shell/toast-host'
+import { NotificationBellButton } from '@/features/notifications/components/notification-bell-button'
 
 type AppHeaderProps = {
   onToggleSidebar: () => void
@@ -48,10 +49,7 @@ export function AppHeader({ onToggleSidebar }: AppHeaderProps) {
         </div>
 
         <div className="flex items-center gap-3">
-          <AppButton type="button" variant="secondary" aria-label="Notifications scaffold">
-            <Bell size={16} />
-            Notifications
-          </AppButton>
+          <NotificationBellButton />
           <AppButton type="button" variant="ghost" onClick={() => void handleSignOut()}>
             <LogOut size={16} />
             Sign out

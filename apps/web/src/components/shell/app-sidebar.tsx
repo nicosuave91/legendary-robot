@@ -1,4 +1,4 @@
-import { CalendarDays, LayoutGrid, MessageSquare, Settings, Shield, Users, UserRound, Palette, Network, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { CalendarDays, LayoutGrid, MessageSquare, Settings, Shield, Users, UserRound, Palette, Network, PanelLeftClose, PanelLeftOpen, Library, Workflow, Upload } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { AppBadge, AppButton } from '@/components/ui'
 import { cn } from '@/lib/utils/cn'
@@ -12,9 +12,12 @@ const items = [
   { to: '/app/settings/theme', label: 'Branding', icon: Palette, permissions: ['settings.theme.read'] as const },
   { to: '/app/settings/industry-configurations', label: 'Industry Config', icon: Network, permissions: ['settings.industry-configurations.read'] as const },
   { to: '/app/clients', label: 'Clients', icon: Users, permissions: ['clients.read'] as const },
+  { to: '/app/imports', label: 'Imports', icon: Upload, permissions: ['imports.read'] as const },
   { to: '/app/calendar', label: 'Calendar', icon: CalendarDays },
   { to: '/app/communications', label: 'Communications', icon: MessageSquare },
-  { to: '/app/audit', label: 'Audit', icon: Shield }
+  { to: '/app/rules', label: 'Rules Library', icon: Library, permissions: ['rules.read'] as const },
+  { to: '/app/workflows', label: 'Workflow Builder', icon: Workflow, permissions: ['workflows.read'] as const },
+  { to: '/app/audit', label: 'Audit', icon: Shield, permissions: ['audit.read'] as const }
 ]
 
 type AppSidebarProps = {
@@ -42,7 +45,7 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           <AppButton type="button" variant="secondary" size="sm" onClick={onToggle} aria-label="Toggle sidebar">
             {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
           </AppButton>
-          {!collapsed ? <AppBadge variant="info">Sprint 4</AppBadge> : null}
+          {!collapsed ? <AppBadge variant="info">Release candidate</AppBadge> : null}
         </div>
       </div>
 

@@ -101,7 +101,7 @@ final class DashboardSummaryService
                 'recentNoteCount' => $recentNotes,
                 'recentDocumentCount' => $recentDocuments,
             ],
-            'calendarPanelEnabled' => false,
+            'calendarPanelEnabled' => true,
         ];
     }
 

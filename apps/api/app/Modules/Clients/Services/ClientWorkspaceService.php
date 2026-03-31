@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Modules\Clients\Services;
 
+use App\Modules\Applications\Models\Application;
+use App\Modules\CalendarTasks\Models\CalendarEvent;
 use App\Modules\Audit\Models\AuditLog;
 use App\Modules\Clients\Models\Client;
+use App\Modules\Disposition\Services\DispositionProjectionService;
 use App\Modules\IdentityAccess\Models\User;
 
 final class ClientWorkspaceService
 {
     public function __construct(
         private readonly ClientVisibilityService $clientVisibilityService,
+        private readonly DispositionProjectionService $dispositionProjectionService,
     ) {
     }
 
@@ -23,6 +27,11 @@ final class ClientWorkspaceService
 
         $client->loadMissing(['address', 'owner']);
         $client->loadCount(['notes', 'documents']);
+        $currentDisposition = $this->dispositionProjectionService->currentForClient($client);
+        $dispositionHistory = $this->dispositionProjectionService->historyForClient($client);
+        $availableDispositionTransitions = $this->dispositionProjectionService->availableTransitionsForClient($client);
+        $applicationsCount = Application::query()->where('tenant_id', $actor->tenant_id)->where('client_id', $client->id)->count();
+        $eventsCount = CalendarEvent::query()->withoutGlobalScopes()->where('tenant_id', $actor->tenant_id)->where('client_id', $client->id)->count();
 
         $recentNotes = $client->notes()->with('author')->latest('created_at')->limit(10)->get()->map(fn ($note): array => [
             'id' => (string) $note->id,
@@ -47,13 +56,17 @@ final class ClientWorkspaceService
 
         $noteIds = $client->notes()->pluck('id')->all();
         $documentIds = $client->documents()->pluck('id')->all();
-        $auditEntries = AuditLog::query()->where(function ($query) use ($client, $noteIds, $documentIds): void {
+        $applicationIds = Application::query()->where('tenant_id', $actor->tenant_id)->where('client_id', $client->id)->pluck('id')->all();
+        $auditEntries = AuditLog::query()->where(function ($query) use ($client, $noteIds, $documentIds, $applicationIds): void {
             $query->where(fn ($inner) => $inner->where('subject_type', 'client')->where('subject_id', (string) $client->id));
             if (!empty($noteIds)) {
                 $query->orWhere(fn ($inner) => $inner->where('subject_type', 'client_note')->whereIn('subject_id', $noteIds));
             }
             if (!empty($documentIds)) {
                 $query->orWhere(fn ($inner) => $inner->where('subject_type', 'client_document')->whereIn('subject_id', $documentIds));
+            }
+            if (!empty($applicationIds)) {
+                $query->orWhere(fn ($inner) => $inner->where('subject_type', 'application')->whereIn('subject_id', $applicationIds));
             }
         })->latest('created_at')->limit(10)->get();
 
@@ -90,11 +103,14 @@ final class ClientWorkspaceService
                 'createdAt' => $client->created_at?->toIso8601String(),
                 'updatedAt' => $client->updated_at?->toIso8601String(),
             ],
+            'currentDisposition' => $currentDisposition,
+            'availableDispositionTransitions' => $availableDispositionTransitions,
+            'dispositionHistory' => $dispositionHistory,
             'summary' => [
                 'notesCount' => (int) $client->notes_count,
                 'documentsCount' => (int) $client->documents_count,
-                'eventsCount' => 0,
-                'applicationsCount' => 0,
+                'eventsCount' => $eventsCount,
+                'applicationsCount' => $applicationsCount,
                 'lastActivityAt' => $client->last_activity_at?->toIso8601String(),
             ],
             'recentNotes' => $recentNotes,
@@ -102,9 +118,9 @@ final class ClientWorkspaceService
             'recentAudit' => $recentAudit,
             'tabs' => [
                 ['key' => 'overview', 'label' => 'Overview', 'href' => '/app/clients/' . $client->id . '/overview', 'available' => true],
-                ['key' => 'communications', 'label' => 'Communications', 'href' => '/app/clients/' . $client->id . '/communications', 'available' => false],
-                ['key' => 'events', 'label' => 'Events', 'href' => '/app/clients/' . $client->id . '/events', 'available' => false],
-                ['key' => 'applications', 'label' => 'Applications', 'href' => '/app/clients/' . $client->id . '/applications', 'available' => false],
+                ['key' => 'communications', 'label' => 'Communications', 'href' => '/app/clients/' . $client->id . '/communications', 'available' => true],
+                ['key' => 'events', 'label' => 'Events', 'href' => '/app/clients/' . $client->id . '/events', 'available' => true],
+                ['key' => 'applications', 'label' => 'Applications', 'href' => '/app/clients/' . $client->id . '/applications', 'available' => true],
                 ['key' => 'notes', 'label' => 'Notes', 'href' => '/app/clients/' . $client->id . '/notes', 'available' => true],
                 ['key' => 'documents', 'label' => 'Documents', 'href' => '/app/clients/' . $client->id . '/documents', 'available' => true],
                 ['key' => 'audit', 'label' => 'Audit', 'href' => '/app/clients/' . $client->id . '/audit', 'available' => true],
