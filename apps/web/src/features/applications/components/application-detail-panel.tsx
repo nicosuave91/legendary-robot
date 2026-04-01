@@ -3,14 +3,57 @@ import { AppBadge, AppButton, AppCard, AppCardBody, AppCardHeader, EmptyState } 
 import { applicationsApi } from '@/lib/api/client'
 import { ApiError } from '@/lib/api/http'
 import { queryKeys } from '@/lib/api/query-keys'
-import type { ApplicationDetailResponse, TransitionIssue } from '@/lib/api/generated/client'
 import { useToast } from '@/components/shell/toast-host'
 import { ApplicationRuleNoteList } from '@/features/applications/components/application-rule-note-list'
 import { ApplicationStatusTimeline } from '@/features/applications/components/application-status-timeline'
 
+type TransitionIssue = {
+  code: string
+  message: string
+}
+
+type ApplicationStatusCode = 'draft' | 'submitted' | 'in_review' | 'approved' | 'declined' | 'withdrawn'
+
+type ApplicationDetailPayload = {
+  application: {
+    id: string
+    applicationNumber: string
+    productType: string
+    currentStatus: {
+      label: string
+      tone: string
+      changedAt?: string | null
+    }
+    ownerDisplayName?: string | null
+    externalReference?: string | null
+    amountRequested?: number | string | null
+    submittedAt?: string | null
+    availableStatusTransitions: Array<{
+      code: ApplicationStatusCode
+      label: string
+    }>
+  }
+  statusHistory: Array<{
+    id: string
+    toStatus: string
+    occurredAt?: string | null
+    actorDisplayName?: string | null
+    reason?: string | null
+  }>
+  ruleNotes: Array<{
+    id: string
+    outcome: 'blocking' | 'warning' | 'info'
+    title: string
+    body: string
+    ruleKey: string
+    ruleVersion: string
+    appliedAt?: string | null
+  }>
+}
+
 type Props = {
   clientId: string
-  payload?: ApplicationDetailResponse
+  payload?: ApplicationDetailPayload
 }
 
 function toneToVariant(tone: string) {
@@ -22,20 +65,20 @@ export function ApplicationDetailPanel({ clientId, payload }: Props) {
   const { notify } = useToast()
 
   const transitionMutation = useMutation({
-    mutationFn: (body: { applicationId: string, targetStatus: string }) =>
+    mutationFn: (body: { applicationId: string, targetStatus: ApplicationStatusCode }) =>
       applicationsApi.transitionStatus(clientId, body.applicationId, { targetStatus: body.targetStatus }),
-    onSuccess: async (response, variables) => {
+    onSuccess: async (response) => {
+      const data = (response as { data: { warnings: Array<{ message: string }> } }).data
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.applications.list(clientId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.applications.detail(clientId, variables.applicationId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.clients.detail(clientId) })
       ])
       notify({
-        title: response.data.warnings.length ? 'Application updated with warnings' : 'Application updated',
-        description: response.data.warnings.length
-          ? response.data.warnings.map((warning) => warning.message).join(' ')
+        title: data.warnings.length ? 'Application updated with warnings' : 'Application updated',
+        description: data.warnings.length
+          ? data.warnings.map((warning) => warning.message).join(' ')
           : 'Status history and rule evidence refreshed from the server.',
-        tone: response.data.warnings.length ? 'warning' : 'success'
+        tone: data.warnings.length ? 'warning' : 'success'
       })
     },
     onError: (error) => {
@@ -98,7 +141,9 @@ export function ApplicationDetailPanel({ clientId, payload }: Props) {
                   type="button"
                   variant="secondary"
                   disabled={transitionMutation.isPending}
-                  onClick={() => transitionMutation.mutateAsync({ applicationId: application.id, targetStatus: transition.code })}
+                  onClick={() => {
+                    void transitionMutation.mutateAsync({ applicationId: application.id, targetStatus: transition.code })
+                  }}
                 >
                   {transition.label}
                 </AppButton>

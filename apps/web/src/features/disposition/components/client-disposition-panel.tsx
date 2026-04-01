@@ -4,13 +4,37 @@ import { AppBadge, AppButton, AppCard, AppCardBody, AppCardHeader } from '@/comp
 import { clientsApi } from '@/lib/api/client'
 import { ApiError } from '@/lib/api/http'
 import { queryKeys } from '@/lib/api/query-keys'
-import type { ClientWorkspaceResponse, TransitionIssue } from '@/lib/api/generated/client'
 import { useToast } from '@/components/shell/toast-host'
 import { DispositionTransitionDialog } from '@/features/disposition/components/disposition-transition-dialog'
 
+type TransitionIssue = {
+  code: string
+  message: string
+}
+
+type ClientDispositionPayload = {
+  currentDisposition: {
+    tone: string
+    label: string
+    changedAt?: string | null
+    changedByDisplayName?: string | null
+  }
+  availableDispositionTransitions: Array<{
+    code: string
+    label: string
+  }>
+  dispositionHistory: Array<{
+    id: string
+    toDispositionCode: string
+    occurredAt?: string | null
+    actorDisplayName?: string | null
+    reason?: string | null
+  }>
+}
+
 type Props = {
   clientId: string
-  payload: ClientWorkspaceResponse
+  payload: ClientDispositionPayload
 }
 
 export function ClientDispositionPanel({ clientId, payload }: Props) {
@@ -23,8 +47,9 @@ export function ClientDispositionPanel({ clientId, payload }: Props) {
   const transitionMutation = useMutation({
     mutationFn: (body: { targetDispositionCode: string, reason?: string, acknowledgeWarnings?: boolean }) => clientsApi.transitionDisposition(clientId, body),
     onSuccess: async (response) => {
-      setWarnings(response.data.warnings)
-      setBlockingIssues(response.data.blockingIssues)
+      const data = (response as { data: { warnings: TransitionIssue[]; blockingIssues: TransitionIssue[] } }).data
+      setWarnings(data.warnings)
+      setBlockingIssues(data.blockingIssues)
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.clients.detail(clientId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.clients.all })
@@ -102,7 +127,9 @@ export function ClientDispositionPanel({ clientId, payload }: Props) {
         warnings={warnings}
         blockingIssues={blockingIssues}
         busy={transitionMutation.isPending}
-        onSubmit={(body) => transitionMutation.mutateAsync(body)}
+        onSubmit={async (body) => {
+          await transitionMutation.mutateAsync(body)
+        }}
       />
     </>
   )
