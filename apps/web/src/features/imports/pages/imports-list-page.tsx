@@ -8,6 +8,33 @@ import { importsApi } from '@/lib/api/client'
 import { queryKeys } from '@/lib/api/query-keys'
 import { useToast } from '@/components/shell/toast-host'
 
+type ImportListItem = {
+  id: string
+  status: string
+  originalFilename: string
+  importType: string
+  fileFormat: string
+  parserVersion?: string | null
+  rowCount: number
+  validRowCount: number
+  invalidRowCount: number
+  committedRowCount: number
+}
+
+type ImportListEnvelopeLike = {
+  data: {
+    items: ImportListItem[]
+  }
+}
+
+type ImportCreateEnvelopeLike = {
+  data: {
+    import: {
+      id: string
+    }
+  }
+}
+
 export function ImportsListPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const navigate = useNavigate()
@@ -29,16 +56,17 @@ export function ImportsListPage() {
       return importsApi.create(body)
     },
     onSuccess: async (response) => {
+      const envelope = response as ImportCreateEnvelopeLike
       await queryClient.invalidateQueries({ queryKey: queryKeys.imports.all })
       notify({ title: 'Import staged', description: 'The file is stored in governed staging and ready for validation.', tone: 'success' })
-      navigate(`/app/imports/${response.data.import.id}`)
+      navigate(`/app/imports/${envelope.data.import.id}`)
     },
     onError: (error) => {
       notify({ title: 'Import upload failed', description: error instanceof Error ? error.message : 'The file could not be staged.', tone: 'danger' })
     }
   })
 
-  const items = listQuery.data?.data.items ?? []
+  const items = ((listQuery.data as ImportListEnvelopeLike | undefined)?.data.items) ?? []
   const statusCounts = items.reduce<Record<string, number>>((acc, item) => {
     acc[item.status] = (acc[item.status] ?? 0) + 1
     return acc

@@ -10,6 +10,60 @@ import { importsApi } from '@/lib/api/client'
 import { queryKeys } from '@/lib/api/query-keys'
 import { useToast } from '@/components/shell/toast-host'
 
+type ImportPreviewError = {
+  id: string
+  rowNumber: number
+  fieldName?: string | null
+  errorCode: string
+  severity: string
+  message: string
+}
+
+type ImportPreviewRow = {
+  id: string
+  rowNumber: number
+  rowStatus: string
+  normalizedPayload: Record<string, unknown>
+  targetSubjectType?: string | null
+  targetSubjectId?: string | null
+}
+
+type ImportDetailRecord = {
+  id: string
+  status: string
+  originalFilename: string
+  importType: string
+  fileFormat: string
+  storageReference: string
+  uploadedAt?: string | null
+  validatedAt?: string | null
+  committedAt?: string | null
+  rowCount: number
+  validRowCount: number
+  invalidRowCount: number
+  committedRowCount: number
+  summary: {
+    warningCount?: number
+  }
+  previewRows: ImportPreviewRow[]
+  previewErrors: ImportPreviewError[]
+  canCommit: boolean
+  latestCorrelationId?: string | null
+  latestFailureSummary?: unknown
+}
+
+type ImportDetailEnvelopeLike = {
+  data: {
+    import: ImportDetailRecord
+  }
+}
+
+type ImportErrorsEnvelopeLike = {
+  data: {
+    items: ImportPreviewError[]
+  }
+}
+
 export function ImportDetailPage() {
   const { importId = '' } = useParams()
   const queryClient = useQueryClient()
@@ -20,8 +74,8 @@ export function ImportDetailPage() {
     queryFn: () => importsApi.get(importId),
     enabled: Boolean(importId),
     refetchInterval: (query) => {
-      const status = query.state.data?.data.import.status
-      return ['validation_queued', 'validating', 'commit_queued', 'committing'].includes(status ?? '') ? 2000 : false
+      const status = ((query.state.data as ImportDetailEnvelopeLike | undefined)?.data.import.status) ?? ''
+      return ['validation_queued', 'validating', 'commit_queued', 'committing'].includes(status) ? 2000 : false
     }
   })
 
@@ -60,12 +114,12 @@ export function ImportDetailPage() {
     return <LoadingSkeleton lines={12} />
   }
 
-  const payload = detailQuery.data?.data.import
+  const payload = ((detailQuery.data as ImportDetailEnvelopeLike | undefined)?.data.import)
   if (!payload) {
     return <EmptyState title="Import not found" description="The requested import could not be loaded for this tenant." />
   }
 
-  const errors = errorsQuery.data?.data.items ?? payload.previewErrors
+  const errors = ((errorsQuery.data as ImportErrorsEnvelopeLike | undefined)?.data.items) ?? payload.previewErrors
 
   return (
     <div className="space-y-6">
@@ -110,7 +164,7 @@ export function ImportDetailPage() {
             validRowCount={payload.validRowCount}
             invalidRowCount={payload.invalidRowCount}
             committedRowCount={payload.committedRowCount}
-            warningCount={payload.summary.warningCount}
+            warningCount={payload.summary.warningCount ?? 0}
           />
 
           <AppTabs defaultValue="preview" className="space-y-4">

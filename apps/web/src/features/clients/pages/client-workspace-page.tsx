@@ -36,6 +36,20 @@ const validTabs = ['overview', 'communications', 'events', 'applications', 'note
 type WorkspaceTab = typeof validTabs[number]
 
 
+function normalizeWorkspaceFormStatus(
+  status: 'active' | 'lead' | 'qualified' | 'applied' | 'inactive'
+): 'active' | 'lead' | 'inactive' {
+  if (status === 'inactive') {
+    return 'inactive'
+  }
+
+  if (status === 'lead') {
+    return 'lead'
+  }
+
+  return 'active'
+}
+
 type ClientAddress = {
   addressLine1?: string | null
   addressLine2?: string | null
@@ -80,7 +94,7 @@ export function ClientWorkspacePage() {
       primaryPhone: payload.client.primaryPhone ?? '',
       preferredContactChannel: (payload.client.preferredContactChannel as 'email' | 'sms' | 'phone' | undefined) ?? 'email',
       dateOfBirth: payload.client.dateOfBirth ?? '',
-      status: payload.client.status,
+      status: normalizeWorkspaceFormStatus(payload.client.status),
       addressLine1: address.addressLine1 ?? '',
       addressLine2: address.addressLine2 ?? '',
       city: address.city ?? '',
@@ -319,3 +333,4 @@ export function ClientWorkspacePage() {
     </div>
   )
 }
+

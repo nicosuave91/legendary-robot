@@ -77,12 +77,23 @@ final class SendGridWebhookSignatureVerifier
 
     private function resolvePublicKey(): string
     {
-        return trim((string) ($this->publicKey ?? config('communications.webhooks.sendgrid.public_key', '')));
+        return trim((string) ($this->publicKey ?? $this->configValue('communications.webhooks.sendgrid.public_key', '')));
     }
 
     private function resolveOAuthBearerToken(): string
     {
-        return trim((string) ($this->oauthBearerToken ?? config('communications.webhooks.sendgrid.oauth_bearer_token', '')));
+        return trim((string) ($this->oauthBearerToken ?? $this->configValue('communications.webhooks.sendgrid.oauth_bearer_token', '')));
+    }
+
+    private function configValue(string $key, string $default = ''): string
+    {
+        if (function_exists('app') && app()->bound('config')) {
+            /** @var mixed $value */
+            $value = config($key, $default);
+            return is_string($value) ? $value : $default;
+        }
+
+        return $default;
     }
 
     private function normalizePublicKey(string $publicKey): string
@@ -96,8 +107,11 @@ final class SendGridWebhookSignatureVerifier
         }
 
         $normalized = preg_replace('/\s+/', '', $publicKey) ?? $publicKey;
-        $chunks = trim(chunk_split($normalized, 64, "\n"));
+        $chunks = trim(chunk_split($normalized, 64, "
+"));
 
-        return "-----BEGIN PUBLIC KEY-----\n{$chunks}\n-----END PUBLIC KEY-----";
+        return "-----BEGIN PUBLIC KEY-----
+{$chunks}
+-----END PUBLIC KEY-----";
     }
 }

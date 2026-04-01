@@ -158,7 +158,16 @@ export function ApplicationDetailPanel({ clientId, payload }: Props) {
           <div className="heading-md">Status history</div>
         </AppCardHeader>
         <AppCardBody>
-          <ApplicationStatusTimeline items={payload.statusHistory} />
+          <ApplicationStatusTimeline
+  items={payload.statusHistory.map((item) => ({
+    id: item.id,
+    fromStatus: null,
+    toStatus: item.toStatus,
+    occurredAt: item.occurredAt ?? null,
+    actorDisplayName: item.actorDisplayName ?? null,
+    reason: item.reason ?? null
+  }))}
+/>
         </AppCardBody>
       </AppCard>
 
@@ -167,9 +176,22 @@ export function ApplicationDetailPanel({ clientId, payload }: Props) {
           <div className="heading-md">Rule notes</div>
         </AppCardHeader>
         <AppCardBody>
-          <ApplicationRuleNoteList items={payload.ruleNotes} />
+          <ApplicationRuleNoteList
+  items={payload.ruleNotes.map((item) => ({
+    id: item.id,
+    outcome: item.outcome,
+    title: item.title,
+    body: item.body,
+    ruleKey: item.ruleKey,
+    ruleVersion: item.ruleVersion,
+    appliedAt: item.appliedAt ?? null,
+    isViewOnly: false
+  }))}
+/>
         </AppCardBody>
       </AppCard>
     </div>
   )
 }
+
+

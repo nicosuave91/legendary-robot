@@ -1,4 +1,4 @@
-import { ArrowRight, TrendingDown, TrendingFlat, TrendingUp } from 'lucide-react'
+import { ArrowRight, Minus, TrendingDown, TrendingUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { AppCard, AppCardBody } from '@/components/ui'
 import type { DashboardKpiCard } from '@/lib/api/generated/client'
@@ -10,7 +10,7 @@ type KpiCardProps = {
 function DeltaIcon({ direction }: { direction: DashboardKpiCard['delta']['direction'] }) {
   if (direction === 'up') return <TrendingUp size={14} />
   if (direction === 'down') return <TrendingDown size={14} />
-  return <TrendingFlat size={14} />
+  return <Minus size={14} />
 }
 
 export function KpiCard({ card }: KpiCardProps) {
@@ -35,3 +35,5 @@ export function KpiCard({ card }: KpiCardProps) {
     </AppCard>
   )
 }
+
+

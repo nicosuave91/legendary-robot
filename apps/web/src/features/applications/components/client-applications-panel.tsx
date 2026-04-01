@@ -11,6 +11,49 @@ type Props = {
   clientId: string
 }
 
+type ApplicationListItem = {
+  id: string
+  applicationNumber: string
+  productType: string
+  ownerDisplayName?: string | null
+  createdAt?: string | null
+  currentStatus: {
+    label: string
+    tone: string
+  }
+  ruleSummary: {
+    infoCount: number
+    warningCount: number
+    blockingCount: number
+  }
+}
+
+type ApplicationListEnvelopeLike = {
+  data: {
+    items: ApplicationListItem[]
+  }
+}
+
+type ApplicationDetailEnvelopeLike = {
+  data: {
+    application: {
+      ruleSummary?: {
+        infoCount: number
+        warningCount: number
+        blockingCount: number
+      }
+    }
+  }
+}
+
+type ApplicationCreateEnvelopeLike = {
+  data: {
+    application: {
+      id: string
+    }
+  }
+}
+
 function toneToVariant(tone: string) {
   return tone === 'success' ? 'success' : tone === 'warning' ? 'warning' : tone === 'danger' ? 'danger' : tone === 'info' ? 'info' : 'neutral'
 }
@@ -26,7 +69,7 @@ export function ClientApplicationsPanel({ clientId }: Props) {
     queryFn: () => applicationsApi.list(clientId)
   })
 
-  const items = listQuery.data?.data.items ?? []
+  const items = ((listQuery.data as ApplicationListEnvelopeLike | undefined)?.data.items) ?? []
 
   const effectiveSelectedApplicationId = selectedApplicationId ?? items[0]?.id ?? null
 
@@ -40,11 +83,12 @@ export function ClientApplicationsPanel({ clientId }: Props) {
     mutationFn: (body: { productType: string, externalReference?: string | null, amountRequested?: number | null, submittedAt?: string | null }) =>
       applicationsApi.create(clientId, body),
     onSuccess: async (response) => {
-      setSelectedApplicationId(response.data.application.id)
+      const envelope = response as ApplicationCreateEnvelopeLike
+      setSelectedApplicationId(envelope.data.application.id)
       setCreateOpen(false)
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.applications.list(clientId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.applications.detail(clientId, response.data.application.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.applications.detail(clientId, envelope.data.application.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.clients.detail(clientId) })
       ])
       notify({
@@ -55,10 +99,12 @@ export function ClientApplicationsPanel({ clientId }: Props) {
     }
   })
 
+  const detailData = (detailQuery.data as ApplicationDetailEnvelopeLike | undefined)?.data
+
   const ruleCounts = useMemo(() => {
-    if (!detailQuery.data?.data.application.ruleSummary) return null
-    return detailQuery.data.data.application.ruleSummary
-  }, [detailQuery.data])
+    if (!detailData?.application.ruleSummary) return null
+    return detailData.application.ruleSummary
+  }, [detailData])
 
   if (listQuery.isLoading) {
     return <LoadingSkeleton lines={8} />
@@ -127,7 +173,7 @@ export function ClientApplicationsPanel({ clientId }: Props) {
             </div>
           ) : null}
 
-          {detailQuery.isLoading && effectiveSelectedApplicationId ? <LoadingSkeleton lines={8} /> : <ApplicationDetailPanel clientId={clientId} payload={detailQuery.data?.data} />}
+          {detailQuery.isLoading && effectiveSelectedApplicationId ? <LoadingSkeleton lines={8} /> : <ApplicationDetailPanel clientId={clientId} payload={detailData as any} />}
         </div>
       </div>
 
@@ -135,7 +181,9 @@ export function ClientApplicationsPanel({ clientId }: Props) {
         open={createOpen}
         onOpenChange={setCreateOpen}
         busy={createMutation.isPending}
-        onSubmit={(body) => createMutation.mutateAsync(body)}
+        onSubmit={async (body) => {
+          await createMutation.mutateAsync(body)
+        }}
       />
     </>
   )
