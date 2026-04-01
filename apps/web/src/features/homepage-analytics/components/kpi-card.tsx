@@ -7,6 +7,8 @@ type KpiCardProps = {
   card: DashboardKpiCard
 }
 
+
+
 function DeltaIcon({ direction }: { direction: DashboardKpiCard['delta']['direction'] }) {
   if (direction === 'up') return <TrendingUp size={14} />
   if (direction === 'down') return <TrendingDown size={14} />
