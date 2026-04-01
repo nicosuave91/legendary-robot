@@ -8,6 +8,8 @@ on:
 jobs:
   web:
     runs-on: ubuntu-latest
+    env:
+      NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
     steps:
       - uses: actions/checkout@v4
 
@@ -16,21 +18,10 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
 
-      - name: Install workspace dependencies
-        run: npm install
+      - name: Show npm registry
+        run: npm config get registry
 
-      - name: Typecheck
-        run: npm run --workspace apps/web typecheck
-
-      - name: Unit tests
-        run: npm run --workspace apps/web test
-
-      - name: Build
-        run: npm run --workspace apps/web build
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
-      - name: Browser smoke tests
-        run: npm run --workspace apps/web test:e2e
+      - name: Verify web workspace
+        run: bash scripts/verify-web-workspace.sh

@@ -4,8 +4,14 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-echo "[web] installing workspace dependencies"
-npm install
+echo "[web] forcing public npm registry"
+npm config set registry https://registry.npmjs.org/
+
+echo "[web] verifying npm cache"
+npm cache verify
+
+echo "[web] installing workspace dependencies from lockfile"
+npm ci
 
 echo "[web] typechecking"
 npm run --workspace apps/web typecheck
