@@ -12,9 +12,17 @@ import { SettingsThemePage } from '@/features/identity-access/pages/settings-the
 import { SettingsIndustryConfigurationsPage } from '@/features/identity-access/pages/settings-industry-configurations-page'
 import { OnboardingPage } from '@/features/onboarding/pages/onboarding-page'
 import { PlaceholderPage } from '@/features/shared/pages/placeholder-page'
+import { CalendarPage } from '@/features/calendar-tasks/pages/calendar-page'
 import { ClientListPage } from '@/features/clients/pages/client-list-page'
 import { ClientCreatePage } from '@/features/clients/pages/client-create-page'
 import { ClientWorkspacePage } from '@/features/clients/pages/client-workspace-page'
+import { RulesListPage } from '@/features/rules-library/pages/rules-list-page'
+import { RuleDetailPage } from '@/features/rules-library/pages/rule-detail-page'
+import { WorkflowsListPage } from '@/features/workflow-builder/pages/workflows-list-page'
+import { WorkflowDetailPage } from '@/features/workflow-builder/pages/workflow-detail-page'
+import { ImportsListPage } from '@/features/imports/pages/imports-list-page'
+import { ImportDetailPage } from '@/features/imports/pages/import-detail-page'
+import { AuditListPage } from '@/features/audit/pages/audit-list-page'
 import { routeMeta } from '@/routes/route-meta'
 
 export const routeConfig: RouteObject[] = [
@@ -134,11 +142,29 @@ export const routeConfig: RouteObject[] = [
             )
           },
           {
+            path: 'imports',
+            handle: { meta: routeMeta.imports },
+            element: (
+              <RouteGate meta={routeMeta.imports}>
+                <ImportsListPage />
+              </RouteGate>
+            )
+          },
+          {
+            path: 'imports/:importId',
+            handle: { meta: routeMeta.imports },
+            element: (
+              <RouteGate meta={routeMeta.imports}>
+                <ImportDetailPage />
+              </RouteGate>
+            )
+          },
+          {
             path: 'calendar',
             handle: { meta: routeMeta.calendar },
             element: (
               <RouteGate meta={routeMeta.calendar}>
-                <PlaceholderPage title="Calendar & Tasks" />
+                <CalendarPage />
               </RouteGate>
             )
           },
@@ -152,11 +178,47 @@ export const routeConfig: RouteObject[] = [
             )
           },
           {
+            path: 'rules',
+            handle: { meta: routeMeta.rules },
+            element: (
+              <RouteGate meta={routeMeta.rules}>
+                <RulesListPage />
+              </RouteGate>
+            )
+          },
+          {
+            path: 'rules/:ruleId',
+            handle: { meta: routeMeta.rules },
+            element: (
+              <RouteGate meta={routeMeta.rules}>
+                <RuleDetailPage />
+              </RouteGate>
+            )
+          },
+          {
+            path: 'workflows',
+            handle: { meta: routeMeta.workflows },
+            element: (
+              <RouteGate meta={routeMeta.workflows}>
+                <WorkflowsListPage />
+              </RouteGate>
+            )
+          },
+          {
+            path: 'workflows/:workflowId',
+            handle: { meta: routeMeta.workflows },
+            element: (
+              <RouteGate meta={routeMeta.workflows}>
+                <WorkflowDetailPage />
+              </RouteGate>
+            )
+          },
+          {
             path: 'audit',
             handle: { meta: routeMeta.audit },
             element: (
               <RouteGate meta={routeMeta.audit}>
-                <PlaceholderPage title="Audit" />
+                <AuditListPage />
               </RouteGate>
             )
           }

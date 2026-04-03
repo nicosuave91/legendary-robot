@@ -35,6 +35,29 @@ const validTabs = ['overview', 'communications', 'events', 'applications', 'note
 
 type WorkspaceTab = typeof validTabs[number]
 
+
+function normalizeWorkspaceFormStatus(
+  status: 'active' | 'lead' | 'qualified' | 'applied' | 'inactive'
+): 'active' | 'lead' | 'inactive' {
+  if (status === 'inactive') {
+    return 'inactive'
+  }
+
+  if (status === 'lead') {
+    return 'lead'
+  }
+
+  return 'active'
+}
+
+type ClientAddress = {
+  addressLine1?: string | null
+  addressLine2?: string | null
+  city?: string | null
+  stateCode?: string | null
+  postalCode?: string | null
+}
+
 export function ClientWorkspacePage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -60,6 +83,8 @@ export function ClientWorkspacePage() {
   useEffect(() => {
     if (!payload?.client) return
 
+    const address = (payload.client.address ?? {}) as ClientAddress
+
     form.reset({
       displayName: payload.client.displayName,
       firstName: payload.client.firstName ?? '',
@@ -69,12 +94,12 @@ export function ClientWorkspacePage() {
       primaryPhone: payload.client.primaryPhone ?? '',
       preferredContactChannel: (payload.client.preferredContactChannel as 'email' | 'sms' | 'phone' | undefined) ?? 'email',
       dateOfBirth: payload.client.dateOfBirth ?? '',
-      status: payload.client.status,
-      addressLine1: payload.client.address?.addressLine1 ?? '',
-      addressLine2: payload.client.address?.addressLine2 ?? '',
-      city: payload.client.address?.city ?? '',
-      stateCode: payload.client.address?.stateCode ?? '',
-      postalCode: payload.client.address?.postalCode ?? ''
+      status: normalizeWorkspaceFormStatus(payload.client.status),
+      addressLine1: address.addressLine1 ?? '',
+      addressLine2: address.addressLine2 ?? '',
+      city: address.city ?? '',
+      stateCode: address.stateCode ?? '',
+      postalCode: address.postalCode ?? ''
     })
   }, [form, payload])
 
@@ -267,7 +292,8 @@ export function ClientWorkspacePage() {
       ) : <EmptyState title="No audit entries yet" description="Client mutations will appear here once they are recorded through the audit module." />
     }
 
-    return <WorkspacePlaceholderPanel title={activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} />
+    const fallbackTabLabel = String(activeTab ?? 'workspace')
+    return <WorkspacePlaceholderPanel title={fallbackTabLabel.charAt(0).toUpperCase() + fallbackTabLabel.slice(1)} />
   }
 
   return (
@@ -307,3 +333,4 @@ export function ClientWorkspacePage() {
     </div>
   )
 }
+

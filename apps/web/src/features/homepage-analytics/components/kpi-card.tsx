@@ -37,3 +37,5 @@ export function KpiCard({ card }: KpiCardProps) {
     </AppCard>
   )
 }
+
+

@@ -4,4 +4,5 @@ coverage
 vendor
 .env
 .DS_Store
+pnpm-lock.yaml
 composer.lock

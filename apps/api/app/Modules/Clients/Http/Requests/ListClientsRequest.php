@@ -17,7 +17,7 @@ final class ListClientsRequest extends FormRequest
     {
         return [
             'search' => ['nullable', 'string', 'max:120'],
-            'status' => ['nullable', 'in:lead,active,inactive'],
+            'status' => ['nullable', 'in:lead,qualified,applied,active,inactive'],
             'sort' => ['nullable', 'in:display_name,created_at,updated_at,last_activity_at'],
             'direction' => ['nullable', 'in:asc,desc'],
             'page' => ['nullable', 'integer', 'min:1'],

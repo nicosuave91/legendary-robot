@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Modules\Clients\Models\Client;
 use App\Modules\Clients\Models\ClientAddress;
-use App\Modules\Clients\Models\ClientStatusHistory;
+use App\Modules\Disposition\Services\DispositionProjectionService;
 use App\Modules\IdentityAccess\Models\User;
 use App\Modules\Shared\Audit\AuditLogger;
 
@@ -16,10 +16,89 @@ final class ClientService
 {
     public function __construct(
         private readonly AuditLogger $auditLogger,
+        private readonly DispositionProjectionService $dispositionProjectionService,
     ) {
     }
 
     public function create(User $actor, array $payload, string $correlationId): array
+    {
+        $client = $this->persistClient(
+            actor: $actor,
+            payload: $payload,
+            correlationId: $correlationId,
+            action: 'clients.create',
+            importSourceId: null,
+        );
+
+        return $this->serializeClient($client);
+    }
+
+    public function createFromImport(User $actor, array $payload, string $importId, string $correlationId): array
+    {
+        $client = $this->persistClient(
+            actor: $actor,
+            payload: $payload,
+            correlationId: $correlationId,
+            action: 'clients.imported',
+            importSourceId: $importId,
+        );
+
+        return $this->serializeClient($client);
+    }
+
+    public function update(User $actor, Client $client, array $payload, string $correlationId): array
+    {
+        $before = [
+            'displayName' => (string) $client->display_name,
+            'status' => (string) $client->status,
+            'primaryEmail' => $client->primary_email,
+            'primaryPhone' => $client->primary_phone,
+        ];
+
+        $updated = DB::transaction(function () use ($actor, $client, $payload): Client {
+            $ownerUserId = array_key_exists('ownerUserId', $payload)
+                ? $this->resolveOwnerUserId($actor, $payload['ownerUserId'])
+                : $client->owner_user_id;
+
+            $client->fill([
+                'owner_user_id' => $ownerUserId,
+                'display_name' => (string) $payload['displayName'],
+                'first_name' => $payload['firstName'] ?? null,
+                'last_name' => $payload['lastName'] ?? null,
+                'company_name' => $payload['companyName'] ?? null,
+                'primary_email' => $payload['primaryEmail'] ?? null,
+                'primary_phone' => $payload['primaryPhone'] ?? null,
+                'preferred_contact_channel' => $payload['preferredContactChannel'] ?? null,
+                'date_of_birth' => $payload['dateOfBirth'] ?? null,
+                'last_activity_at' => now(),
+            ]);
+            $client->save();
+
+            $this->upsertAddress($client, $payload);
+
+            return $client->load(['address', 'owner']);
+        });
+
+        $this->auditLogger->record([
+            'tenant_id' => (string) $actor->tenant_id,
+            'actor_id' => (string) $actor->id,
+            'action' => 'clients.update',
+            'subject_type' => 'client',
+            'subject_id' => (string) $updated->id,
+            'correlation_id' => $correlationId,
+            'before_summary' => $before,
+            'after_summary' => [
+                'displayName' => $updated->display_name,
+                'status' => $updated->status,
+                'primaryEmail' => $updated->primary_email,
+                'primaryPhone' => $updated->primary_phone,
+            ],
+        ]);
+
+        return $this->serializeClient($updated);
+    }
+
+    private function persistClient(User $actor, array $payload, string $correlationId, string $action, ?string $importSourceId): Client
     {
         $client = DB::transaction(function () use ($actor, $payload): Client {
             $ownerUserId = $this->resolveOwnerUserId($actor, $payload['ownerUserId'] ?? null);
@@ -36,12 +115,12 @@ final class ClientService
                 'primary_phone' => $payload['primaryPhone'] ?? null,
                 'preferred_contact_channel' => $payload['preferredContactChannel'] ?? null,
                 'date_of_birth' => $payload['dateOfBirth'] ?? null,
-                'status' => (string) ($payload['status'] ?? 'lead'),
+                'status' => 'lead',
                 'last_activity_at' => now(),
             ]);
 
             $this->upsertAddress($client, $payload);
-            $this->appendStatusHistory($client, $actor, null, (string) $client->status, 'Initial client creation');
+            $this->dispositionProjectionService->ensureInitialDispositionForClient($client, $actor, $importSourceId === null ? 'Initial client creation' : 'Client created from governed import commit');
 
             return $client->load(['address', 'owner']);
         });
@@ -49,76 +128,20 @@ final class ClientService
         $this->auditLogger->record([
             'tenant_id' => (string) $actor->tenant_id,
             'actor_id' => (string) $actor->id,
-            'action' => 'clients.create',
+            'action' => $action,
             'subject_type' => 'client',
             'subject_id' => (string) $client->id,
             'correlation_id' => $correlationId,
             'before_summary' => null,
-            'after_summary' => json_encode([
+            'after_summary' => [
                 'displayName' => $client->display_name,
                 'status' => $client->status,
                 'ownerUserId' => $client->owner_user_id,
-            ], JSON_THROW_ON_ERROR),
+                'importSourceId' => $importSourceId,
+            ],
         ]);
 
-        return $this->serializeClient($client);
-    }
-
-    public function update(User $actor, Client $client, array $payload, string $correlationId): array
-    {
-        $before = [
-            'displayName' => (string) $client->display_name,
-            'status' => (string) $client->status,
-            'primaryEmail' => $client->primary_email,
-            'primaryPhone' => $client->primary_phone,
-        ];
-
-        $updated = DB::transaction(function () use ($actor, $client, $payload): Client {
-            $fromStatus = (string) $client->status;
-            $ownerUserId = array_key_exists('ownerUserId', $payload)
-                ? $this->resolveOwnerUserId($actor, $payload['ownerUserId'])
-                : $client->owner_user_id;
-
-            $client->fill([
-                'owner_user_id' => $ownerUserId,
-                'display_name' => (string) $payload['displayName'],
-                'first_name' => $payload['firstName'] ?? null,
-                'last_name' => $payload['lastName'] ?? null,
-                'company_name' => $payload['companyName'] ?? null,
-                'primary_email' => $payload['primaryEmail'] ?? null,
-                'primary_phone' => $payload['primaryPhone'] ?? null,
-                'preferred_contact_channel' => $payload['preferredContactChannel'] ?? null,
-                'date_of_birth' => $payload['dateOfBirth'] ?? null,
-                'status' => (string) ($payload['status'] ?? $client->status),
-                'last_activity_at' => now(),
-            ]);
-            $client->save();
-
-            $this->upsertAddress($client, $payload);
-            if ($fromStatus !== (string) $client->status) {
-                $this->appendStatusHistory($client, $actor, $fromStatus, (string) $client->status, 'Profile update');
-            }
-
-            return $client->load(['address', 'owner']);
-        });
-
-        $this->auditLogger->record([
-            'tenant_id' => (string) $actor->tenant_id,
-            'actor_id' => (string) $actor->id,
-            'action' => 'clients.update',
-            'subject_type' => 'client',
-            'subject_id' => (string) $updated->id,
-            'correlation_id' => $correlationId,
-            'before_summary' => json_encode($before, JSON_THROW_ON_ERROR),
-            'after_summary' => json_encode([
-                'displayName' => $updated->display_name,
-                'status' => $updated->status,
-                'primaryEmail' => $updated->primary_email,
-                'primaryPhone' => $updated->primary_phone,
-            ], JSON_THROW_ON_ERROR),
-        ]);
-
-        return $this->serializeClient($updated);
+        return $client;
     }
 
     private function upsertAddress(Client $client, array $payload): void
@@ -144,20 +167,6 @@ final class ClientService
 
         $address->fill($addressPayload);
         $address->save();
-    }
-
-    private function appendStatusHistory(Client $client, User $actor, ?string $fromStatus, string $toStatus, ?string $reason): void
-    {
-        ClientStatusHistory::query()->create([
-            'id' => (string) Str::uuid(),
-            'tenant_id' => (string) $client->tenant_id,
-            'client_id' => (string) $client->id,
-            'actor_user_id' => (string) $actor->id,
-            'from_status' => $fromStatus,
-            'to_status' => $toStatus,
-            'reason' => $reason,
-            'occurred_at' => now(),
-        ]);
     }
 
     private function resolveOwnerUserId(User $actor, mixed $candidate): string

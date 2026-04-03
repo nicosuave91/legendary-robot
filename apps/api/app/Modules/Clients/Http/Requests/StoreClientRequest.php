@@ -24,7 +24,6 @@ final class StoreClientRequest extends FormRequest
             'primaryPhone' => ['nullable', 'string', 'max:50'],
             'preferredContactChannel' => ['nullable', 'in:email,sms,phone'],
             'dateOfBirth' => ['nullable', 'date'],
-            'status' => ['nullable', 'in:lead,active,inactive'],
             'ownerUserId' => ['nullable', 'string', 'max:255'],
             'addressLine1' => ['nullable', 'string', 'max:255'],
             'addressLine2' => ['nullable', 'string', 'max:255'],
