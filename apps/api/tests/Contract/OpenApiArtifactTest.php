@@ -10,7 +10,7 @@ final class OpenApiArtifactTest extends TestCase
 {
     private function artifact(): array
     {
-        $artifactPath = dirname(__DIR__, 3) . '/packages/contracts/openapi.json';
+        $artifactPath = dirname(__DIR__, 4) . '/packages/contracts/openapi.json';
 
         return json_decode((string) file_get_contents($artifactPath), true, 512, JSON_THROW_ON_ERROR);
     }
