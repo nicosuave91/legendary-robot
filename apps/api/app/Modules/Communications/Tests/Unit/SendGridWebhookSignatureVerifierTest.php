@@ -13,8 +13,8 @@ final class SendGridWebhookSignatureVerifierTest extends TestCase
     public function test_it_verifies_signed_sendgrid_payloads_using_raw_body_and_timestamp(): void
     {
         $keyPair = openssl_pkey_new([
-            'private_key_type' => OPENSSL_KEYTYPE_EC,
-            'curve_name' => 'prime256v1',
+            'private_key_type' => OPENSSL_KEYTYPE_RSA,
+            'private_key_bits' => 2048,
         ]);
         self::assertNotFalse($keyPair);
 
