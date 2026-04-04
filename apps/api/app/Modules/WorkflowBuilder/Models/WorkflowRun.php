@@ -27,13 +27,18 @@ use App\Modules\Shared\Tenancy\TenantScoped;
  * @property \Illuminate\Support\Carbon|null $started_at
  * @property \Illuminate\Support\Carbon|null $completed_at
  * @property \Illuminate\Support\Carbon|null $failed_at
+ * @property-read Workflow $workflow
+ * @property-read WorkflowVersion $workflowVersion
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, WorkflowRunLog> $logs
  */
 final class WorkflowRun extends Model
 {
     use TenantScoped;
 
     protected $table = 'workflow_runs';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     /**
