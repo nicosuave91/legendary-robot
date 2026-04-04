@@ -28,7 +28,7 @@ final class ApplicationService
 
     public function create(User $actor, Client $client, array $payload, string $correlationId): array
     {
-        $application = DB::transaction(function () use ($actor, $client, $payload): Application {
+        $application = DB::transaction(function () use ($actor, $client, $payload, $correlationId): Application {
             $status = !empty($payload['submittedAt']) ? 'submitted' : 'draft';
 
             $application = Application::query()->create([
