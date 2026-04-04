@@ -23,13 +23,17 @@ use App\Modules\Shared\Tenancy\TenantScoped;
  * @property array<string, mixed>|null $context_snapshot
  * @property array<string, mixed>|null $outcome_summary
  * @property \Illuminate\Support\Carbon|null $executed_at
+ * @property-read Rule $rule
+ * @property-read RuleVersion $ruleVersion
  */
 final class RuleExecutionLog extends Model
 {
     use TenantScoped;
 
     protected $table = 'rule_execution_logs';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     /**
