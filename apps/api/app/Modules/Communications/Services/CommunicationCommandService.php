@@ -24,7 +24,7 @@ final class CommunicationCommandService
         private readonly CommunicationAttachmentService $attachmentService,
         private readonly CommunicationAuditService $auditService,
         private readonly CommunicationStatusProjector $statusProjector,
-        private readonly CommunicationCorrelationService $correlationService,
+        private readonly CommunicationDeliveryEventService $deliveryEventService,
     ) {
     }
 
@@ -182,6 +182,9 @@ final class CommunicationCommandService
         ]);
     }
 
+    /**
+     * @param array<string, mixed> $rawPayload
+     */
     public function appendEvent(
         string $tenantId,
         ?string $clientId,
@@ -197,36 +200,23 @@ final class CommunicationCommandService
         ?string $providerEventId = null,
         ?string $statusBefore = null,
         ?string $statusAfter = null,
-    ): void {
-        DeliveryStatusEvent::query()->create([
-            'id' => (string) Str::uuid(),
-            'tenant_id' => $tenantId,
-            'client_id' => $clientId,
-            'subject_type' => $subjectType,
-            'subject_id' => $subjectId,
-            'provider_name' => $providerName,
-            'provider_reference' => $providerReference,
-            'provider_event_id' => $providerEventId,
-            'provider_event_type' => $eventType,
-            'provider_status' => $providerStatus,
-            'occurred_at' => now(),
-            'received_at' => now(),
-            'correlation_key' => $correlationKey,
-            'signature_verified' => $signatureVerified,
-            'dedupe_hash' => $this->correlationService->dedupeHash([
-                'tenantId' => $tenantId,
-                'subjectType' => $subjectType,
-                'subjectId' => $subjectId,
-                'eventType' => $eventType,
-                'providerReference' => $providerReference,
-                'providerEventId' => $providerEventId,
-                'providerStatus' => $providerStatus,
-                'rawPayload' => $rawPayload,
-            ]),
-            'raw_payload' => $rawPayload,
-            'status_before' => $statusBefore,
-            'status_after' => $statusAfter,
-        ]);
+    ): DeliveryStatusEvent {
+        return $this->deliveryEventService->record(
+            tenantId: $tenantId,
+            clientId: $clientId,
+            subjectType: $subjectType,
+            subjectId: $subjectId,
+            eventType: $eventType,
+            providerStatus: $providerStatus,
+            correlationKey: $correlationKey,
+            signatureVerified: $signatureVerified,
+            rawPayload: $rawPayload,
+            providerName: $providerName,
+            providerReference: $providerReference,
+            providerEventId: $providerEventId,
+            statusBefore: $statusBefore,
+            statusAfter: $statusAfter,
+        );
     }
 
     public function presentMessage(CommunicationMessage $message, array $attachments = [], bool $includeStatus = false): array
@@ -297,6 +287,6 @@ final class CommunicationCommandService
 
     private function normalize(string $value): string
     {
-        return preg_replace('/\\s+/', '', trim($value)) ?: $value;
+        return preg_replace('/\s+/', '', trim($value)) ?: $value;
     }
 }

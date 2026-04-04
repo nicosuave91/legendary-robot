@@ -7,6 +7,7 @@ namespace App\Modules\Communications\Http\Controllers\Webhooks;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Http\Controllers\Controller;
 use App\Modules\Communications\Models\CommunicationMessage;
@@ -42,7 +43,7 @@ final class SendGridEventsWebhookController extends Controller
             $emailLog = EmailLog::query()->withoutGlobalScopes()->where('communication_message_id', $message->id)->first();
             $providerEvent = (string) Arr::get($event, 'event', '');
             $statusBefore = (string) $message->lifecycle_status;
-            $nextStatus = match ($providerEvent) {
+            $candidateStatus = match ($providerEvent) {
                 'processed', 'deferred' => 'delivery_pending',
                 'delivered' => 'delivered',
                 'bounce' => 'bounced',
@@ -51,26 +52,108 @@ final class SendGridEventsWebhookController extends Controller
                 'spamreport' => 'failed',
                 default => $providerEvent !== '' ? $providerEvent : $statusBefore,
             };
+            $statusAfter = $this->resolveLifecycleStatus($statusBefore, $candidateStatus);
+            $providerReference = (string) Arr::get($event, 'sg_message_id', $emailLog?->provider_message_id);
+            $providerEventId = Arr::get($event, 'sg_event_id', Arr::get($event, 'event_id'));
 
-            $message->provider_status = $providerEvent;
-            $message->lifecycle_status = $nextStatus;
-            if (in_array($nextStatus, ['delivered', 'bounced', 'dropped', 'failed'], true)) {
-                $message->finalized_at = now();
-            }
-            $message->save();
+            DB::transaction(function () use ($commandService, $auditService, $trust, $event, $message, $emailLog, $providerEvent, $providerReference, $providerEventId, $statusBefore, $statusAfter): void {
+                $eventRecord = $commandService->appendEvent(
+                    tenantId: (string) $message->tenant_id,
+                    clientId: (string) $message->client_id,
+                    subjectType: 'communication_message',
+                    subjectId: (string) $message->id,
+                    eventType: 'sendgrid.event.callback',
+                    providerStatus: $providerEvent,
+                    correlationKey: (string) $message->correlation_key,
+                    signatureVerified: $trust->verified,
+                    rawPayload: $event,
+                    providerName: 'sendgrid',
+                    providerReference: $providerReference !== '' ? $providerReference : null,
+                    providerEventId: is_string($providerEventId) && $providerEventId !== '' ? $providerEventId : null,
+                    statusBefore: $statusBefore,
+                    statusAfter: $statusAfter,
+                );
 
-            if ($emailLog !== null) {
-                $emailLog->forceFill([
-                    'last_provider_event_at' => now(),
-                    'provider_message_id' => (string) ($emailLog->provider_message_id ?: Arr::get($event, 'sg_message_id')),
-                    'provider_metadata' => array_merge((array) $emailLog->provider_metadata, ['lastEvent' => $event]),
-                ])->save();
-            }
+                if (!$eventRecord->wasRecentlyCreated) {
+                    return;
+                }
 
-            $commandService->appendEvent((string) $message->tenant_id, (string) $message->client_id, 'communication_message', (string) $message->id, 'sendgrid.event.callback', $providerEvent, (string) $message->correlation_key, $trust->verified, $event, 'sendgrid', (string) Arr::get($event, 'sg_message_id'), (string) Str::uuid(), $statusBefore, $nextStatus);
-            $auditService->record(null, (string) $message->tenant_id, 'communication.email.callback_processed', 'communication_message', (string) $message->id, (string) Str::uuid(), ['providerEvent' => $providerEvent, 'statusAfter' => $nextStatus, 'signatureVerified' => $trust->verified, 'webhookTrustMode' => $trust->mode]);
+                if ($this->shouldReplaceProviderStatus($statusBefore, $statusAfter)) {
+                    $message->provider_status = $providerEvent;
+                }
+
+                $message->lifecycle_status = $statusAfter;
+                if ($this->isTerminalStatus($statusAfter) && $message->finalized_at === null) {
+                    $message->finalized_at = now();
+                }
+                $message->save();
+
+                if ($emailLog !== null) {
+                    $emailLog->forceFill([
+                        'last_provider_event_at' => now(),
+                        'provider_message_id' => (string) ($emailLog->provider_message_id ?: $providerReference),
+                        'provider_metadata' => array_merge((array) $emailLog->provider_metadata, ['lastEvent' => $event]),
+                    ])->save();
+                }
+
+                $auditService->record(
+                    null,
+                    (string) $message->tenant_id,
+                    'communication.email.callback_processed',
+                    'communication_message',
+                    (string) $message->id,
+                    (string) ($message->correlation_key ?: Str::uuid()),
+                    [
+                        'providerEvent' => $providerEvent,
+                        'statusAfter' => $statusAfter,
+                        'signatureVerified' => $trust->verified,
+                        'webhookTrustMode' => $trust->mode,
+                    ],
+                );
+            });
         }
 
         return response()->json(['ok' => true]);
+    }
+
+    private function resolveLifecycleStatus(string $currentStatus, string $candidateStatus): string
+    {
+        if ($candidateStatus === '' || $candidateStatus === $currentStatus) {
+            return $currentStatus;
+        }
+
+        if ($this->isTerminalStatus($currentStatus)) {
+            return $currentStatus;
+        }
+
+        if ($this->isTerminalStatus($candidateStatus)) {
+            return $candidateStatus;
+        }
+
+        return $this->statusRank($candidateStatus) >= $this->statusRank($currentStatus)
+            ? $candidateStatus
+            : $currentStatus;
+    }
+
+    private function shouldReplaceProviderStatus(string $statusBefore, string $statusAfter): bool
+    {
+        return !($statusBefore === $statusAfter && $this->isTerminalStatus($statusBefore));
+    }
+
+    private function isTerminalStatus(string $status): bool
+    {
+        return in_array($status, ['delivered', 'received', 'completed', 'failed', 'undelivered', 'bounced', 'dropped', 'busy', 'no_answer', 'canceled'], true);
+    }
+
+    private function statusRank(string $status): int
+    {
+        return match ($status) {
+            'queued' => 10,
+            'submitting' => 20,
+            'submitted' => 30,
+            'delivery_pending' => 40,
+            'delivered', 'received', 'completed', 'failed', 'undelivered', 'bounced', 'dropped', 'busy', 'no_answer', 'canceled' => 90,
+            default => 50,
+        };
     }
 }
