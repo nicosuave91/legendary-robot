@@ -16,6 +16,7 @@ final class CommunicationAttachmentService
 {
     public function __construct(
         private readonly TenantFileStorage $tenantFileStorage,
+        private readonly CommunicationAttachmentGovernanceService $communicationAttachmentGovernanceService,
     ) {
     }
 
@@ -34,6 +35,8 @@ final class CommunicationAttachmentService
             if (!$file instanceof UploadedFile) {
                 continue;
             }
+
+            $this->communicationAttachmentGovernanceService->assertManualUploadAllowed($channel, $file);
 
             $attachmentId = (string) Str::uuid();
             $stored = $this->tenantFileStorage->storeCommunicationAttachment(
@@ -62,6 +65,7 @@ final class CommunicationAttachmentService
                 'size_bytes' => $stored['sizeBytes'],
                 'checksum_sha256' => $stored['checksumSha256'],
                 'scan_status' => 'pending',
+                'scan_requested_at' => now(),
                 'uploaded_by' => $uploadedBy,
             ]);
 
@@ -119,6 +123,12 @@ final class CommunicationAttachmentService
                 'size_bytes' => $attachment->size_bytes,
                 'checksum_sha256' => $attachment->checksum_sha256,
                 'scan_status' => $attachment->scan_status,
+                'scan_requested_at' => $attachment->scan_requested_at,
+                'scanned_at' => $attachment->scanned_at,
+                'scan_engine' => $attachment->scan_engine,
+                'scan_result_detail' => $attachment->scan_result_detail,
+                'quarantine_reason' => $attachment->quarantine_reason,
+                'scan_updated_by' => $attachment->scan_updated_by,
                 'provider_attachment_id' => null,
                 'uploaded_by' => $uploadedBy,
             ]);
@@ -192,6 +202,7 @@ final class CommunicationAttachmentService
                 'size_bytes' => $stored['sizeBytes'],
                 'checksum_sha256' => $stored['checksumSha256'],
                 'scan_status' => 'pending',
+                'scan_requested_at' => now(),
                 'provider_attachment_id' => (string) ($payload['MediaSid' . $index] ?? ''),
             ]);
 
@@ -210,7 +221,7 @@ final class CommunicationAttachmentService
             'sizeBytes' => (int) $attachment->size_bytes,
             'provenance' => (string) $attachment->provenance,
             'storageReference' => (string) $attachment->storage_reference,
-            'scanStatus' => (string) $attachment->scan_status,
+            'scanStatus' => (string) ($attachment->scan_status ?? 'pending'),
         ];
     }
 

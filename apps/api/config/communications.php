@@ -23,4 +23,38 @@ return [
             'missing_agent_message' => env('TWILIO_VOICE_MISSING_AGENT_MESSAGE', 'We are unable to connect your call at this time.'),
         ],
     ],
+    'attachments' => [
+        'public_delivery' => [
+            'required_scan_status' => env('COMMUNICATION_ATTACHMENT_PUBLIC_REQUIRED_SCAN_STATUS', 'clean'),
+        ],
+        'upload' => [
+            'channels' => [
+                'sms' => [
+                    'max_bytes' => 20 * 1024 * 1024,
+                    'allowed_mime_types' => ['image/jpeg','image/jpg','image/png','image/gif','application/pdf','text/plain'],
+                ],
+                'mms' => [
+                    'max_bytes' => 20 * 1024 * 1024,
+                    'allowed_mime_types' => ['image/jpeg','image/jpg','image/png','image/gif','application/pdf','text/plain'],
+                ],
+                'email' => [
+                    'max_bytes' => 25 * 1024 * 1024,
+                    'allowed_mime_types' => ['image/jpeg','image/jpg','image/png','image/gif','application/pdf','text/plain','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+                ],
+            ],
+        ],
+        'outbound' => [
+            'required_scan_status' => env('COMMUNICATION_ATTACHMENT_OUTBOUND_REQUIRED_SCAN_STATUS', 'clean'),
+            'providers' => [
+                'twilio' => [
+                    'max_bytes' => 20 * 1024 * 1024,
+                    'allowed_mime_types' => ['image/jpeg','image/jpg','image/png','image/gif','application/pdf','text/plain'],
+                ],
+                'sendgrid' => [
+                    'max_bytes' => 25 * 1024 * 1024,
+                    'allowed_mime_types' => ['image/jpeg','image/jpg','image/png','image/gif','application/pdf','text/plain','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+                ],
+            ],
+        ],
+    ],
 ];

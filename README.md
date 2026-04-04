@@ -1,38 +1,28 @@
-# Sprint E — Communications Timeline and Inbox Completion
+# Sprint F — Communications Attachment Security Completion
 
-This bundle implements the next communications sprint after voice completion.
+This bundle implements the next communications sprint after timeline/inbox completion.
 
 ## Scope
-- real cursor pagination for client communications timelines
-- new server-filtered communications inbox endpoint
-- inbox aggregation across visible clients
-- top-level communications page becomes an operational inbox
-- client workspace timeline supports loading older activity
-- contract updates for inbox and cursor parameters
-- backend feature tests for timeline paging and inbox ordering/filtering
+- attachment security lifecycle metadata
+- tenant-authenticated attachment scan-status update endpoint
+- outbound provider policy enforcement for Twilio and SendGrid
+- stricter signed public attachment serving (clean-only)
+- upload policy validation for manual communication attachments
+- scan-status visibility in the client communications timeline UI
+- backend feature tests for scan-status updates, public delivery gating, and provider submission blocking
 
 ## Included files
-- `apps/api/app/Modules/Communications/Http/Requests/ListClientCommunicationsRequest.php`
-- `apps/api/app/Modules/Communications/Http/Requests/ListCommunicationsInboxRequest.php`
-- `apps/api/app/Modules/Communications/Http/Controllers/Api/V1/ClientCommunicationsController.php`
-- `apps/api/app/Modules/Communications/Http/Controllers/Api/V1/CommunicationsInboxController.php`
+- `apps/api/config/communications.php`
+- `apps/api/app/Modules/Communications/Database/Migrations/2026_04_04_000008_add_scan_lifecycle_fields_to_communication_attachments_table.php`
+- `apps/api/app/Modules/Communications/Models/CommunicationAttachment.php`
+- `apps/api/app/Modules/Communications/Services/CommunicationAttachmentGovernanceService.php`
+- `apps/api/app/Modules/Communications/Services/CommunicationAttachmentService.php`
+- `apps/api/app/Modules/Communications/Http/Requests/UpdateCommunicationAttachmentScanStatusRequest.php`
+- `apps/api/app/Modules/Communications/Http/Controllers/Api/V1/CommunicationAttachmentScanStatusController.php`
+- `apps/api/app/Modules/Communications/Http/Controllers/Webhooks/PublicCommunicationAttachmentController.php`
+- `apps/api/app/Modules/Communications/Services/Providers/TwilioMessagingAdapter.php`
+- `apps/api/app/Modules/Communications/Services/Providers/SendGridEmailAdapter.php`
 - `apps/api/app/Modules/Communications/Routes/api.php`
-- `apps/api/app/Modules/Communications/Services/CommunicationTimelineService.php`
-- `apps/api/app/Modules/Communications/Services/CommunicationsInboxService.php`
 - `apps/api/contracts/openapi.communications.php`
-- `apps/web/src/lib/api/query-keys.ts`
-- `apps/web/src/lib/api/client.ts`
-- `apps/web/src/features/communications/pages/communications-page.tsx`
 - `apps/web/src/features/communications/components/client-communications-panel.tsx`
-- `apps/api/app/Modules/Communications/Tests/Feature/CommunicationsInboxAndTimelineFeatureTest.php`
-
-## Apply
-Copy these files into the repo root, preserving paths.
-
-Then run from `apps/api`:
-```bash
-php scripts/publish-openapi.php
-find app tests bootstrap config database routes -name "*.php" -print0 | xargs -0 -n1 php -l
-vendor/bin/phpstan analyse --memory-limit=1G
-vendor/bin/phpunit
-```
+- `apps/api/app/Modules/Communications/Tests/Feature/CommunicationAttachmentGovernanceFeatureTest.php`

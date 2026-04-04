@@ -127,7 +127,12 @@ export function ClientCommunicationsPanel({ clientId, fallbackEmail, fallbackPho
                 <div className="space-y-2"><label className="label-sm text-text">Message body</label><AppTextarea value={smsBody} onChange={(event) => setSmsBody(event.currentTarget.value)} placeholder="Send a governed SMS or MMS update from the client workspace." /></div>
                 <div className="space-y-4">
                   <div className="space-y-2"><label className="label-sm text-text">Recipient</label><AppInput value={fallbackPhone ?? ''} readOnly /></div>
-                  <div className="space-y-2"><label className="label-sm text-text">Attachments</label><AppInput type="file" multiple onChange={(event) => setSmsFiles(Array.from(event.currentTarget.files ?? []))} />{smsFiles.length ? <div className="flex flex-wrap gap-2">{smsFiles.map((file) => <AppBadge key={file.name}>{file.name}</AppBadge>)}</div> : null}</div>
+                  <div className="space-y-2">
+                    <label className="label-sm text-text">Attachments</label>
+                    <AppInput type="file" multiple onChange={(event) => setSmsFiles(Array.from(event.currentTarget.files ?? []))} />
+                    <div className="text-xs text-text-muted">Attachments are persisted immediately, but provider delivery is blocked until security review marks them clean.</div>
+                    {smsFiles.length ? <div className="flex flex-wrap gap-2">{smsFiles.map((file) => <AppBadge key={file.name}>{file.name}</AppBadge>)}</div> : null}
+                  </div>
                   <AppButton type="button" onClick={() => smsMutation.mutate()} disabled={smsMutation.isPending || (!smsBody.trim() && smsFiles.length === 0) || !fallbackPhone}>{smsMutation.isPending ? 'Queueing…' : 'Queue SMS / MMS'}</AppButton>
                 </div>
               </div>
@@ -139,7 +144,12 @@ export function ClientCommunicationsPanel({ clientId, fallbackEmail, fallbackPho
                 <div className="space-y-2"><label className="label-sm text-text">CC</label><AppInput value={emailCc} onChange={(event) => setEmailCc(event.currentTarget.value)} placeholder="Optional CC list" /></div>
                 <div className="space-y-2"><label className="label-sm text-text">BCC</label><AppInput value={emailBcc} onChange={(event) => setEmailBcc(event.currentTarget.value)} placeholder="Optional BCC list" /></div>
                 <div className="space-y-2 lg:col-span-2"><label className="label-sm text-text">Body</label><AppTextarea value={emailBody} onChange={(event) => setEmailBody(event.currentTarget.value)} placeholder="Compose a governed email from the client workspace." /></div>
-                <div className="space-y-2 lg:col-span-2"><label className="label-sm text-text">Attachments</label><AppInput type="file" multiple onChange={(event) => setEmailFiles(Array.from(event.currentTarget.files ?? []))} />{emailFiles.length ? <div className="flex flex-wrap gap-2">{emailFiles.map((file) => <AppBadge key={file.name}>{file.name}</AppBadge>)}</div> : null}</div>
+                <div className="space-y-2 lg:col-span-2">
+                  <label className="label-sm text-text">Attachments</label>
+                  <AppInput type="file" multiple onChange={(event) => setEmailFiles(Array.from(event.currentTarget.files ?? []))} />
+                  <div className="text-xs text-text-muted">Email attachments also require a clean security review before SendGrid delivery is allowed.</div>
+                  {emailFiles.length ? <div className="flex flex-wrap gap-2">{emailFiles.map((file) => <AppBadge key={file.name}>{file.name}</AppBadge>)}</div> : null}
+                </div>
               </div>
               <AppButton type="button" onClick={() => emailMutation.mutate()} disabled={emailMutation.isPending || !emailTo.trim() || !emailSubject.trim() || !emailBody.trim()}>{emailMutation.isPending ? 'Queueing…' : 'Queue email'}</AppButton>
             </AppTabsContent>
@@ -196,7 +206,7 @@ function TimelineItem({ item, onRetry, isRetrying = false }: { item: Communicati
         <div className="text-xs text-text-muted">{item.occurredAt ? new Date(item.occurredAt).toLocaleString() : '—'}</div>
       </div>
       {item.content.bodyText ? <div className="body-sm mt-3 whitespace-pre-wrap text-text-muted">{item.content.bodyText}</div> : null}
-      {item.attachments.length ? <div className="mt-3 flex flex-wrap gap-2">{item.attachments.map((attachment) => <AppBadge key={attachment.id}>{attachment.originalFilename}</AppBadge>)}</div> : null}
+      {item.attachments.length ? <div className="mt-3 flex flex-wrap gap-2">{item.attachments.map((attachment) => <AppBadge key={attachment.id}>{attachment.originalFilename} • {attachment.scanStatus}</AppBadge>)}</div> : null}
       <div className="mt-3 body-sm text-text-muted">Evidence source: {item.evidence.source.replaceAll('_', ' ')}{item.evidence.lastEventAt ? ` • Last update ${new Date(item.evidence.lastEventAt).toLocaleString()}` : ''}</div>
       {hasFailure && item.status.reasonMessage ? <div className="mt-3 rounded-md border border-danger/20 bg-danger/5 px-3 py-2 text-sm text-danger">{item.status.reasonMessage}</div> : null}
       {onRetry ? <div className="mt-3"><AppButton type="button" variant="secondary" onClick={() => void onRetry()} disabled={isRetrying}>{isRetrying ? 'Queueing resend…' : 'Retry email'}</AppButton></div> : null}

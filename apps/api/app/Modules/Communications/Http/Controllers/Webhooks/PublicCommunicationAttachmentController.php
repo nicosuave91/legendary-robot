@@ -9,10 +9,11 @@ use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use App\Http\Controllers\Controller;
 use App\Modules\Communications\Models\CommunicationAttachment;
+use App\Modules\Communications\Services\CommunicationAttachmentGovernanceService;
 
 final class PublicCommunicationAttachmentController extends Controller
 {
-    public function __invoke(Request $request, string $attachmentId): BinaryFileResponse
+    public function __invoke(Request $request, string $attachmentId, CommunicationAttachmentGovernanceService $communicationAttachmentGovernanceService): BinaryFileResponse
     {
         abort_unless($request->hasValidSignature(), 401);
 
@@ -21,8 +22,7 @@ final class PublicCommunicationAttachmentController extends Controller
             ->where('id', $attachmentId)
             ->firstOrFail();
 
-        abort_if(in_array((string) $attachment->scan_status, ['rejected', 'quarantined'], true), 404);
-        abort_if(($attachment->storage_disk ?? '') === '' || ($attachment->storage_path ?? '') === '', 404);
+        abort_unless($communicationAttachmentGovernanceService->canServePublicly($attachment), 404);
 
         return Storage::disk((string) $attachment->storage_disk)->response(
             (string) $attachment->storage_path,

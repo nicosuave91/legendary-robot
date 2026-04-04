@@ -5,15 +5,22 @@ declare(strict_types=1);
 namespace App\Modules\Communications\Services\Providers;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use App\Modules\Communications\Contracts\EmailTransportProvider;
 use App\Modules\Communications\DTOs\ProviderSubmissionResultData;
 use App\Modules\Communications\Models\CommunicationAttachment;
 use App\Modules\Communications\Models\CommunicationMessage;
 use App\Modules\Communications\Models\EmailLog;
+use App\Modules\Communications\Services\CommunicationAttachmentGovernanceService;
 
 final class SendGridEmailAdapter implements EmailTransportProvider
 {
+    public function __construct(
+        private readonly CommunicationAttachmentGovernanceService $communicationAttachmentGovernanceService,
+    ) {
+    }
+
     public function send(CommunicationMessage $message): ProviderSubmissionResultData
     {
         $apiKey = (string) config('services.sendgrid.api_key');
@@ -30,6 +37,8 @@ final class SendGridEmailAdapter implements EmailTransportProvider
             ->where('attachable_type', CommunicationMessage::class)
             ->where('attachable_id', $message->id)
             ->get();
+
+        $this->communicationAttachmentGovernanceService->assertProviderEligible('sendgrid', 'email', $attachments);
 
         $payload = [
             'from' => ['email' => $fromEmail, 'name' => $fromName],
@@ -52,10 +61,14 @@ final class SendGridEmailAdapter implements EmailTransportProvider
                 $message->body_html ? ['type' => 'text/html', 'value' => (string) $message->body_html] : null,
             ])),
             'attachments' => $attachments->map(function (CommunicationAttachment $attachment): array {
+                if (($attachment->storage_disk ?? '') === '' || ($attachment->storage_path ?? '') === '') {
+                    throw new RuntimeException(sprintf('Attachment "%s" is missing persisted storage metadata and cannot be delivered.', $attachment->original_filename));
+                }
+
                 return [
                     'filename' => (string) $attachment->original_filename,
                     'type' => (string) $attachment->mime_type,
-                    'content' => base64_encode((string) file_get_contents(storage_path('app/' . $attachment->storage_path))),
+                    'content' => base64_encode((string) Storage::disk((string) $attachment->storage_disk)->get((string) $attachment->storage_path)),
                     'disposition' => 'attachment',
                 ];
             })->values()->all(),
