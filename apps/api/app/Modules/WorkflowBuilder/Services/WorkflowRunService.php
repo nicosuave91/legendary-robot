@@ -29,7 +29,17 @@ final class WorkflowRunService
 
         foreach ($matches as $version) {
             $idempotencyKey = hash('sha256', implode(':', [$tenantId, $eventName, $subjectType, $subjectId, (string) $version->id, $correlationId]));
-            dispatch(new StartWorkflowRunJob($tenantId, $correlationId, (string) $version->workflow_id, (string) $version->id, $eventName, $subjectType, $subjectId, $payload, $idempotencyKey));
+            dispatch(new StartWorkflowRunJob(
+                $tenantId,
+                $correlationId,
+                (string) $version->workflow_id,
+                (string) $version->id,
+                $eventName,
+                $subjectType,
+                $subjectId,
+                $payload,
+                $idempotencyKey,
+            ));
         }
     }
 
@@ -38,7 +48,12 @@ final class WorkflowRunService
      */
     public function startRun(string $tenantId, string $correlationId, Workflow $workflow, WorkflowVersion $version, string $eventName, string $subjectType, string $subjectId, array $payload, string $idempotencyKey): WorkflowRun
     {
-        $existing = WorkflowRun::query()->withoutGlobalScopes()->where('tenant_id', $tenantId)->where('idempotency_key', $idempotencyKey)->first();
+        $existing = WorkflowRun::query()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->where('idempotency_key', $idempotencyKey)
+            ->first();
+
         if ($existing !== null) {
             return $existing;
         }
@@ -60,7 +75,13 @@ final class WorkflowRunService
             'queued_at' => now(),
         ]);
 
-        $this->appendLog($run, null, 'trigger_matched', 'A published workflow version matched the incoming domain event.', ['workflowVersionId' => (string) $version->id, 'eventName' => $eventName]);
+        $this->appendLog(
+            $run,
+            null,
+            'trigger_matched',
+            'A published workflow version matched the incoming domain event.',
+            ['workflowVersionId' => (string) $version->id, 'eventName' => $eventName],
+        );
 
         $this->auditLogger->record([
             'tenant_id' => $tenantId,
@@ -70,7 +91,11 @@ final class WorkflowRunService
             'subject_id' => (string) $run->id,
             'correlation_id' => $correlationId,
             'before_summary' => null,
-            'after_summary' => json_encode(['workflowId' => $workflow->id, 'workflowVersionId' => $version->id, 'eventName' => $eventName], JSON_THROW_ON_ERROR),
+            'after_summary' => json_encode([
+                'workflowId' => $workflow->id,
+                'workflowVersionId' => $version->id,
+                'eventName' => $eventName,
+            ], JSON_THROW_ON_ERROR),
         ]);
 
         return $run;
@@ -96,6 +121,7 @@ final class WorkflowRunService
 
     public function listRunsForWorkflow(string $tenantId, Workflow $workflow): array
     {
+        /** @var \Illuminate\Database\Eloquent\Collection<int, WorkflowRun> $items */
         $items = WorkflowRun::query()
             ->withoutGlobalScopes()
             ->where('tenant_id', $tenantId)
@@ -114,7 +140,11 @@ final class WorkflowRunService
         abort_unless((string) $run->tenant_id === $tenantId && (string) $run->workflow_id === (string) $workflow->id, 404);
 
         /** @var \Illuminate\Database\Eloquent\Collection<int, WorkflowRunLog> $logs */
-        $logs = $run->logs()->withoutGlobalScopes()->where('tenant_id', $tenantId)->oldest('occurred_at')->get();
+        $logs = $run->logs()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->oldest('occurred_at')
+            ->get();
 
         return [
             'run' => $this->serializeRun($run),
