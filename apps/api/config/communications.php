@@ -16,8 +16,11 @@ return [
             'oauth_bearer_token' => env('SENDGRID_WEBHOOK_OAUTH_BEARER_TOKEN'),
         ],
     ],
-    'inbound_email' => [
-        'domain' => (string) env('COMMUNICATIONS_INBOUND_EMAIL_DOMAIN', ''),
-        'local_part_prefix' => (string) env('COMMUNICATIONS_INBOUND_EMAIL_LOCAL_PART_PREFIX', 'reply'),
+    'voice' => [
+        'bridge' => [
+            'default_agent_number' => env('TWILIO_VOICE_AGENT_NUMBER'),
+            'customer_intro_message' => env('TWILIO_VOICE_CUSTOMER_INTRO_MESSAGE', 'Please hold while we connect your call.'),
+            'missing_agent_message' => env('TWILIO_VOICE_MISSING_AGENT_MESSAGE', 'We are unable to connect your call at this time.'),
+        ],
     ],
 ];

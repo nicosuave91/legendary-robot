@@ -38,7 +38,7 @@ final class TwilioVoiceWebhookController extends Controller
             $candidateStatus = match ($providerStatus) {
                 'initiated' => 'submitted',
                 'ringing' => 'ringing',
-                'in-progress' => 'in_progress',
+                'answered', 'in-progress' => 'in_progress',
                 'completed' => 'completed',
                 'busy' => 'busy',
                 'no-answer' => 'no_answer',
@@ -74,6 +74,15 @@ final class TwilioVoiceWebhookController extends Controller
             }
 
             $callLog->lifecycle_status = $statusAfter;
+
+            if ($statusAfter === 'in_progress') {
+                if ($callLog->started_at === null) {
+                    $callLog->started_at = now();
+                }
+                if ($callLog->answered_at === null) {
+                    $callLog->answered_at = now();
+                }
+            }
 
             if ((int) $request->input('CallDuration', 0) > 0) {
                 $callLog->duration_seconds = (int) $request->input('CallDuration');

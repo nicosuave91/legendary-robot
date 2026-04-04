@@ -24,8 +24,8 @@ final class TwilioVoiceAdapter implements VoiceTransportProvider
 
         $payload = [
             'To' => (string) $callLog->to_number,
-            'From' => $fromNumber,
-            'Url' => config('app.url') . '/twiml/voice-placeholder',
+            'From' => (string) ($callLog->from_number ?: $fromNumber),
+            'Url' => route('twiml.twilio.voice.outbound', ['callLogId' => $callLog->id, 'tenantId' => $callLog->tenant_id]),
             'StatusCallback' => route('webhooks.twilio.voice', ['callLogId' => $callLog->id, 'tenantId' => $callLog->tenant_id]),
             'StatusCallbackEvent' => ['initiated', 'ringing', 'answered', 'completed'],
         ];

@@ -205,6 +205,25 @@ final class CommunicationCommandService
     public function queueCall(User $actor, Client $client, array $payload, string $correlationId): array
     {
         return DB::transaction(function () use ($actor, $client, $payload, $correlationId): array {
+            $idempotencyKey = $this->resolveIdempotencyKey($payload['idempotencyKey'] ?? null);
+            if ($idempotencyKey !== null) {
+                $existingCall = $this->findExistingCallByIdempotencyKey($client, $idempotencyKey);
+                if ($existingCall !== null) {
+                    return $this->presentCall($existingCall, true);
+                }
+            }
+
+            $retrySource = $this->resolveRetryCallSource($client, (string) ($payload['retryOfCallLogId'] ?? ''));
+            $toNumber = $this->normalizePhone((string) ($payload['toPhone'] ?? $retrySource?->to_number ?? $client->primary_phone ?? ''));
+            if ($toNumber === '') {
+                throw ValidationException::withMessages([
+                    'toPhone' => ['A destination phone number is required when no retry source is supplied.'],
+                ]);
+            }
+
+            $purposeNote = trim((string) ($payload['purposeNote'] ?? $retrySource?->purpose_note ?? ''));
+            $bridgedToNumber = trim((string) ($retrySource?->bridged_to_number ?? config('communications.voice.bridge.default_agent_number', '')));
+
             $callLog = CallLog::query()->create([
                 'id' => (string) Str::uuid(),
                 'tenant_id' => (string) $client->tenant_id,
@@ -213,19 +232,26 @@ final class CommunicationCommandService
                 'lifecycle_status' => 'queued',
                 'provider_name' => 'twilio',
                 'from_number' => config('services.twilio.voice_from_number'),
-                'to_number' => $payload['toPhone'] ?? $client->primary_phone,
+                'to_number' => $toNumber,
+                'purpose_note' => $purposeNote !== '' ? $purposeNote : null,
+                'idempotency_key' => $idempotencyKey,
+                'retry_of_call_log_id' => $retrySource?->id,
+                'bridged_to_number' => $bridgedToNumber !== '' ? $bridgedToNumber : null,
                 'correlation_key' => (string) Str::uuid(),
                 'queued_at' => now(),
                 'initiated_by' => (string) $actor->id,
             ]);
 
-            $this->appendEvent((string) $client->tenant_id, (string) $client->id, 'call_log', (string) $callLog->id, 'internal_queued', 'queued', $callLog->correlation_key, true, ['kind' => 'call_queued']);
+            $this->appendEvent((string) $client->tenant_id, (string) $client->id, 'call_log', (string) $callLog->id, 'internal_queued', 'queued', $callLog->correlation_key, true, ['kind' => $retrySource !== null ? 'call_retry_queued' : 'call_queued']);
             $this->auditService->record($actor, (string) $client->tenant_id, 'communication.call.queued', 'call_log', (string) $callLog->id, $correlationId, [
                 'toNumber' => (string) $callLog->to_number,
-                'purposeNote' => $payload['purposeNote'] ?? null,
+                'purposeNote' => $callLog->purpose_note,
+                'retryOfCallLogId' => $retrySource?->id,
+                'idempotencyKey' => $idempotencyKey,
+                'bridgedToNumber' => $callLog->bridged_to_number,
             ]);
 
-            dispatch(new InitiateOutboundCallJob((string) $client->tenant_id, $correlationId, (string) $callLog->id, $payload['purposeNote'] ?? null));
+            dispatch(new InitiateOutboundCallJob((string) $client->tenant_id, $correlationId, (string) $callLog->id, $callLog->purpose_note));
 
             return $this->presentCall($callLog, true);
         });
@@ -262,6 +288,45 @@ final class CommunicationCommandService
             ->where('channel', 'email')
             ->where('idempotency_key', $idempotencyKey)
             ->first();
+    }
+
+    private function findExistingCallByIdempotencyKey(Client $client, string $idempotencyKey): ?CallLog
+    {
+        return CallLog::query()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $client->tenant_id)
+            ->where('client_id', $client->id)
+            ->where('idempotency_key', $idempotencyKey)
+            ->first();
+    }
+
+    private function resolveRetryCallSource(Client $client, string $retryOfCallLogId): ?CallLog
+    {
+        if (trim($retryOfCallLogId) === '') {
+            return null;
+        }
+
+        $callLog = CallLog::query()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $client->tenant_id)
+            ->where('client_id', $client->id)
+            ->where('id', $retryOfCallLogId)
+            ->where('direction', 'outbound')
+            ->first();
+
+        if ($callLog === null) {
+            throw ValidationException::withMessages([
+                'retryOfCallLogId' => ['The referenced outbound call could not be found for this client.'],
+            ]);
+        }
+
+        if (!in_array((string) $callLog->lifecycle_status, ['failed', 'busy', 'no_answer', 'canceled'], true)) {
+            throw ValidationException::withMessages([
+                'retryOfCallLogId' => ['Only failed outbound calls can be retried.'],
+            ]);
+        }
+
+        return $callLog;
     }
 
     /**
@@ -386,8 +451,8 @@ final class CommunicationCommandService
             ],
             'content' => [
                 'subject' => 'Call initiated',
-                'bodyText' => null,
-                'preview' => 'Outbound call activity',
+                'bodyText' => $callLog->purpose_note,
+                'preview' => $callLog->purpose_note ?: 'Outbound call activity',
             ],
             'attachments' => [],
             'status' => $includeStatus ? $this->statusProjector->project((string) $callLog->lifecycle_status, null, $callLog->failure_code, $callLog->failure_message, $callLog->provider_call_id ? 'provider_submit' : 'internal', $callLog->updated_at?->toIso8601String()) : null,
@@ -399,6 +464,8 @@ final class CommunicationCommandService
             ],
             'call' => [
                 'durationSeconds' => $callLog->duration_seconds,
+                'answeredAt' => $callLog->answered_at?->toIso8601String(),
+                'bridgedToNumber' => $callLog->bridged_to_number,
             ],
             'actions' => [
                 'canRetry' => in_array((string) $callLog->lifecycle_status, ['failed', 'busy', 'no_answer', 'canceled'], true),

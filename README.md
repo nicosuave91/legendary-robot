@@ -1,27 +1,28 @@
-# Sprint C — Email Completion
+# Sprint D — Voice Completion
 
-This package implements the next communications sprint focused on SendGrid email completion.
+This package implements the next communications sprint focused on Twilio voice completion.
 
 ## Scope
-- deterministic inbound email routing by mailbox alias instead of raw `tenant_id` / `client_id` request fields
-- thread-level reply mailbox generation for outbound email
-- inbound email `EmailLog` parity
-- governed outbound email retry / resend using the existing send-email API
-- server-side outbound email idempotency when `idempotencyKey` is supplied
-- client workspace retry action for failed outbound email items
-- feature tests for mailbox routing, reply mailbox generation, and resend/idempotency
+- replace the placeholder TwiML URL with a real outbound call-control flow
+- add agent whisper TwiML so internal purpose notes are spoken only to the agent leg
+- add governed call retry using the existing start-call API
+- add server-side call idempotency when `idempotencyKey` is supplied
+- persist purpose note, bridged agent number, retry lineage, and answer time on `call_logs`
+- add failed-call retry action in the client workspace
+- update voice callback handling so answer/start timestamps are captured
+- feature tests for TwiML routes, call idempotency/retry, and callback lifecycle updates
 
 ## Included files
 - `apps/api/config/communications.php`
-- `apps/api/app/Modules/Communications/Database/Migrations/2026_04_04_000006_create_communication_mailboxes_table.php`
-- `apps/api/app/Modules/Communications/Models/CommunicationMailbox.php`
-- `apps/api/app/Modules/Communications/Services/CommunicationMailboxService.php`
-- `apps/api/app/Modules/Communications/Http/Requests/SendEmailRequest.php`
+- `apps/api/app/Modules/Communications/Database/Migrations/2026_04_04_000007_add_voice_flow_fields_to_call_logs_table.php`
+- `apps/api/app/Modules/Communications/Models/CallLog.php`
 - `apps/api/app/Modules/Communications/Services/CommunicationCommandService.php`
-- `apps/api/app/Modules/Communications/Services/Providers/SendGridEmailAdapter.php`
-- `apps/api/app/Modules/Communications/Http/Controllers/Webhooks/SendGridInboundWebhookController.php`
+- `apps/api/app/Modules/Communications/Services/Providers/TwilioVoiceAdapter.php`
+- `apps/api/app/Modules/Communications/Http/Controllers/Webhooks/TwilioVoiceWebhookController.php`
+- `apps/api/app/Modules/Communications/Http/Controllers/Webhooks/TwilioVoiceTwiMLController.php`
+- `apps/api/app/Modules/Communications/Routes/webhooks.php`
 - `apps/web/src/features/communications/components/client-communications-panel.tsx`
-- `apps/api/app/Modules/Communications/Tests/Feature/SendGridEmailCompletionFeatureTest.php`
+- `apps/api/app/Modules/Communications/Tests/Feature/TwilioVoiceCompletionFeatureTest.php`
 
 ## Apply
 Copy these files into the repo root, preserving paths.

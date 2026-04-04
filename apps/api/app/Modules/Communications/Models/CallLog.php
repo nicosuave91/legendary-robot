@@ -19,9 +19,14 @@ use App\Modules\Shared\Tenancy\TenantScoped;
  * @property string|null $provider_call_id
  * @property string|null $from_number
  * @property string|null $to_number
+ * @property string|null $purpose_note
+ * @property string|null $idempotency_key
+ * @property string|null $retry_of_call_log_id
+ * @property string|null $bridged_to_number
  * @property string|null $correlation_key
  * @property \Illuminate\Support\Carbon|null $queued_at
  * @property \Illuminate\Support\Carbon|null $started_at
+ * @property \Illuminate\Support\Carbon|null $answered_at
  * @property \Illuminate\Support\Carbon|null $ended_at
  * @property int|null $duration_seconds
  * @property string|null $failure_code
@@ -40,12 +45,41 @@ final class CallLog extends Model
     /**
      * @var list<string>
      */
-    protected $fillable = ['id', 'tenant_id', 'client_id', 'direction', 'lifecycle_status', 'provider_name', 'provider_call_id', 'from_number', 'to_number', 'correlation_key', 'queued_at', 'started_at', 'ended_at', 'duration_seconds', 'failure_code', 'failure_message', 'initiated_by'];
+    protected $fillable = [
+        'id',
+        'tenant_id',
+        'client_id',
+        'direction',
+        'lifecycle_status',
+        'provider_name',
+        'provider_call_id',
+        'from_number',
+        'to_number',
+        'purpose_note',
+        'idempotency_key',
+        'retry_of_call_log_id',
+        'bridged_to_number',
+        'correlation_key',
+        'queued_at',
+        'started_at',
+        'answered_at',
+        'ended_at',
+        'duration_seconds',
+        'failure_code',
+        'failure_message',
+        'initiated_by',
+    ];
 
     /**
      * @var array<string, string>
      */
-    protected $casts = ['queued_at' => 'datetime', 'started_at' => 'datetime', 'ended_at' => 'datetime', 'duration_seconds' => 'integer'];
+    protected $casts = [
+        'queued_at' => 'datetime',
+        'started_at' => 'datetime',
+        'answered_at' => 'datetime',
+        'ended_at' => 'datetime',
+        'duration_seconds' => 'integer',
+    ];
 
     public function client(): BelongsTo
     {
