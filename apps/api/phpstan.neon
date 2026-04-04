@@ -5,3 +5,5 @@ parameters:
   paths:
     - app
   level: 5
+  stubFiles:
+    - stubs/phpstan-model-properties.stub

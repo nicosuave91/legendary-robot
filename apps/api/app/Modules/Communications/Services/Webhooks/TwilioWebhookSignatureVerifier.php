@@ -25,7 +25,7 @@ final class TwilioWebhookSignatureVerifier
         $authToken = $this->resolveAuthToken();
         $signature = (string) $request->header('X-Twilio-Signature', '');
 
-        if ($authToken === '' || $signature === '') {
+        if ($authToken === '' || $signature === '' || !class_exists(RequestValidator::class)) {
             return false;
         }
 

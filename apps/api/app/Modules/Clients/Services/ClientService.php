@@ -100,8 +100,9 @@ final class ClientService
 
     private function persistClient(User $actor, array $payload, string $correlationId, string $action, ?string $importSourceId): Client
     {
-        $client = DB::transaction(function () use ($actor, $payload): Client {
+        $client = DB::transaction(function () use ($actor, $payload, $importSourceId): Client {
             $ownerUserId = $this->resolveOwnerUserId($actor, $payload['ownerUserId'] ?? null);
+
             $client = Client::query()->create([
                 'id' => (string) Str::uuid(),
                 'tenant_id' => (string) $actor->tenant_id,
@@ -120,7 +121,14 @@ final class ClientService
             ]);
 
             $this->upsertAddress($client, $payload);
-            $this->dispositionProjectionService->ensureInitialDispositionForClient($client, $actor, $importSourceId === null ? 'Initial client creation' : 'Client created from governed import commit');
+
+            $this->dispositionProjectionService->ensureInitialDispositionForClient(
+                $client,
+                $actor,
+                $importSourceId === null
+                    ? 'Initial client creation'
+                    : 'Client created from governed import commit',
+            );
 
             return $client->load(['address', 'owner']);
         });
@@ -154,7 +162,10 @@ final class ClientService
             'postal_code' => $payload['postalCode'] ?? null,
         ];
 
-        $hasAnyAddressField = collect($addressPayload)->contains(fn ($value): bool => $value !== null && $value !== '');
+        $hasAnyAddressField = collect($addressPayload)->contains(
+            static fn (mixed $value): bool => $value !== null && $value !== '',
+        );
+
         if (!$hasAnyAddressField && $client->address === null) {
             return;
         }
@@ -175,9 +186,12 @@ final class ClientService
             return (string) $actor->id;
         }
 
-        $owner = User::query()->where('tenant_id', $actor->tenant_id)->where('id', (string) $candidate)->first();
+        $owner = User::query()
+            ->where('tenant_id', $actor->tenant_id)
+            ->where('id', (string) $candidate)
+            ->first();
 
-        return (string) ($owner?->id ?? $actor->id);
+        return $owner !== null ? (string) $owner->id : (string) $actor->id;
     }
 
     private function serializeClient(Client $client): array

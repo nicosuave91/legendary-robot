@@ -1,0 +1,579 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Twilio\Security;
+class RequestValidator
+{
+    public function __construct(string $authToken) {}
+    public function validate(string $signature, string $url, array $parameters): bool {}
+}
+
+namespace App\Modules\IdentityAccess\Models;
+
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $name
+ * @property string $email
+ * @property string $status
+ * @property string|null $created_by
+ * @property \Illuminate\Support\Carbon|null $deactivated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\TenantGovernance\Models\Tenant $tenant
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\IdentityAccess\Models\Role> $roles
+ * @property-read \App\Modules\Onboarding\Models\UserProfile|null $profile
+ * @property-read \App\Modules\Onboarding\Models\OnboardingState|null $onboardingState
+ * @property-read \App\Modules\Onboarding\Models\UserIndustryAssignment|null $industryAssignment
+ */
+class User {}
+
+/**
+ * @property string $id
+ * @property string $name
+ * @property string $display_name
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\IdentityAccess\Models\Permission> $permissions
+ */
+class Role {}
+
+/**
+ * @property string $id
+ * @property string $name
+ * @property string $display_name
+ */
+class Permission {}
+
+namespace App\Modules\Onboarding\Models;
+
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $user_id
+ * @property string $state
+ * @property \Illuminate\Support\Carbon|null $required_at
+ * @property \Illuminate\Support\Carbon|null $started_at
+ * @property \Illuminate\Support\Carbon|null $completed_at
+ * @property \Illuminate\Support\Carbon|null $exempted_at
+ * @property \Illuminate\Support\Carbon|null $reset_at
+ */
+class OnboardingState {}
+
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $user_id
+ * @property string $industry
+ * @property string $config_version
+ * @property \Illuminate\Support\Carbon|null $assigned_at
+ */
+class UserIndustryAssignment {}
+
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $user_id
+ * @property string|null $first_name
+ * @property string|null $last_name
+ * @property string|null $phone
+ * @property \Illuminate\Support\Carbon|null $birthday
+ * @property string|null $address_line_1
+ * @property string|null $address_line_2
+ * @property string|null $city
+ * @property string|null $state_code
+ * @property string|null $postal_code
+ * @property \Illuminate\Support\Carbon|null $profile_confirmed_at
+ */
+class UserProfile {}
+
+namespace App\Modules\TenantGovernance\Models;
+
+/**
+ * @property string $id
+ * @property string $name
+ * @property-read \App\Modules\TenantGovernance\Models\ThemeSetting|null $themeSetting
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\TenantGovernance\Models\TenantIndustryConfiguration> $industryConfigurations
+ */
+class Tenant {}
+
+/**
+ * @property string $tenant_id
+ * @property string $primary_color
+ * @property string $secondary_color
+ * @property string $tertiary_color
+ */
+class ThemeSetting {}
+
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $industry
+ * @property string $version
+ * @property string $status
+ * @property bool $is_active
+ * @property array<string, mixed> $capabilities
+ * @property string|null $notes
+ * @property \Illuminate\Support\Carbon|null $published_at
+ * @property \Illuminate\Support\Carbon|null $activated_at
+ */
+class TenantIndustryConfiguration {}
+
+namespace App\Modules\Clients\Models;
+
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string|null $owner_user_id
+ * @property string|null $created_by
+ * @property string $display_name
+ * @property string|null $first_name
+ * @property string|null $last_name
+ * @property string|null $company_name
+ * @property string|null $primary_email
+ * @property string|null $primary_phone
+ * @property string|null $preferred_contact_channel
+ * @property \Illuminate\Support\Carbon|null $date_of_birth
+ * @property string $status
+ * @property \Illuminate\Support\Carbon|null $last_activity_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Modules\IdentityAccess\Models\User|null $owner
+ * @property-read \App\Modules\IdentityAccess\Models\User|null $creator
+ * @property-read \App\Modules\Clients\Models\ClientAddress|null $address
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\Clients\Models\ClientNote> $notes
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\Clients\Models\ClientDocument> $documents
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\CalendarTasks\Models\CalendarEvent> $events
+ */
+class Client {}
+
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $client_id
+ * @property string|null $address_line_1
+ * @property string|null $address_line_2
+ * @property string|null $city
+ * @property string|null $state_code
+ * @property string|null $postal_code
+ */
+class ClientAddress {}
+
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $client_id
+ * @property string $body
+ * @property string $source_type
+ * @property bool $is_editable
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property-read \App\Modules\IdentityAccess\Models\User|null $author
+ */
+class ClientNote {}
+
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $client_id
+ * @property string $original_filename
+ * @property string $mime_type
+ * @property int $size_bytes
+ * @property string|null $provenance
+ * @property string|null $attachment_category
+ * @property string|null $storage_reference
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property-read \App\Modules\IdentityAccess\Models\User|null $uploader
+ */
+class ClientDocument {}
+
+namespace App\Modules\Applications\Models;
+
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $client_id
+ * @property string $application_number
+ * @property string|null $owner_user_id
+ * @property string $product_type
+ * @property string|null $external_reference
+ * @property float|int|string|null $amount_requested
+ * @property string $status
+ * @property array<string, mixed>|null $metadata
+ * @property \Illuminate\Support\Carbon|null $submitted_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Modules\Clients\Models\Client $client
+ * @property-read \App\Modules\IdentityAccess\Models\User|null $owner
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\Applications\Models\ApplicationStatusHistory> $statusHistory
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\Applications\Models\ApplicationRuleApplication> $ruleApplications
+ */
+class Application {}
+
+/**
+ * @property string $id
+ * @property string $application_id
+ * @property string|null $actor_user_id
+ * @property string|null $from_status
+ * @property string $to_status
+ * @property string|null $reason
+ * @property \Illuminate\Support\Carbon|null $occurred_at
+ * @property-read \App\Modules\IdentityAccess\Models\User|null $actor
+ */
+class ApplicationStatusHistory {}
+
+/**
+ * @property string $id
+ * @property string $application_id
+ * @property string|null $rule_id
+ * @property string|null $rule_version_id
+ * @property string $rule_key
+ * @property string $rule_version
+ * @property string|null $rule_name_snapshot
+ * @property string $outcome
+ * @property string $title
+ * @property string $note_body
+ * @property \Illuminate\Support\Carbon|null $applied_at
+ */
+class ApplicationRuleApplication {}
+
+namespace App\Modules\Audit\Models;
+
+/**
+ * @property string $tenant_id
+ * @property string|null $actor_id
+ * @property string $action
+ * @property string $subject_type
+ * @property string $subject_id
+ * @property string|null $correlation_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ */
+class AuditLog {}
+
+namespace App\Modules\CalendarTasks\Models;
+
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string|null $client_id
+ * @property string|null $owner_user_id
+ * @property string $title
+ * @property string|null $description
+ * @property string $event_type
+ * @property string $status
+ * @property \Illuminate\Support\Carbon $starts_at
+ * @property \Illuminate\Support\Carbon $ends_at
+ * @property bool $is_all_day
+ * @property string|null $location
+ * @property array<string, mixed>|null $metadata
+ * @property-read \App\Modules\Clients\Models\Client|null $client
+ * @property-read \App\Modules\IdentityAccess\Models\User|null $owner
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\CalendarTasks\Models\EventTask> $tasks
+ */
+class CalendarEvent {}
+
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $event_id
+ * @property string|null $assigned_user_id
+ * @property string $title
+ * @property string|null $description
+ * @property string $status
+ * @property int $sort_order
+ * @property bool $is_required
+ * @property \Illuminate\Support\Carbon|null $due_at
+ * @property \Illuminate\Support\Carbon|null $completed_at
+ * @property string|null $blocked_reason
+ * @property array<string, mixed>|null $metadata
+ * @property-read \App\Modules\IdentityAccess\Models\User|null $assignedUser
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\CalendarTasks\Models\TaskStatusHistory> $history
+ */
+class EventTask {}
+
+/**
+ * @property string $id
+ * @property string|null $from_status
+ * @property string $to_status
+ * @property string|null $reason
+ * @property \Illuminate\Support\Carbon|null $occurred_at
+ * @property-read \App\Modules\IdentityAccess\Models\User|null $actor
+ */
+class TaskStatusHistory {}
+
+namespace App\Modules\Communications\Models;
+
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $client_id
+ * @property string $channel
+ * @property string $direction
+ * @property string|null $from_address
+ * @property string|null $to_address
+ * @property string|null $subject
+ * @property string|null $body_text
+ * @property string|null $body_html
+ * @property string $lifecycle_status
+ * @property string|null $provider_message_id
+ * @property string|null $provider_status
+ * @property string|null $failure_code
+ * @property string|null $failure_message
+ * @property string|null $correlation_key
+ * @property \Illuminate\Support\Carbon|null $finalized_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ */
+class CommunicationMessage {}
+
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $client_id
+ * @property string $direction
+ * @property string|null $from_number
+ * @property string|null $to_number
+ * @property string $lifecycle_status
+ * @property string|null $provider_call_id
+ * @property string|null $failure_code
+ * @property string|null $failure_message
+ * @property string|null $correlation_key
+ * @property int|null $duration_seconds
+ * @property \Illuminate\Support\Carbon|null $ended_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ */
+class CallLog {}
+
+/**
+ * @property string $id
+ * @property string|null $provider_message_id
+ * @property array<string, mixed>|null $provider_metadata
+ * @property array<int, string>|null $to_emails
+ * @property string|null $reply_to_email
+ */
+class EmailLog {}
+
+/**
+ * @property string $id
+ * @property string $original_filename
+ * @property string $mime_type
+ * @property int $size_bytes
+ * @property string|null $provenance
+ * @property string|null $storage_reference
+ * @property string|null $storage_path
+ * @property string|null $scan_status
+ */
+class CommunicationAttachment {}
+
+/**
+ * @property string $id
+ * @property bool $signature_verified
+ * @property string $provider_event_type
+ * @property \Illuminate\Support\Carbon|null $received_at
+ */
+class DeliveryStatusEvent {}
+
+namespace App\Modules\Notifications\Models;
+
+/**
+ * @property string $tenant_id
+ * @property string $target_user_id
+ * @property string $category
+ * @property string $notification_type
+ * @property string $title
+ * @property string $body
+ * @property string $tone
+ * @property string|null $action_url
+ * @property string|null $source_event_type
+ * @property string|null $source_event_id
+ * @property \Illuminate\Support\Carbon|null $emitted_at
+ * @property-read \App\Modules\Notifications\Models\NotificationRead|null $read
+ * @property-read \App\Modules\Notifications\Models\ToastDismissal|null $dismissal
+ */
+class Notification {}
+
+/** @property \Illuminate\Support\Carbon|null $read_at */
+class NotificationRead {}
+
+/** @property \Illuminate\Support\Carbon|null $dismissed_at */
+class ToastDismissal {}
+
+namespace App\Modules\Imports\Models;
+
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string|null $uploaded_by_user_id
+ * @property string|null $validated_by_user_id
+ * @property string|null $committed_by_user_id
+ * @property string $import_type
+ * @property string $file_format
+ * @property string $original_filename
+ * @property string $status
+ * @property int $size_bytes
+ * @property int $row_count
+ * @property int $valid_row_count
+ * @property int $invalid_row_count
+ * @property int $committed_row_count
+ * @property string|null $storage_disk
+ * @property string|null $storage_path
+ * @property string|null $storage_reference
+ * @property string|null $parser_version
+ * @property string|null $failure_summary
+ * @property string|null $last_correlation_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $validated_at
+ * @property \Illuminate\Support\Carbon|null $committed_at
+ */
+class Import {}
+
+/**
+ * @property int $row_number
+ * @property string $row_status
+ * @property string|null $target_subject_type
+ * @property string|null $target_subject_id
+ */
+class ImportRow {}
+
+/**
+ * @property int|null $row_number
+ * @property string|null $field_name
+ * @property string $error_code
+ * @property string $severity
+ * @property string $message
+ */
+class ImportError {}
+
+namespace App\Modules\Disposition\Models;
+
+/**
+ * @property string $code
+ * @property string $label
+ * @property bool $is_terminal
+ * @property array<int, string> $allowed_next_codes
+ */
+class DispositionDefinition {}
+
+/**
+ * @property string|null $from_disposition_code
+ * @property string $to_disposition_code
+ * @property string|null $reason
+ * @property \Illuminate\Support\Carbon|null $occurred_at
+ * @property-read \App\Modules\IdentityAccess\Models\User|null $actor
+ */
+class ClientDispositionHistory {}
+
+namespace App\Modules\RulesLibrary\Models;
+
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $rule_key
+ * @property string $name
+ * @property string|null $description
+ * @property string $module_scope
+ * @property string $subject_type
+ * @property string $status
+ * @property string|null $current_draft_version_id
+ * @property string|null $latest_published_version_id
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Modules\RulesLibrary\Models\RuleVersion|null $currentDraftVersion
+ * @property-read \App\Modules\RulesLibrary\Models\RuleVersion|null $latestPublishedVersion
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\RulesLibrary\Models\RuleVersion> $versions
+ */
+class Rule {}
+
+/**
+ * @property string $id
+ * @property string $rule_id
+ * @property int $version_number
+ * @property string $lifecycle_state
+ * @property string $trigger_event
+ * @property string $severity
+ * @property string|null $industry_scope
+ * @property array<string, mixed> $condition_definition
+ * @property array<string, mixed> $action_definition
+ * @property string|null $execution_label
+ * @property string|null $note_template
+ * @property string $checksum
+ * @property \Illuminate\Support\Carbon|null $published_at
+ * @property string|null $published_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ */
+class RuleVersion {}
+
+/**
+ * @property string $rule_id
+ * @property string $rule_version_id
+ * @property string $subject_type
+ * @property string $subject_id
+ * @property string $trigger_event
+ * @property string $execution_source
+ * @property string $outcome
+ * @property string|null $correlation_id
+ * @property string|null $actor_user_id
+ * @property \Illuminate\Support\Carbon|null $executed_at
+ */
+class RuleExecutionLog {}
+
+namespace App\Modules\WorkflowBuilder\Models;
+
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $workflow_key
+ * @property string $name
+ * @property string|null $description
+ * @property string $status
+ * @property string|null $current_draft_version_id
+ * @property string|null $latest_published_version_id
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Modules\WorkflowBuilder\Models\WorkflowVersion|null $currentDraftVersion
+ * @property-read \App\Modules\WorkflowBuilder\Models\WorkflowVersion|null $latestPublishedVersion
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\WorkflowBuilder\Models\WorkflowVersion> $versions
+ */
+class Workflow {}
+
+/**
+ * @property string $id
+ * @property string $workflow_id
+ * @property int $version_number
+ * @property string $lifecycle_state
+ * @property array<string, mixed> $trigger_definition
+ * @property array<int, mixed> $steps_definition
+ * @property string $checksum
+ * @property string|null $published_by
+ * @property \Illuminate\Support\Carbon|null $published_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ */
+class WorkflowVersion {}
+
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $workflow_id
+ * @property string $workflow_version_id
+ * @property string $trigger_event
+ * @property string $subject_type
+ * @property string $subject_id
+ * @property string $status
+ * @property int $current_step_index
+ * @property string|null $correlation_id
+ * @property \Illuminate\Support\Carbon|null $queued_at
+ * @property \Illuminate\Support\Carbon|null $started_at
+ * @property \Illuminate\Support\Carbon|null $completed_at
+ * @property \Illuminate\Support\Carbon|null $failed_at
+ */
+class WorkflowRun {}
+
+/**
+ * @property string $id
+ * @property string $workflow_run_id
+ * @property string $workflow_version_id
+ * @property int|null $step_index
+ * @property string $log_type
+ * @property string $message
+ * @property array<string, mixed>|null $payload_snapshot
+ * @property \Illuminate\Support\Carbon|null $occurred_at
+ */
+class WorkflowRunLog {}

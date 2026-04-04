@@ -15,7 +15,7 @@ final class ThemeSetting extends Model
     protected $table = 'theme_settings';
 
     /**
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $fillable = [
         'tenant_id',

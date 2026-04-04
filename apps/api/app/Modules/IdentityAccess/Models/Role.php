@@ -16,7 +16,7 @@ final class Role extends Model
     protected $keyType = 'string';
 
     /**
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $fillable = [
         'id',

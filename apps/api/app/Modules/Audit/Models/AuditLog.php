@@ -14,7 +14,7 @@ final class AuditLog extends Model
     protected $table = 'audit_logs';
 
     /**
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $fillable = [
         'tenant_id',

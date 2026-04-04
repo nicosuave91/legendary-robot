@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\IdentityAccess\Models;
 
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Support\Collection;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,6 +17,17 @@ use App\Modules\Onboarding\Models\OnboardingState;
 use App\Modules\Onboarding\Models\UserIndustryAssignment;
 use App\Modules\Onboarding\Models\UserProfile;
 
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $name
+ * @property string $email
+ * @property string $status
+ * @property string|null $created_by
+ * @property \Illuminate\Support\Carbon|null $deactivated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\IdentityAccess\Models\Role> $roles
+ */
 final class User extends Authenticatable
 {
     use HasApiTokens;
@@ -27,7 +39,7 @@ final class User extends Authenticatable
     protected $keyType = 'string';
 
     /**
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $fillable = [
         'id',
@@ -41,7 +53,7 @@ final class User extends Authenticatable
     ];
 
     /**
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $hidden = [
         'password',
@@ -83,13 +95,22 @@ final class User extends Authenticatable
 
     public function hasRole(string $role): bool
     {
-        return $this->roles->contains(fn (Role $item): bool => $item->name === $role);
+        /** @var \Illuminate\Database\Eloquent\Collection<int, Role> $roles */
+        $roles = $this->roles;
+
+        return $roles->contains(static fn (Role $item): bool => $item->name === $role);
     }
 
     public function hasPermission(string $permission): bool
     {
-        return $this->roles->flatMap(
-            fn (Role $role) => $role->permissions->pluck('name')
-        )->contains($permission);
+        /** @var \Illuminate\Database\Eloquent\Collection<int, Role> $roles */
+        $roles = $this->roles;
+
+        /** @var Collection<int, string> $permissions */
+        $permissions = $roles->flatMap(
+            static fn (Role $role): Collection => $role->permissions->pluck('name')
+        );
+
+        return $permissions->contains($permission);
     }
 }
