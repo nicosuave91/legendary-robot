@@ -8,9 +8,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use App\Http\Controllers\Controller;
+use App\Modules\Shared\Support\ApiResponse;
 use App\Modules\TenantGovernance\Http\Requests\UpdateThemeRequest;
 use App\Modules\TenantGovernance\Services\ThemeSettingsService;
-use App\Modules\Shared\Support\ApiResponse;
 
 final class ThemeSettingsController extends Controller
 {
@@ -37,12 +37,13 @@ final class ThemeSettingsController extends Controller
     {
         Gate::authorize('settings.theme.read');
 
-        $theme = $request->user()->tenant?->themeSetting;
+        $tenant = $request->user()->tenant;
+        $theme = $tenant->themeSetting;
 
         return ApiResponse::success([
-            'primary' => (string) ($theme?->primary_color ?? '#1d4ed8'),
-            'secondary' => (string) ($theme?->secondary_color ?? '#0f172a'),
-            'tertiary' => (string) ($theme?->tertiary_color ?? '#64748b'),
+            'primary' => (string) ($theme !== null ? $theme->primary_color : '#1d4ed8'),
+            'secondary' => (string) ($theme !== null ? $theme->secondary_color : '#0f172a'),
+            'tertiary' => (string) ($theme !== null ? $theme->tertiary_color : '#64748b'),
         ], (string) $request->attributes->get('correlation_id', ''));
     }
 }
