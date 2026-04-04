@@ -6,6 +6,11 @@ namespace App\Modules\IdentityAccess\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property string $id
+ * @property string $name
+ * @property string $display_name
+ */
 final class Permission extends Model
 {
     protected $table = 'permissions';
