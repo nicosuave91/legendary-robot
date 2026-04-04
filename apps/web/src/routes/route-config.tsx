@@ -11,7 +11,7 @@ import { SettingsAccountsPage } from '@/features/identity-access/pages/settings-
 import { SettingsThemePage } from '@/features/identity-access/pages/settings-theme-page'
 import { SettingsIndustryConfigurationsPage } from '@/features/identity-access/pages/settings-industry-configurations-page'
 import { OnboardingPage } from '@/features/onboarding/pages/onboarding-page'
-import { PlaceholderPage } from '@/features/shared/pages/placeholder-page'
+import { CommunicationsPage } from '@/features/communications/pages/communications-page'
 import { CalendarPage } from '@/features/calendar-tasks/pages/calendar-page'
 import { ClientListPage } from '@/features/clients/pages/client-list-page'
 import { ClientCreatePage } from '@/features/clients/pages/client-create-page'
@@ -173,7 +173,7 @@ export const routeConfig: RouteObject[] = [
             handle: { meta: routeMeta.communications },
             element: (
               <RouteGate meta={routeMeta.communications}>
-                <PlaceholderPage title="Communications" />
+                <CommunicationsPage />
               </RouteGate>
             )
           },
