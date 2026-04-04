@@ -21,13 +21,16 @@ use App\Modules\Shared\Tenancy\TenantScoped;
  * @property string|null $published_by
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read Workflow $workflow
  */
 final class WorkflowVersion extends Model
 {
     use TenantScoped;
 
     protected $table = 'workflow_versions';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     /**
