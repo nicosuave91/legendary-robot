@@ -16,4 +16,8 @@ return [
             'oauth_bearer_token' => env('SENDGRID_WEBHOOK_OAUTH_BEARER_TOKEN'),
         ],
     ],
+    'inbound_email' => [
+        'domain' => (string) env('COMMUNICATIONS_INBOUND_EMAIL_DOMAIN', ''),
+        'local_part_prefix' => (string) env('COMMUNICATIONS_INBOUND_EMAIL_LOCAL_PART_PREFIX', 'reply'),
+    ],
 ];

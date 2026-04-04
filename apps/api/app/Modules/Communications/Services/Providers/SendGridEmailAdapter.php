@@ -37,12 +37,14 @@ final class SendGridEmailAdapter implements EmailTransportProvider
                 'to' => collect((array) $emailLog->to_emails)->map(fn (string $email): array => ['email' => $email])->values()->all(),
                 'cc' => collect((array) ($emailLog->cc_emails ?? []))->map(fn (string $email): array => ['email' => $email])->values()->all(),
                 'bcc' => collect((array) ($emailLog->bcc_emails ?? []))->map(fn (string $email): array => ['email' => $email])->values()->all(),
-                'custom_args' => [
+                'custom_args' => array_filter([
                     'tenant_id' => (string) $message->tenant_id,
                     'client_id' => (string) $message->client_id,
                     'message_id' => (string) $message->id,
                     'correlation_key' => (string) $message->correlation_key,
-                ],
+                    'thread_id' => (string) $message->communication_thread_id,
+                    'reply_mailbox' => (string) (($emailLog->provider_metadata['replyMailboxAddress'] ?? null) ?: $emailLog->reply_to_email),
+                ], fn (mixed $value): bool => $value !== null && $value !== ''),
             ]],
             'subject' => (string) ($message->subject ?? ''),
             'content' => array_values(array_filter([
