@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
-import { AppButton, AppCard, AppCardBody, AppCardHeader, AppInput, AppBadge } from '@/components/ui'
+import { AppButton, AppCard, AppCardBody, AppCardHeader, AppInput } from '@/components/ui'
 import { useAuth } from '@/lib/auth/auth-hooks'
 import { useToast } from '@/components/shell/toast-host'
 import { ApiError } from '@/lib/api/http'
@@ -59,7 +59,6 @@ export function SignInPage() {
               Secure sign-in with policy-aware routing, owner bypass, and onboarding enforcement.
             </p>
           </div>
-          <AppBadge variant="info">Sprint 2</AppBadge>
         </div>
       </AppCardHeader>
       <AppCardBody>
