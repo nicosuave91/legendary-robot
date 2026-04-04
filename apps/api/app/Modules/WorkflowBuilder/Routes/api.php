@@ -7,7 +7,7 @@ use App\Modules\WorkflowBuilder\Http\Controllers\Api\V1\WorkflowPublishControlle
 use App\Modules\WorkflowBuilder\Http\Controllers\Api\V1\WorkflowRunController;
 use App\Modules\WorkflowBuilder\Http\Controllers\Api\V1\WorkflowsController;
 
-Route::prefix('api/v1')
+Route::prefix('v1')
     ->middleware(['api', 'auth:sanctum'])
     ->group(function (): void {
         Route::get('workflows', [WorkflowsController::class, 'index'])->name('api.v1.workflows.index');
