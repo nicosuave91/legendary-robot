@@ -8,7 +8,7 @@ use App\Modules\Imports\Http\Controllers\Api\V1\ImportErrorsController;
 use App\Modules\Imports\Http\Controllers\Api\V1\ImportsController;
 use App\Modules\Imports\Http\Controllers\Api\V1\ImportValidateController;
 
-Route::prefix('api/v1/imports')
+Route::prefix('v1/imports')
     ->middleware(['api', 'auth:sanctum'])
     ->group(function (): void {
         Route::get('', [ImportsController::class, 'index'])->name('api.v1.imports.index');
