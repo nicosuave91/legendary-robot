@@ -22,6 +22,7 @@ final class WorkflowCatalogService
             $query->where('status', $filters['status']);
         }
 
+        /** @var \Illuminate\Database\Eloquent\Collection<int, Workflow> $items */
         $items = $query->get();
 
         return [
@@ -35,7 +36,11 @@ final class WorkflowCatalogService
         abort_unless((string) $workflow->tenant_id === (string) $actor->tenant_id, 404);
 
         /** @var \Illuminate\Database\Eloquent\Collection<int, WorkflowVersion> $versions */
-        $versions = $workflow->versions()->withoutGlobalScopes()->where('tenant_id', $actor->tenant_id)->latest('version_number')->get();
+        $versions = $workflow->versions()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $actor->tenant_id)
+            ->latest('version_number')
+            ->get();
 
         return [
             'workflow' => $this->serializeListItem($workflow) + [
@@ -46,8 +51,8 @@ final class WorkflowCatalogService
                 'id' => (string) $version->id,
                 'versionNumber' => (int) $version->version_number,
                 'lifecycleState' => (string) $version->lifecycle_state,
-                'triggerDefinition' => $version->trigger_definition ?? [],
-                'stepsDefinition' => $version->steps_definition ?? [],
+                'triggerDefinition' => $version->trigger_definition,
+                'stepsDefinition' => $version->steps_definition,
                 'checksum' => (string) $version->checksum,
                 'publishedAt' => $version->published_at?->toIso8601String(),
                 'publishedBy' => $version->published_by,
