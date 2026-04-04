@@ -18,13 +18,16 @@ use App\Modules\Shared\Tenancy\TenantScoped;
  * @property string $message
  * @property array<string, mixed>|null $payload_snapshot
  * @property \Illuminate\Support\Carbon|null $occurred_at
+ * @property-read WorkflowRun $workflowRun
  */
 final class WorkflowRunLog extends Model
 {
     use TenantScoped;
 
     protected $table = 'workflow_run_logs';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     /**
