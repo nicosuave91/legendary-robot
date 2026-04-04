@@ -7,7 +7,7 @@ use App\Modules\IdentityAccess\Http\Controllers\Api\V1\AuthController;
 use App\Modules\IdentityAccess\Http\Controllers\Api\V1\AccountController;
 use App\Modules\IdentityAccess\Http\Controllers\Api\V1\SettingsProfileController;
 
-Route::prefix('api/v1')
+Route::prefix('v1')
     ->middleware(['api'])
     ->group(function (): void {
         Route::prefix('auth')->group(function (): void {
