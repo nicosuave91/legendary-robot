@@ -24,13 +24,16 @@ use App\Modules\Shared\Tenancy\TenantScoped;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read RuleVersion|null $latestPublishedVersion
  * @property-read RuleVersion|null $currentDraftVersion
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, RuleVersion> $versions
  */
 final class Rule extends Model
 {
     use TenantScoped;
 
     protected $table = 'rules';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     /**
