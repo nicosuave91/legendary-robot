@@ -27,6 +27,7 @@ final class RuleCatalogService
             $query->where('status', $filters['status']);
         }
 
+        /** @var \Illuminate\Database\Eloquent\Collection<int, Rule> $items */
         $items = $query->get();
 
         return [
@@ -40,7 +41,11 @@ final class RuleCatalogService
         abort_unless((string) $rule->tenant_id === (string) $actor->tenant_id, 404);
 
         /** @var \Illuminate\Database\Eloquent\Collection<int, RuleVersion> $versions */
-        $versions = $rule->versions()->withoutGlobalScopes()->where('tenant_id', $actor->tenant_id)->latest('version_number')->get();
+        $versions = $rule->versions()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $actor->tenant_id)
+            ->latest('version_number')
+            ->get();
 
         /** @var \Illuminate\Database\Eloquent\Collection<int, RuleExecutionLog> $logs */
         $logs = RuleExecutionLog::query()
@@ -62,8 +67,8 @@ final class RuleCatalogService
                 'lifecycleState' => (string) $version->lifecycle_state,
                 'triggerEvent' => (string) $version->trigger_event,
                 'severity' => (string) $version->severity,
-                'conditionDefinition' => $version->condition_definition ?? [],
-                'actionDefinition' => $version->action_definition ?? [],
+                'conditionDefinition' => $version->condition_definition,
+                'actionDefinition' => $version->action_definition,
                 'executionLabel' => $version->execution_label,
                 'noteTemplate' => $version->note_template,
                 'checksum' => (string) $version->checksum,
