@@ -7,7 +7,7 @@ use App\Modules\Clients\Http\Controllers\Api\V1\ClientController;
 use App\Modules\Clients\Http\Controllers\Api\V1\ClientDocumentController;
 use App\Modules\Clients\Http\Controllers\Api\V1\ClientNoteController;
 
-Route::prefix('api/v1/clients')
+Route::prefix('v1/clients')
     ->middleware(['api', 'auth:sanctum'])
     ->group(function (): void {
         Route::get('', [ClientController::class, 'index'])->name('api.v1.clients.index');
