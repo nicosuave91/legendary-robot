@@ -7,7 +7,7 @@ use App\Modules\RulesLibrary\Http\Controllers\Api\V1\RuleExecutionLogController;
 use App\Modules\RulesLibrary\Http\Controllers\Api\V1\RulePublishController;
 use App\Modules\RulesLibrary\Http\Controllers\Api\V1\RulesController;
 
-Route::prefix('api/v1')
+Route::prefix('v1')
     ->middleware(['api', 'auth:sanctum'])
     ->group(function (): void {
         Route::get('rules', [RulesController::class, 'index'])->name('api.v1.rules.index');
