@@ -10,14 +10,25 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Http\Controllers\Controller;
 use App\Modules\Communications\Models\CommunicationMessage;
+use App\Modules\Communications\Models\CommunicationThread;
+use App\Modules\Communications\Services\CommunicationAttachmentService;
 use App\Modules\Communications\Services\CommunicationAuditService;
 use App\Modules\Communications\Services\CommunicationCommandService;
+use App\Modules\Communications\Services\CommunicationEndpointResolver;
+use App\Modules\Communications\Services\PhoneNumberNormalizer;
 use App\Modules\Communications\Services\Webhooks\CommunicationsWebhookTrustService;
 
 final class TwilioMessagingWebhookController extends Controller
 {
-    public function __invoke(Request $request, CommunicationCommandService $commandService, CommunicationAuditService $auditService, CommunicationsWebhookTrustService $trustService): JsonResponse
-    {
+    public function __invoke(
+        Request $request,
+        CommunicationCommandService $commandService,
+        CommunicationAuditService $auditService,
+        CommunicationsWebhookTrustService $trustService,
+        CommunicationEndpointResolver $communicationEndpointResolver,
+        CommunicationAttachmentService $communicationAttachmentService,
+        PhoneNumberNormalizer $phoneNumberNormalizer,
+    ): JsonResponse {
         $trust = $trustService->verifyTwilio($request);
         if (!$trust->accepted) {
             return response()->json(['message' => 'Webhook verification failed.', 'reason' => $trust->failureReason], 401);
@@ -25,7 +36,36 @@ final class TwilioMessagingWebhookController extends Controller
 
         $messageId = (string) $request->query('messageId', '');
         $tenantId = (string) $request->query('tenantId', '');
-        $message = CommunicationMessage::query()->withoutGlobalScopes()->where('tenant_id', $tenantId)->where('id', $messageId)->first();
+
+        if ($messageId !== '' && $tenantId !== '') {
+            return $this->handleStatusCallback($request, $messageId, $tenantId, $commandService, $auditService, $trust);
+        }
+
+        return $this->handleInboundMessage(
+            request: $request,
+            commandService: $commandService,
+            auditService: $auditService,
+            communicationEndpointResolver: $communicationEndpointResolver,
+            communicationAttachmentService: $communicationAttachmentService,
+            phoneNumberNormalizer: $phoneNumberNormalizer,
+            trustVerified: $trust->verified,
+            trustMode: $trust->mode,
+        );
+    }
+
+    private function handleStatusCallback(
+        Request $request,
+        string $messageId,
+        string $tenantId,
+        CommunicationCommandService $commandService,
+        CommunicationAuditService $auditService,
+        object $trust,
+    ): JsonResponse {
+        $message = CommunicationMessage::query()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->where('id', $messageId)
+            ->first();
 
         if ($message === null) {
             return response()->json(['ok' => true], 202);
@@ -97,6 +137,138 @@ final class TwilioMessagingWebhookController extends Controller
                     'webhookTrustMode' => $trust->mode,
                 ],
             );
+
+            return response()->json(['ok' => true]);
+        });
+    }
+
+    private function handleInboundMessage(
+        Request $request,
+        CommunicationCommandService $commandService,
+        CommunicationAuditService $auditService,
+        CommunicationEndpointResolver $communicationEndpointResolver,
+        CommunicationAttachmentService $communicationAttachmentService,
+        PhoneNumberNormalizer $phoneNumberNormalizer,
+        bool $trustVerified,
+        string $trustMode,
+    ): JsonResponse {
+        $providerMessageId = (string) ($request->input('MessageSid') ?: $request->input('SmsSid') ?: '');
+        if ($providerMessageId === '') {
+            return response()->json(['ok' => true], 202);
+        }
+
+        $route = $communicationEndpointResolver->resolveInboundSmsRoute(
+            (string) $request->input('To', ''),
+            (string) $request->input('From', ''),
+        );
+
+        if ($route === null) {
+            return response()->json(['ok' => true], 202);
+        }
+
+        $client = $route['client'];
+        $tenantId = (string) $route['tenantId'];
+        $fromAddress = $phoneNumberNormalizer->normalize((string) $request->input('From')) ?? (string) $request->input('From');
+        $toAddress = $phoneNumberNormalizer->normalize((string) $request->input('To')) ?? (string) $request->input('To');
+        $channel = ((int) $request->input('NumMedia', 0) > 0) ? 'mms' : 'sms';
+
+        return DB::transaction(function () use (
+            $request,
+            $client,
+            $tenantId,
+            $providerMessageId,
+            $fromAddress,
+            $toAddress,
+            $channel,
+            $commandService,
+            $auditService,
+            $communicationAttachmentService,
+            $trustVerified,
+            $trustMode,
+        ): JsonResponse {
+            $thread = CommunicationThread::query()->firstOrCreate([
+                'tenant_id' => $tenantId,
+                'client_id' => (string) $client->id,
+                'channel' => $channel,
+                'participant_key' => $fromAddress,
+            ], [
+                'id' => (string) Str::uuid(),
+                'subject_hint' => null,
+                'created_by' => null,
+                'last_activity_at' => now(),
+            ]);
+
+            $message = CommunicationMessage::query()
+                ->withoutGlobalScopes()
+                ->firstOrCreate([
+                    'tenant_id' => $tenantId,
+                    'provider_name' => 'twilio',
+                    'provider_message_id' => $providerMessageId,
+                ], [
+                    'id' => (string) Str::uuid(),
+                    'client_id' => (string) $client->id,
+                    'communication_thread_id' => (string) $thread->id,
+                    'channel' => $channel,
+                    'direction' => 'inbound',
+                    'lifecycle_status' => 'received',
+                    'provider_status' => 'received',
+                    'from_address' => $fromAddress,
+                    'to_address' => $toAddress,
+                    'body_text' => $request->input('Body'),
+                    'body_html' => null,
+                    'correlation_key' => (string) Str::uuid(),
+                    'submitted_at' => now(),
+                    'finalized_at' => now(),
+                    'created_by' => null,
+                ]);
+
+            $attachments = [];
+            if ($message->wasRecentlyCreated) {
+                $thread->forceFill(['last_activity_at' => now()])->save();
+
+                $attachments = $communicationAttachmentService->importTwilioInboundMedia(
+                    client: $client,
+                    message: $message,
+                    payload: $request->all(),
+                );
+            }
+
+            $statusBefore = $message->wasRecentlyCreated ? null : (string) $message->lifecycle_status;
+            $eventRecord = $commandService->appendEvent(
+                tenantId: (string) $message->tenant_id,
+                clientId: (string) $message->client_id,
+                subjectType: 'communication_message',
+                subjectId: (string) $message->id,
+                eventType: 'twilio.messaging.inbound',
+                providerStatus: 'received',
+                correlationKey: (string) $message->correlation_key,
+                signatureVerified: $trustVerified,
+                rawPayload: $request->all(),
+                providerName: 'twilio',
+                providerReference: $providerMessageId,
+                providerEventId: $providerMessageId,
+                statusBefore: $statusBefore,
+                statusAfter: 'received',
+            );
+
+            if ($message->wasRecentlyCreated && $eventRecord->wasRecentlyCreated) {
+                $auditService->record(
+                    null,
+                    (string) $message->tenant_id,
+                    'communication.sms.inbound_received',
+                    'communication_message',
+                    (string) $message->id,
+                    (string) ($message->correlation_key ?: Str::uuid()),
+                    [
+                        'channel' => $channel,
+                        'fromAddress' => $fromAddress,
+                        'toAddress' => $toAddress,
+                        'signatureVerified' => $trustVerified,
+                        'webhookTrustMode' => $trustMode,
+                        'attachmentCount' => count($attachments),
+                    ],
+                );
+            }
 
             return response()->json(['ok' => true]);
         });

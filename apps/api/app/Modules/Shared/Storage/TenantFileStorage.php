@@ -41,6 +41,44 @@ final class TenantFileStorage
         );
     }
 
+    public function storeCommunicationAttachmentBytes(
+        string $tenantId,
+        string $clientId,
+        string $subjectId,
+        string $attachmentId,
+        string $channel,
+        string $originalFilename,
+        string $mimeType,
+        string $contents,
+    ): array {
+        $disk = 'local';
+        $extension = strtolower((string) (pathinfo($originalFilename, PATHINFO_EXTENSION) ?: $this->extensionFromMime($mimeType)));
+        $baseName = Str::slug(pathinfo($originalFilename, PATHINFO_FILENAME));
+        $storedFilename = trim($baseName, '-') !== '' ? sprintf('%s.%s', $baseName, $extension) : sprintf('%s.%s', $attachmentId, $extension);
+        $directory = sprintf(
+            'tenants/%s/clients/%s/communications/%s/%s/attachments/%s',
+            $tenantId,
+            $clientId,
+            $channel,
+            $subjectId,
+            $attachmentId,
+        );
+        $storagePath = $directory . '/' . $storedFilename;
+
+        Storage::disk($disk)->put($storagePath, $contents);
+
+        return [
+            'storageDisk' => $disk,
+            'storagePath' => $storagePath,
+            'storageReference' => sprintf('%s:%s', $disk, $storagePath),
+            'storedFilename' => $storedFilename,
+            'originalFilename' => $originalFilename,
+            'mimeType' => $mimeType,
+            'sizeBytes' => strlen($contents),
+            'checksumSha256' => hash('sha256', $contents),
+        ];
+    }
+
     public function storeImportArtifact(string $tenantId, string $importId, string $phase, UploadedFile $file): array
     {
         return $this->storeFile(
@@ -68,5 +106,20 @@ final class TenantFileStorage
             'sizeBytes' => (int) $file->getSize(),
             'checksumSha256' => $file->getRealPath() ? hash_file('sha256', $file->getRealPath()) : null,
         ];
+    }
+
+    private function extensionFromMime(string $mimeType): string
+    {
+        return match (strtolower($mimeType)) {
+            'image/jpeg', 'image/jpg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'application/pdf' => 'pdf',
+            'text/plain' => 'txt',
+            'audio/mpeg' => 'mp3',
+            'audio/wav', 'audio/x-wav' => 'wav',
+            'video/mp4' => 'mp4',
+            default => 'bin',
+        };
     }
 }

@@ -16,7 +16,7 @@ final class SendSmsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'body' => ['nullable', 'string', 'max:2000', 'required_without:attachments'],
+            'body' => ['nullable', 'string', 'max:2000', 'required_without_all:attachments,retryOfMessageId'],
             'toPhone' => ['nullable', 'string', 'max:40'],
             'idempotencyKey' => ['nullable', 'string', 'max:100'],
             'retryOfMessageId' => ['nullable', 'string', 'max:100'],

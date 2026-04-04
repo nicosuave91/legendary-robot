@@ -31,6 +31,7 @@ export function ClientCommunicationsPanel({ clientId, fallbackEmail, fallbackPho
   const [emailBody, setEmailBody] = useState('')
   const [emailFiles, setEmailFiles] = useState<File[]>([])
   const [callPurpose, setCallPurpose] = useState('')
+  const [retryingMessageId, setRetryingMessageId] = useState<string | null>(null)
 
   const timelineQuery = useQuery({
     queryKey: queryKeys.communications.clientTimeline(clientId, filters),
@@ -56,6 +57,21 @@ export function ClientCommunicationsPanel({ clientId, fallbackEmail, fallbackPho
       setSmsBody('')
       setSmsFiles([])
       await onMutationSuccess('SMS queued', 'The outbound message was persisted before provider submission and is now awaiting callbacks.')
+    }
+  })
+
+  const retrySmsMutation = useMutation({
+    mutationFn: async (item: CommunicationTimelineItem) => {
+      const formData = new FormData()
+      formData.append('retryOfMessageId', item.id)
+      formData.append('idempotencyKey', `retry:${item.id}:${Date.now()}`)
+      if (item.counterpart.address) {
+        formData.append('toPhone', item.counterpart.address)
+      }
+      return communicationsApi.sendSms(clientId, formData)
+    },
+    onSuccess: async () => {
+      await onMutationSuccess('SMS retry queued', 'The failed SMS/MMS message was cloned into a new governed retry attempt.')
     }
   })
 
@@ -94,7 +110,7 @@ export function ClientCommunicationsPanel({ clientId, fallbackEmail, fallbackPho
       <AppCard>
         <AppCardHeader>
           <div className="heading-md">Communications hub</div>
-          <div className="body-sm text-text-muted">Outbound sends are persisted first, submitted asynchronously, and only move to terminal delivery states when callback evidence arrives.</div>
+          <div className="body-sm text-text-muted">Outbound sends are persisted first, inbound Twilio responses are routed into the client timeline, and statuses only move to terminal states when canonical evidence arrives.</div>
         </AppCardHeader>
         <AppCardBody>
           <AppTabs defaultValue="sms" className="space-y-4">
@@ -142,14 +158,21 @@ export function ClientCommunicationsPanel({ clientId, fallbackEmail, fallbackPho
           </div>
         </AppCardHeader>
         <AppCardBody>
-          {timelineQuery.isLoading ? <LoadingSkeleton lines={6} /> : items.length ? <div className="space-y-4">{items.map((item) => <TimelineItem key={item.id} item={item} />)}</div> : <EmptyState title="No communications yet" description="Queue the first SMS, email, or call to begin a governed communication timeline for this client." />}
+          {timelineQuery.isLoading ? <LoadingSkeleton lines={6} /> : items.length ? <div className="space-y-4">{items.map((item) => <TimelineItem key={item.id} item={item} isRetrying={retryingMessageId === item.id} onRetry={item.kind === 'message' && ['sms', 'mms'].includes(item.channel) && item.actions.canRetry ? async () => {
+            setRetryingMessageId(item.id)
+            try {
+              await retrySmsMutation.mutateAsync(item)
+            } finally {
+              setRetryingMessageId(null)
+            }
+          } : undefined} />)}</div> : <EmptyState title="No communications yet" description="Queue the first SMS, email, or call to begin a governed communication timeline for this client." />}
         </AppCardBody>
       </AppCard>
     </div>
   )
 }
 
-function TimelineItem({ item }: { item: CommunicationTimelineItem }) {
+function TimelineItem({ item, onRetry, isRetrying = false }: { item: CommunicationTimelineItem, onRetry?: () => Promise<void> | void, isRetrying?: boolean }) {
   const hasFailure = item.status.tone === 'danger'
 
   return (
@@ -166,6 +189,7 @@ function TimelineItem({ item }: { item: CommunicationTimelineItem }) {
       {item.attachments.length ? <div className="mt-3 flex flex-wrap gap-2">{item.attachments.map((attachment) => <AppBadge key={attachment.id}>{attachment.originalFilename}</AppBadge>)}</div> : null}
       <div className="mt-3 body-sm text-text-muted">Evidence source: {item.evidence.source.replaceAll('_', ' ')}{item.evidence.lastEventAt ? ` • Last update ${new Date(item.evidence.lastEventAt).toLocaleString()}` : ''}</div>
       {hasFailure && item.status.reasonMessage ? <div className="mt-3 rounded-md border border-danger/20 bg-danger/5 px-3 py-2 text-sm text-danger">{item.status.reasonMessage}</div> : null}
+      {onRetry ? <div className="mt-3"><AppButton type="button" variant="secondary" onClick={() => void onRetry()} disabled={isRetrying}>{isRetrying ? 'Queueing retry…' : 'Retry SMS / MMS'}</AppButton></div> : null}
     </div>
   )
 }
