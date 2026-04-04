@@ -1,4 +1,3 @@
-\
 <?php
 
 declare(strict_types=1);
@@ -9,9 +8,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use App\Http\Controllers\Controller;
+use App\Modules\Shared\Support\ApiResponse;
 use App\Modules\TenantGovernance\Http\Requests\StoreIndustryConfigurationRequest;
 use App\Modules\TenantGovernance\Services\IndustryConfigurationService;
-use App\Modules\Shared\Support\ApiResponse;
 
 final class IndustryConfigurationController extends Controller
 {
