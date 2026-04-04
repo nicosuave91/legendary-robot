@@ -1,99 +1,123 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { PageHeader, AppBadge, AppButton, AppCard, AppCardBody, AppCardHeader, AppInput, EmptyState, LoadingSkeleton } from '@/components/ui'
-import { clientsApi } from '@/lib/api/client'
+import { CommunicationStatusBadge } from '@/features/communications/components/communication-status-badge'
+import { communicationsApi } from '@/lib/api/client'
 import { queryKeys } from '@/lib/api/query-keys'
+
+type ChannelFilter = 'all' | 'sms' | 'email' | 'voice'
+type StatusFilter = 'all' | 'pending' | 'failed'
 
 export function CommunicationsPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
+  const [channel, setChannel] = useState<ChannelFilter>('all')
+  const [status, setStatus] = useState<StatusFilter>('all')
 
   const filters = useMemo(() => ({
     search: search || undefined,
-    sort: 'updated_at' as const,
-    direction: 'desc' as const,
-    perPage: 50
-  }), [search])
+    channel,
+    status,
+    limit: 20
+  }), [search, channel, status])
 
-  const clientsQuery = useQuery({
-    queryKey: queryKeys.clients.list(filters),
-    queryFn: () => clientsApi.list(filters)
+  const inboxQuery = useInfiniteQuery({
+    queryKey: queryKeys.communications.inbox(filters),
+    queryFn: ({ pageParam }) => communicationsApi.inbox({
+      ...filters,
+      cursor: typeof pageParam === 'string' ? pageParam : undefined
+    }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.data.paging.hasMore ? lastPage.data.paging.nextCursor : undefined,
+    refetchInterval: (query) => query.state.data?.pages[0]?.data.refresh.hasPendingRecentItems ? 5000 : false,
   })
 
-  const items = useMemo(() => {
-    return (clientsQuery.data?.data.items ?? []).filter((client) => client.primaryEmail || client.primaryPhone)
-  }, [clientsQuery.data])
+  const items = inboxQuery.data?.pages.flatMap((page) => page.data.items) ?? []
+  const totalItems = inboxQuery.data?.pages[0]?.data.summary.itemCount ?? 0
+  const channelButtons = useMemo(() => ([{ key: 'all', label: 'All' }, { key: 'sms', label: 'SMS' }, { key: 'email', label: 'Email' }, { key: 'voice', label: 'Calls' }]) as const, [])
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Communications"
-        description="Open a governed client workspace to send SMS, email, or calls so delivery evidence and callback history stay attached to the client record."
-        actions={<AppButton type="button" variant="secondary" onClick={() => navigate('/app/clients')}>Open clients</AppButton>}
+        title="Communications inbox"
+        description="Review the newest governed communications activity across visible clients, then drill into the client workspace when action is needed."
+        actions={<AppButton type="button" variant="secondary" onClick={() => inboxQuery.refetch()}>Refresh inbox</AppButton>}
       />
 
       <AppCard>
         <AppCardHeader>
-          <div className="heading-md">Client communication entry points</div>
-          <div className="body-sm text-text-muted">This surface helps users enter the correct client workspace instead of sending communications from a disconnected global page.</div>
+          <div className="heading-md">Operational inbox</div>
+          <div className="body-sm text-text-muted">This view aggregates timeline items across the clients you are allowed to view. Statuses remain callback-evidence-driven and the browser is never the source of truth.</div>
         </AppCardHeader>
         <AppCardBody className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div className="space-y-2">
-              <label className="label-sm text-text" htmlFor="communications-search">Find client</label>
+              <label className="label-sm text-text" htmlFor="communications-search">Search inbox</label>
               <AppInput
                 id="communications-search"
                 value={search}
                 onChange={(event) => setSearch(event.currentTarget.value)}
-                placeholder="Search by client name, email, or phone"
+                placeholder="Search by client, address, subject, or preview"
               />
             </div>
-            <div className="body-sm text-text-muted">{items.length} contact-ready clients</div>
+            <div className="body-sm text-text-muted">{totalItems} matching activities</div>
           </div>
 
-          {clientsQuery.isLoading ? <LoadingSkeleton lines={6} /> : null}
+          <div className="flex flex-wrap gap-2">
+            {channelButtons.map((filter) => (
+              <AppButton key={filter.key} type="button" variant={channel === filter.key ? 'primary' : 'secondary'} onClick={() => setChannel(filter.key)}>
+                {filter.label}
+              </AppButton>
+            ))}
+            <AppButton type="button" variant={status === 'failed' ? 'primary' : 'secondary'} onClick={() => setStatus((current) => current === 'failed' ? 'all' : 'failed')}>
+              Failures
+            </AppButton>
+            <AppButton type="button" variant={status === 'pending' ? 'primary' : 'secondary'} onClick={() => setStatus((current) => current === 'pending' ? 'all' : 'pending')}>
+              Pending
+            </AppButton>
+          </div>
 
-          {!clientsQuery.isLoading && items.length === 0 ? (
+          {inboxQuery.isLoading ? <LoadingSkeleton lines={8} /> : null}
+
+          {!inboxQuery.isLoading && items.length === 0 ? (
             <EmptyState
-              title="No contact-ready clients found"
-              description={search ? 'Try adjusting the current search.' : 'Clients with an email address or phone number will appear here as communication entry points.'}
+              title="No communications activity found"
+              description={search ? 'Try adjusting the current search or filters.' : 'As communication activity is captured across client workspaces, it will appear here in recency order.'}
             />
           ) : null}
 
           <div className="space-y-3">
-            {items.map((client) => (
-              <div key={client.id} className="rounded-lg border border-border bg-muted p-4">
+            {items.map(({ client, timelineItem }) => (
+              <div key={`${client.id}:${timelineItem.id}`} className="rounded-lg border border-border bg-muted p-4">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="font-medium text-text">{client.displayName}</div>
                       <AppBadge variant="neutral">{client.status}</AppBadge>
-                      {client.primaryEmail ? <AppBadge variant="info">Email</AppBadge> : null}
-                      {client.primaryPhone ? <AppBadge variant="info">SMS / Call</AppBadge> : null}
+                      <AppBadge>{timelineItem.channel.toUpperCase()}</AppBadge>
+                      <AppBadge>{timelineItem.direction}</AppBadge>
+                      <CommunicationStatusBadge status={timelineItem.status} />
                     </div>
+
                     <div className="body-sm text-text-muted">
-                      {client.primaryEmail ?? 'No email'} • {client.primaryPhone ?? 'No phone'}
+                      {timelineItem.content.subject ?? timelineItem.content.preview ?? 'Communication activity'}
                     </div>
+
+                    <div className="body-sm text-text-muted">
+                      {timelineItem.counterpart.address ?? 'No counterpart recorded'} • Owner {client.ownerDisplayName ?? 'Unassigned'}
+                    </div>
+
                     <div className="text-xs text-text-muted">
-                      Owner {client.ownerDisplayName ?? 'Unassigned'} • Last activity {client.lastActivityAt ? new Date(client.lastActivityAt).toLocaleString() : 'Not recorded yet'}
+                      {timelineItem.occurredAt ? new Date(timelineItem.occurredAt).toLocaleString() : 'No activity timestamp'} • Evidence {timelineItem.evidence.source.replaceAll('_', ' ')}
                     </div>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    <AppButton
-                      type="button"
-                      aria-label={`Open communications for ${client.displayName}`}
-                      onClick={() => navigate(`/app/clients/${client.id}/communications`)}
-                    >
+                    <AppButton type="button" onClick={() => navigate(`/app/clients/${client.id}/communications`)}>
                       Open communications
                     </AppButton>
-                    <AppButton
-                      type="button"
-                      variant="secondary"
-                      aria-label={`Open client workspace for ${client.displayName}`}
-                      onClick={() => navigate(`/app/clients/${client.id}/overview`)}
-                    >
+                    <AppButton type="button" variant="secondary" onClick={() => navigate(`/app/clients/${client.id}/overview`)}>
                       Open client
                     </AppButton>
                   </div>
@@ -101,6 +125,14 @@ export function CommunicationsPage() {
               </div>
             ))}
           </div>
+
+          {inboxQuery.hasNextPage ? (
+            <div className="flex justify-center">
+              <AppButton type="button" variant="secondary" onClick={() => inboxQuery.fetchNextPage()} disabled={inboxQuery.isFetchingNextPage}>
+                {inboxQuery.isFetchingNextPage ? 'Loading older activity…' : 'Load older activity'}
+              </AppButton>
+            </div>
+          ) : null}
         </AppCardBody>
       </AppCard>
     </div>

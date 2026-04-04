@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AppBadge, AppButton, AppCard, AppCardBody, AppCardHeader, AppInput, AppTabs, AppTabsContent, AppTabsList, AppTabsTrigger, AppTextarea, EmptyState, LoadingSkeleton } from '@/components/ui'
 import { useToast } from '@/components/shell/toast-host'
 import { CommunicationStatusBadge } from '@/features/communications/components/communication-status-badge'
 import { communicationsApi } from '@/lib/api/client'
 import { queryKeys } from '@/lib/api/query-keys'
-import type { CommunicationTimelineItem } from '@/lib/api/generated/client'
+import type { CommunicationTimelineItem } from '@/lib/api/client'
 
 type FilterState = {
   channel: 'all' | 'sms' | 'email' | 'voice'
@@ -33,10 +33,16 @@ export function ClientCommunicationsPanel({ clientId, fallbackEmail, fallbackPho
   const [callPurpose, setCallPurpose] = useState('')
   const [retryingItemId, setRetryingItemId] = useState<string | null>(null)
 
-  const timelineQuery = useQuery({
+  const timelineQuery = useInfiniteQuery({
     queryKey: queryKeys.communications.clientTimeline(clientId, filters),
-    queryFn: () => communicationsApi.list(clientId, filters),
-    refetchInterval: (query) => query.state.data?.data.refresh.hasPendingRecentItems ? 5000 : false
+    queryFn: ({ pageParam }) => communicationsApi.list(clientId, {
+      ...filters,
+      limit: 20,
+      cursor: typeof pageParam === 'string' ? pageParam : undefined,
+    }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.data.paging.hasMore ? lastPage.data.paging.nextCursor : undefined,
+    refetchInterval: (query) => query.state.data?.pages[0]?.data.refresh.hasPendingRecentItems ? 5000 : false,
   })
 
   const onMutationSuccess = async (title: string, description: string) => {
@@ -99,19 +105,7 @@ export function ClientCommunicationsPanel({ clientId, fallbackEmail, fallbackPho
     }
   })
 
-  const retryCallMutation = useMutation({
-    mutationFn: async (item: CommunicationTimelineItem) => {
-      return communicationsApi.startCall(clientId, {
-        retryOfCallLogId: item.id,
-        idempotencyKey: `call-retry:${item.id}:${Date.now()}`
-      })
-    },
-    onSuccess: async () => {
-      await onMutationSuccess('Call retry queued', 'The failed outbound call was cloned into a new governed retry attempt.')
-    }
-  })
-
-  const items = timelineQuery.data?.data.items ?? []
+  const items = timelineQuery.data?.pages.flatMap((page) => page.data.items) ?? []
   const filterButtons = useMemo(() => ([{ key: 'all', label: 'All' }, { key: 'sms', label: 'SMS' }, { key: 'email', label: 'Email' }, { key: 'voice', label: 'Calls' }]) as const, [])
 
   return (
@@ -152,7 +146,7 @@ export function ClientCommunicationsPanel({ clientId, fallbackEmail, fallbackPho
             <AppTabsContent value="call" className="space-y-4">
               <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
                 <div className="space-y-2"><label className="label-sm text-text">Recipient</label><AppInput value={fallbackPhone ?? ''} readOnly /></div>
-                <div className="space-y-2"><label className="label-sm text-text">Purpose note</label><AppTextarea value={callPurpose} onChange={(event) => setCallPurpose(event.currentTarget.value)} placeholder="Optional purpose or talking points for the internal agent whisper." /></div>
+                <div className="space-y-2"><label className="label-sm text-text">Purpose note</label><AppTextarea value={callPurpose} onChange={(event) => setCallPurpose(event.currentTarget.value)} placeholder="Optional purpose or talking points." /></div>
               </div>
               <AppButton type="button" onClick={() => callMutation.mutate()} disabled={callMutation.isPending || !fallbackPhone}>{callMutation.isPending ? 'Queueing…' : 'Initiate call'}</AppButton>
             </AppTabsContent>
@@ -174,14 +168,14 @@ export function ClientCommunicationsPanel({ clientId, fallbackEmail, fallbackPho
             } finally {
               setRetryingItemId(null)
             }
-          } : item.kind === 'call' && item.actions.canRetry ? async () => {
-            setRetryingItemId(item.id)
-            try {
-              await retryCallMutation.mutateAsync(item)
-            } finally {
-              setRetryingItemId(null)
-            }
           } : undefined} />)}</div> : <EmptyState title="No communications yet" description="Queue the first SMS, email, or call to begin a governed communication timeline for this client." />}
+          {timelineQuery.hasNextPage ? (
+            <div className="mt-4 flex justify-center">
+              <AppButton type="button" variant="secondary" onClick={() => timelineQuery.fetchNextPage()} disabled={timelineQuery.isFetchingNextPage}>
+                {timelineQuery.isFetchingNextPage ? 'Loading older activity…' : 'Load older activity'}
+              </AppButton>
+            </div>
+          ) : null}
         </AppCardBody>
       </AppCard>
     </div>
@@ -205,7 +199,7 @@ function TimelineItem({ item, onRetry, isRetrying = false }: { item: Communicati
       {item.attachments.length ? <div className="mt-3 flex flex-wrap gap-2">{item.attachments.map((attachment) => <AppBadge key={attachment.id}>{attachment.originalFilename}</AppBadge>)}</div> : null}
       <div className="mt-3 body-sm text-text-muted">Evidence source: {item.evidence.source.replaceAll('_', ' ')}{item.evidence.lastEventAt ? ` • Last update ${new Date(item.evidence.lastEventAt).toLocaleString()}` : ''}</div>
       {hasFailure && item.status.reasonMessage ? <div className="mt-3 rounded-md border border-danger/20 bg-danger/5 px-3 py-2 text-sm text-danger">{item.status.reasonMessage}</div> : null}
-      {onRetry ? <div className="mt-3"><AppButton type="button" variant="secondary" onClick={() => void onRetry()} disabled={isRetrying}>{isRetrying ? 'Queueing retry…' : item.kind === 'call' ? 'Retry call' : 'Retry email'}</AppButton></div> : null}
+      {onRetry ? <div className="mt-3"><AppButton type="button" variant="secondary" onClick={() => void onRetry()} disabled={isRetrying}>{isRetrying ? 'Queueing resend…' : 'Retry email'}</AppButton></div> : null}
     </div>
   )
 }

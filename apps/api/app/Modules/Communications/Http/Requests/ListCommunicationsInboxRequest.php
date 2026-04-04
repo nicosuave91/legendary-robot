@@ -6,7 +6,7 @@ namespace App\Modules\Communications\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-final class ListClientCommunicationsRequest extends FormRequest
+final class ListCommunicationsInboxRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -16,6 +16,7 @@ final class ListClientCommunicationsRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'search' => ['nullable', 'string', 'max:200'],
             'channel' => ['nullable', 'string', 'in:all,sms,email,voice'],
             'status' => ['nullable', 'string', 'in:all,pending,failed'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:100'],

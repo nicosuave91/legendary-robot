@@ -5,15 +5,15 @@ import {
   getAuthMe,
   getCalendarDay,
   getClient,
-  getClientEvents,
   getClientApplication,
   getClientApplications,
   getClientCommunications,
+  getClientEvents,
   getClients,
   getDashboardProduction,
+  getDashboardSummary,
   getEvent,
   getEvents,
-  getDashboardSummary,
   getImport,
   getImportErrors,
   getImports,
@@ -32,16 +32,15 @@ import {
   getWorkflows,
   patchClient,
   patchEvent,
-  patchTaskStatus,
   patchOnboardingIndustrySelection,
   patchOnboardingProfileConfirmation,
   patchRule,
   patchSettingsAccount,
   patchSettingsProfile,
   patchSettingsTheme,
+  patchTaskStatus,
   patchWorkflow,
   postAuthSignIn,
-  postEvents,
   postAuthSignOut,
   postClientApplicationStatusTransitions,
   postClientApplications,
@@ -52,9 +51,10 @@ import {
   postClientDocuments,
   postClientNotes,
   postClients,
+  postEvents,
   postImportCommit,
-  postImportValidate,
   postImports,
+  postImportValidate,
   postNotificationDismiss,
   postNotificationRead,
   postOnboardingComplete,
@@ -65,19 +65,20 @@ import {
   postWorkflowPublish,
   postWorkflows,
   type AuditListEnvelope,
+  type ClientCommunicationsEnvelope,
   type CreateAccountRequest,
   type CreateApplicationRequest,
-  type CreateEventRequest,
   type CreateClientNoteRequest,
   type CreateClientRequest,
+  type CreateEventRequest,
   type CreateIndustryConfigurationRequest,
   type CreateRuleRequest,
   type CreateWorkflowRequest,
   type DashboardProductionEnvelope,
-  type EventDetailEnvelope,
-  type EventListEnvelope,
   type DismissNotificationRequest,
   type DispositionTransitionRequest,
+  type EventDetailEnvelope,
+  type EventListEnvelope,
   type ImportDetailEnvelope,
   type ImportErrorEnvelope,
   type ImportListEnvelope,
@@ -92,21 +93,65 @@ import {
   type RuleListEnvelope,
   type SignInRequest,
   type StartCallRequest,
-  type ThemeSummary,
   type TaskStatusTransitionEnvelope,
+  type ThemeSummary,
   type TransitionApplicationStatusRequest,
   type UpdateAccountRequest,
   type UpdateClientRequest,
   type UpdateEventRequest,
-  type UpdateTaskStatusRequest,
   type UpdateProfileRequest,
   type UpdateRuleDraftRequest,
+  type UpdateTaskStatusRequest,
   type UpdateWorkflowDraftRequest,
   type WorkflowDetailEnvelope,
   type WorkflowListEnvelope,
   type WorkflowRunDetailEnvelope,
   type WorkflowRunListEnvelope,
 } from '@/lib/api/generated/client'
+
+type ApiMeta = {
+  apiVersion: string
+  correlationId: string
+}
+
+export type CommunicationTimelineItem = ClientCommunicationsEnvelope['data']['items'][number]
+
+export type CommunicationsInboxItem = {
+  client: {
+    id: string
+    displayName: string
+    status: string
+    ownerDisplayName: string | null
+    primaryEmail: string | null
+    primaryPhone: string | null
+    lastActivityAt: string | null
+  }
+  timelineItem: CommunicationTimelineItem
+}
+
+export type CommunicationsInboxEnvelope = {
+  data: {
+    items: CommunicationsInboxItem[]
+    paging: {
+      nextCursor: string | null
+      hasMore: boolean
+    }
+    filters: {
+      search: string | null
+      channel: string
+      status: string
+    }
+    refresh: {
+      hasPendingRecentItems: boolean
+      recommendedPollSeconds: number | null
+    }
+    summary: {
+      clientCount: number
+      itemCount: number
+    }
+  }
+  meta: ApiMeta
+}
 
 export const authApi = {
   me: () => getAuthMe(apiHttpClient),
@@ -145,9 +190,8 @@ export const industryConfigurationsApi = {
 
 export const dashboardApi = {
   summary: () => getDashboardSummary(apiHttpClient),
-  production: (queryParams?: Parameters<typeof getDashboardProduction>[1]): Promise<DashboardProductionEnvelope> => getDashboardProduction(apiHttpClient, queryParams)
+  production: (window: string) => getDashboardProduction(apiHttpClient, { window })
 }
-
 
 export const calendarApi = {
   day: (date: string) => getCalendarDay(apiHttpClient, { date }),
@@ -170,6 +214,12 @@ export const clientsApi = {
 }
 
 export const communicationsApi = {
+  inbox: (queryParams?: Record<string, string | number | boolean | null | undefined>) =>
+    apiHttpClient.request<CommunicationsInboxEnvelope>({
+      path: '/api/v1/communications/inbox',
+      method: 'GET',
+      queryParams
+    }),
   list: (clientId: string, queryParams?: Parameters<typeof getClientCommunications>[2]) => getClientCommunications(apiHttpClient, { clientId }, queryParams),
   sendSms: (clientId: string, body: FormData) => postClientCommunicationsSms(apiHttpClient, { clientId }, body),
   sendEmail: (clientId: string, body: FormData) => postClientCommunicationsEmail(apiHttpClient, { clientId }, body),

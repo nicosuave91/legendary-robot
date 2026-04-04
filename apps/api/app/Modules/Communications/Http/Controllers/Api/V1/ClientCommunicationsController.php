@@ -26,7 +26,12 @@ final class ClientCommunicationsController extends Controller
 
     public function index(ListClientCommunicationsRequest $request, string $clientId): JsonResponse
     {
-        $client = Client::query()->withoutGlobalScopes()->where('tenant_id', $request->user()->tenant_id)->where('id', $clientId)->firstOrFail();
+        $client = Client::query()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $request->user()->tenant_id)
+            ->where('id', $clientId)
+            ->firstOrFail();
+
         Gate::authorize('clients.communications.read', $client);
 
         return ApiResponse::success(
@@ -37,7 +42,12 @@ final class ClientCommunicationsController extends Controller
 
     public function sendSms(SendSmsRequest $request, string $clientId): JsonResponse
     {
-        $client = Client::query()->withoutGlobalScopes()->where('tenant_id', $request->user()->tenant_id)->where('id', $clientId)->firstOrFail();
+        $client = Client::query()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $request->user()->tenant_id)
+            ->where('id', $clientId)
+            ->firstOrFail();
+
         Gate::authorize('clients.communications.sms.send', $client);
 
         $payload = $request->validated();
@@ -57,7 +67,12 @@ final class ClientCommunicationsController extends Controller
 
     public function sendEmail(SendEmailRequest $request, string $clientId): JsonResponse
     {
-        $client = Client::query()->withoutGlobalScopes()->where('tenant_id', $request->user()->tenant_id)->where('id', $clientId)->firstOrFail();
+        $client = Client::query()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $request->user()->tenant_id)
+            ->where('id', $clientId)
+            ->firstOrFail();
+
         Gate::authorize('clients.communications.email.send', $client);
 
         $payload = $request->validated();
@@ -77,7 +92,12 @@ final class ClientCommunicationsController extends Controller
 
     public function startCall(StartCallRequest $request, string $clientId): JsonResponse
     {
-        $client = Client::query()->withoutGlobalScopes()->where('tenant_id', $request->user()->tenant_id)->where('id', $clientId)->firstOrFail();
+        $client = Client::query()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $request->user()->tenant_id)
+            ->where('id', $clientId)
+            ->firstOrFail();
+
         Gate::authorize('clients.communications.call.create', $client);
 
         return ApiResponse::success(

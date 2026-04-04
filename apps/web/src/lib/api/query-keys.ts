@@ -27,6 +27,7 @@ export const queryKeys = {
   },
   communications: {
     all: ['communications'] as const,
+    inbox: (filters: Record<string, string | number | null | undefined> = {}) => [...queryKeys.communications.all, 'inbox', filters] as const,
     clientTimeline: (clientId: string, filters: Record<string, string | number | null | undefined> = {}) =>
       [...queryKeys.communications.all, 'client', clientId, filters] as const
   },
