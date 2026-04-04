@@ -1,3 +1,4 @@
+\
 <?php
 
 declare(strict_types=1);
@@ -10,6 +11,18 @@ use App\Modules\Clients\Models\Client;
 use App\Modules\IdentityAccess\Models\User;
 use App\Modules\Shared\Tenancy\TenantScoped;
 
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $client_id
+ * @property string|null $actor_user_id
+ * @property string|null $from_disposition_code
+ * @property string $to_disposition_code
+ * @property string|null $reason
+ * @property array<string, mixed>|null $warnings_snapshot
+ * @property \Illuminate\Support\Carbon|null $occurred_at
+ * @property-read User|null $actor
+ */
 final class ClientDispositionHistory extends Model
 {
     use TenantScoped;
@@ -18,6 +31,9 @@ final class ClientDispositionHistory extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
+    /**
+     * @var list<string>
+     */
     protected $fillable = [
         'id',
         'tenant_id',
@@ -30,6 +46,9 @@ final class ClientDispositionHistory extends Model
         'occurred_at',
     ];
 
+    /**
+     * @var array<string, string>
+     */
     protected $casts = [
         'warnings_snapshot' => 'array',
         'occurred_at' => 'datetime',

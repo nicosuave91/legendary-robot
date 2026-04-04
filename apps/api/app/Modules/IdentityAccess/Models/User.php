@@ -1,3 +1,4 @@
+\
 <?php
 
 declare(strict_types=1);
@@ -26,7 +27,11 @@ use App\Modules\Onboarding\Models\UserProfile;
  * @property string|null $created_by
  * @property \Illuminate\Support\Carbon|null $deactivated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\IdentityAccess\Models\Role> $roles
+ * @property-read Tenant $tenant
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Role> $roles
+ * @property-read UserProfile|null $profile
+ * @property-read OnboardingState|null $onboardingState
+ * @property-read UserIndustryAssignment|null $industryAssignment
  */
 final class User extends Authenticatable
 {

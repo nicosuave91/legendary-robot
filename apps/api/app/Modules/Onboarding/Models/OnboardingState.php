@@ -1,3 +1,4 @@
+\
 <?php
 
 declare(strict_types=1);
@@ -9,6 +10,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Modules\IdentityAccess\Models\User;
 use App\Modules\Shared\Tenancy\TenantScoped;
 
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $user_id
+ * @property string $state
+ * @property \Illuminate\Support\Carbon|null $required_at
+ * @property \Illuminate\Support\Carbon|null $started_at
+ * @property \Illuminate\Support\Carbon|null $completed_at
+ * @property \Illuminate\Support\Carbon|null $exempted_at
+ * @property \Illuminate\Support\Carbon|null $reset_at
+ */
 final class OnboardingState extends Model
 {
     use TenantScoped;

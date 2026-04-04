@@ -1,3 +1,4 @@
+\
 <?php
 
 declare(strict_types=1);
@@ -25,6 +26,7 @@ use App\Modules\Shared\Tenancy\TenantScoped;
  * @property string|null $blocked_reason
  * @property array<string, mixed>|null $metadata
  * @property-read User|null $assignedUser
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, TaskStatusHistory> $history
  */
 final class EventTask extends Model
 {

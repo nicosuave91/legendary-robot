@@ -1,3 +1,4 @@
+\
 <?php
 
 declare(strict_types=1);
@@ -47,10 +48,11 @@ final class NotificationFeedService
         /** @var NotificationRead|null $read */
         $read = $notification->reads->first();
 
+        /** @var \Illuminate\Database\Eloquent\Collection<int, ToastDismissal> $dismissals */
+        $dismissals = $notification->dismissals;
+
         /** @var ToastDismissal|null $dismissal */
-        $dismissal = $notification->dismissals
-            ->sortByDesc(static fn (ToastDismissal $item): int => $item->dismissed_at?->timestamp ?? 0)
-            ->first();
+        $dismissal = $dismissals->sortByDesc('dismissed_at')->first();
 
         return [
             'id' => (string) $notification->id,

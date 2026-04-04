@@ -1,3 +1,4 @@
+\
 <?php
 
 declare(strict_types=1);
@@ -9,6 +10,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Modules\IdentityAccess\Models\User;
 use App\Modules\Shared\Tenancy\TenantScoped;
 
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $user_id
+ * @property string|null $first_name
+ * @property string|null $last_name
+ * @property string|null $phone
+ * @property \Illuminate\Support\Carbon|null $birthday
+ * @property string|null $address_line_1
+ * @property string|null $address_line_2
+ * @property string|null $city
+ * @property string|null $state_code
+ * @property string|null $postal_code
+ * @property \Illuminate\Support\Carbon|null $profile_confirmed_at
+ */
 final class UserProfile extends Model
 {
     use TenantScoped;

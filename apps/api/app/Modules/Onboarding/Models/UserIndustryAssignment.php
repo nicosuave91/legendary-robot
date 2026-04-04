@@ -1,3 +1,4 @@
+\
 <?php
 
 declare(strict_types=1);
@@ -9,6 +10,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Modules\IdentityAccess\Models\User;
 use App\Modules\Shared\Tenancy\TenantScoped;
 
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $user_id
+ * @property string $industry
+ * @property string $config_version
+ * @property \Illuminate\Support\Carbon|null $assigned_at
+ */
 final class UserIndustryAssignment extends Model
 {
     use TenantScoped;

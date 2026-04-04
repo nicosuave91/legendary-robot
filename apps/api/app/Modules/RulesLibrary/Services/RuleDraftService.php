@@ -1,3 +1,4 @@
+\
 <?php
 
 declare(strict_types=1);
@@ -64,7 +65,10 @@ final class RuleDraftService
 
             $rule->forceFill(['current_draft_version_id' => (string) $version->id])->save();
 
-            return $rule->fresh(['latestPublishedVersion', 'currentDraftVersion']);
+            /** @var Rule $freshRule */
+            $freshRule = $rule->fresh(['latestPublishedVersion', 'currentDraftVersion']);
+
+            return $freshRule;
         });
 
         $this->auditLogger->record([
@@ -86,9 +90,11 @@ final class RuleDraftService
         abort_unless((string) $rule->tenant_id === (string) $actor->tenant_id, 404);
 
         $updatedRule = DB::transaction(function () use ($actor, $rule, $payload): Rule {
+            /** @var RuleVersion|null $draftVersion */
             $draftVersion = $rule->currentDraftVersion()->withoutGlobalScopes()->first();
 
             if ($draftVersion === null) {
+                /** @var RuleVersion $latest */
                 $latest = $rule->latestPublishedVersion()->withoutGlobalScopes()->firstOrFail();
 
                 $draftVersion = RuleVersion::query()->create([
@@ -141,7 +147,10 @@ final class RuleDraftService
                 'updated_by' => (string) $actor->id,
             ])->save();
 
-            return $rule->fresh(['latestPublishedVersion', 'currentDraftVersion']);
+            /** @var Rule $freshRule */
+            $freshRule = $rule->fresh(['latestPublishedVersion', 'currentDraftVersion']);
+
+            return $freshRule;
         });
 
         $this->auditLogger->record([

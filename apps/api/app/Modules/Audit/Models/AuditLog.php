@@ -1,3 +1,4 @@
+\
 <?php
 
 declare(strict_types=1);
@@ -7,6 +8,18 @@ namespace App\Modules\Audit\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Modules\Shared\Tenancy\TenantScoped;
 
+/**
+ * @property string|int $id
+ * @property string $tenant_id
+ * @property string|null $actor_id
+ * @property string $action
+ * @property string $subject_type
+ * @property string $subject_id
+ * @property string|null $correlation_id
+ * @property array<string, mixed>|null $before_summary
+ * @property array<string, mixed>|null $after_summary
+ * @property \Illuminate\Support\Carbon|null $created_at
+ */
 final class AuditLog extends Model
 {
     use TenantScoped;

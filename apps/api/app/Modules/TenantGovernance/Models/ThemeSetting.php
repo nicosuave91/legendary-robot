@@ -1,3 +1,4 @@
+\
 <?php
 
 declare(strict_types=1);
@@ -8,6 +9,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Modules\Shared\Tenancy\TenantScoped;
 
+/**
+ * @property string $tenant_id
+ * @property string $primary_color
+ * @property string $secondary_color
+ * @property string $tertiary_color
+ */
 final class ThemeSetting extends Model
 {
     use TenantScoped;

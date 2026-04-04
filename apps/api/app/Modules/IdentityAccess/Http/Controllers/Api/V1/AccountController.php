@@ -1,3 +1,4 @@
+\
 <?php
 
 declare(strict_types=1);
@@ -26,7 +27,7 @@ final class AccountController extends Controller
         Gate::authorize('settings.accounts.read');
 
         return ApiResponse::success(
-            $this->userProvisioningService->listVisibleAccounts($request->user()),
+            ['items' => $this->userProvisioningService->listVisibleAccounts($request->user())],
             (string) $request->attributes->get('correlation_id', ''),
         );
     }

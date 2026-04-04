@@ -1,3 +1,4 @@
+\
 <?php
 
 declare(strict_types=1);
@@ -7,6 +8,18 @@ namespace App\Modules\TenantGovernance\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Modules\Shared\Tenancy\TenantScoped;
 
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $industry
+ * @property string $version
+ * @property string $status
+ * @property bool $is_active
+ * @property array<string, mixed> $capabilities
+ * @property string|null $notes
+ * @property \Illuminate\Support\Carbon|null $published_at
+ * @property \Illuminate\Support\Carbon|null $activated_at
+ */
 final class TenantIndustryConfiguration extends Model
 {
     use TenantScoped;

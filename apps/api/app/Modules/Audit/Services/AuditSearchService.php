@@ -1,3 +1,4 @@
+\
 <?php
 
 declare(strict_types=1);
@@ -47,11 +48,12 @@ final class AuditSearchService
             });
         }
 
+        /** @var \Illuminate\Database\Eloquent\Collection<int, AuditLog> $items */
         $items = $query->limit(100)->get();
 
         return [
             'items' => $items->map(fn (AuditLog $log): array => [
-                'id' => (int) $log->id,
+                'id' => (string) $log->id,
                 'action' => (string) $log->action,
                 'subjectType' => (string) $log->subject_type,
                 'subjectId' => $log->subject_id,

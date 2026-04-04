@@ -1,3 +1,4 @@
+\
 <?php
 
 declare(strict_types=1);
@@ -5,6 +6,8 @@ declare(strict_types=1);
 namespace App\Modules\TenantGovernance\Services;
 
 use App\Modules\IdentityAccess\Models\User;
+use App\Modules\Onboarding\Models\UserIndustryAssignment;
+use App\Modules\TenantGovernance\Models\TenantIndustryConfiguration;
 
 final class IndustryCapabilityResolver
 {
@@ -20,8 +23,11 @@ final class IndustryCapabilityResolver
     {
         $user->loadMissing(['industryAssignment']);
 
-        $industry = $user->industryAssignment?->industry;
-        $version = $user->industryAssignment?->config_version;
+        /** @var UserIndustryAssignment|null $industryAssignment */
+        $industryAssignment = $user->industryAssignment;
+
+        $industry = $industryAssignment?->industry;
+        $version = $industryAssignment?->config_version;
 
         if ($industry === null || $version === null) {
             return [
@@ -31,6 +37,7 @@ final class IndustryCapabilityResolver
             ];
         }
 
+        /** @var TenantIndustryConfiguration|null $config */
         $config = $this->industryConfigurationService->versionForTenantIndustry(
             (string) $user->tenant_id,
             (string) $industry,

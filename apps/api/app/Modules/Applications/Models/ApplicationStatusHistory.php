@@ -1,3 +1,4 @@
+\
 <?php
 
 declare(strict_types=1);
@@ -9,6 +10,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Modules\IdentityAccess\Models\User;
 use App\Modules\Shared\Tenancy\TenantScoped;
 
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $application_id
+ * @property string|null $actor_user_id
+ * @property string|null $from_status
+ * @property string $to_status
+ * @property string|null $reason
+ * @property \Illuminate\Support\Carbon|null $occurred_at
+ * @property array<string, mixed>|null $metadata
+ * @property-read User|null $actor
+ */
 final class ApplicationStatusHistory extends Model
 {
     use TenantScoped;
@@ -17,6 +30,9 @@ final class ApplicationStatusHistory extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
+    /**
+     * @var list<string>
+     */
     protected $fillable = [
         'id',
         'tenant_id',
@@ -29,6 +45,9 @@ final class ApplicationStatusHistory extends Model
         'metadata',
     ];
 
+    /**
+     * @var array<string, string>
+     */
     protected $casts = [
         'occurred_at' => 'datetime',
         'metadata' => 'array',

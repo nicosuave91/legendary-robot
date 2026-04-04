@@ -1,3 +1,4 @@
+\
 <?php
 
 declare(strict_types=1);
@@ -53,7 +54,10 @@ final class WorkflowDraftService
 
             $workflow->forceFill(['current_draft_version_id' => (string) $version->id])->save();
 
-            return $workflow->fresh(['latestPublishedVersion', 'currentDraftVersion']);
+            /** @var Workflow $freshWorkflow */
+            $freshWorkflow = $workflow->fresh(['latestPublishedVersion', 'currentDraftVersion']);
+
+            return $freshWorkflow;
         });
 
         $this->auditLogger->record([
@@ -75,9 +79,11 @@ final class WorkflowDraftService
         abort_unless((string) $workflow->tenant_id === (string) $actor->tenant_id, 404);
 
         $updated = DB::transaction(function () use ($actor, $workflow, $payload): Workflow {
+            /** @var WorkflowVersion|null $draftVersion */
             $draftVersion = $workflow->currentDraftVersion()->withoutGlobalScopes()->first();
 
             if ($draftVersion === null) {
+                /** @var WorkflowVersion $latest */
                 $latest = $workflow->latestPublishedVersion()->withoutGlobalScopes()->firstOrFail();
 
                 $draftVersion = WorkflowVersion::query()->create([
@@ -114,7 +120,10 @@ final class WorkflowDraftService
                 'updated_by' => (string) $actor->id,
             ])->save();
 
-            return $workflow->fresh(['latestPublishedVersion', 'currentDraftVersion']);
+            /** @var Workflow $freshWorkflow */
+            $freshWorkflow = $workflow->fresh(['latestPublishedVersion', 'currentDraftVersion']);
+
+            return $freshWorkflow;
         });
 
         $this->auditLogger->record([

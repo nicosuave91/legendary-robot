@@ -1,3 +1,4 @@
+\
 <?php
 
 declare(strict_types=1);
@@ -9,6 +10,7 @@ use Illuminate\Support\Str;
 use App\Modules\IdentityAccess\Models\Role;
 use App\Modules\IdentityAccess\Models\User;
 use App\Modules\Onboarding\Models\OnboardingState;
+use App\Modules\Onboarding\Models\UserIndustryAssignment;
 use App\Modules\Onboarding\Models\UserProfile;
 use App\Modules\Shared\Audit\AuditLogger;
 
@@ -29,18 +31,27 @@ final class UserProvisioningService
             ->with(['roles', 'onboardingState', 'industryAssignment', 'profile'])
             ->orderBy('name')
             ->get()
-            ->map(fn (User $user): array => [
-                'id' => (string) $user->id,
-                'email' => (string) $user->email,
-                'displayName' => (string) $user->name,
-                'roles' => $user->roles->pluck('name')->values()->all(),
-                'status' => (string) ($user->status ?? 'active'),
-                'onboardingState' => (string) ($user->onboardingState?->state ?? 'required'),
-                'selectedIndustry' => $user->industryAssignment?->industry,
-                'selectedIndustryConfigVersion' => $user->industryAssignment?->config_version,
-                'firstName' => (string) ($user->profile?->first_name ?? ''),
-                'lastName' => (string) ($user->profile?->last_name ?? ''),
-            ])
+            ->map(function (User $user): array {
+                /** @var UserProfile|null $profile */
+                $profile = $user->profile;
+                /** @var OnboardingState|null $onboardingState */
+                $onboardingState = $user->onboardingState;
+                /** @var UserIndustryAssignment|null $industryAssignment */
+                $industryAssignment = $user->industryAssignment;
+
+                return [
+                    'id' => (string) $user->id,
+                    'email' => (string) $user->email,
+                    'displayName' => (string) $user->name,
+                    'roles' => $user->roles->pluck('name')->values()->all(),
+                    'status' => (string) ($user->status ?? 'active'),
+                    'onboardingState' => (string) ($onboardingState?->state ?? 'required'),
+                    'selectedIndustry' => $industryAssignment?->industry,
+                    'selectedIndustryConfigVersion' => $industryAssignment?->config_version,
+                    'firstName' => (string) ($profile?->first_name ?? ''),
+                    'lastName' => (string) ($profile?->last_name ?? ''),
+                ];
+            })
             ->all();
     }
 
@@ -60,6 +71,7 @@ final class UserProvisioningService
             'created_by' => (string) $actor->id,
         ]);
 
+        /** @var Role $role */
         $role = Role::query()->where('name', (string) $payload['role'])->firstOrFail();
         $user->roles()->attach($role->id);
 
@@ -105,7 +117,7 @@ final class UserProvisioningService
             'selectedIndustry' => null,
             'selectedIndustryConfigVersion' => null,
             'firstName' => (string) ($payload['firstName'] ?? ''),
-            'lastName' => (string) ($payload['lastName'] ?? ''),
+            'lastName' => (string) ($payload['LastName'] ?? $payload['lastName'] ?? ''),
         ];
     }
 
@@ -130,10 +142,14 @@ final class UserProvisioningService
         ]);
         $subject->save();
 
+        /** @var Role $role */
         $role = Role::query()->where('name', (string) $payload['role'])->firstOrFail();
         $subject->roles()->sync([$role->id]);
 
-        $profile = $subject->profile ?? new UserProfile([
+        /** @var UserProfile|null $currentProfile */
+        $currentProfile = $subject->profile;
+
+        $profile = $currentProfile ?? new UserProfile([
             'id' => (string) Str::uuid(),
             'tenant_id' => (string) $subject->tenant_id,
             'user_id' => (string) $subject->id,
@@ -143,6 +159,11 @@ final class UserProvisioningService
             'last_name' => $payload['lastName'] ?? null,
         ]);
         $profile->save();
+
+        /** @var OnboardingState|null $onboardingState */
+        $onboardingState = $subject->onboardingState;
+        /** @var UserIndustryAssignment|null $industryAssignment */
+        $industryAssignment = $subject->industryAssignment;
 
         $after = [
             'displayName' => (string) $subject->name,
@@ -167,9 +188,9 @@ final class UserProvisioningService
             'displayName' => (string) $subject->name,
             'roles' => [(string) $role->name],
             'status' => (string) $subject->status,
-            'onboardingState' => (string) ($subject->onboardingState?->state ?? 'required'),
-            'selectedIndustry' => $subject->industryAssignment?->industry,
-            'selectedIndustryConfigVersion' => $subject->industryAssignment?->config_version,
+            'onboardingState' => (string) ($onboardingState?->state ?? 'required'),
+            'selectedIndustry' => $industryAssignment?->industry,
+            'selectedIndustryConfigVersion' => $industryAssignment?->config_version,
             'firstName' => (string) ($profile->first_name ?? ''),
             'lastName' => (string) ($profile->last_name ?? ''),
         ];

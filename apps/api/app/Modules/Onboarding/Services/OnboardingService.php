@@ -1,3 +1,4 @@
+\
 <?php
 
 declare(strict_types=1);
@@ -11,6 +12,7 @@ use App\Modules\Onboarding\Models\OnboardingState;
 use App\Modules\Onboarding\Models\UserIndustryAssignment;
 use App\Modules\Onboarding\Models\UserProfile;
 use App\Modules\Shared\Audit\AuditLogger;
+use App\Modules\TenantGovernance\Models\TenantIndustryConfiguration;
 use App\Modules\TenantGovernance\Services\IndustryConfigurationService;
 
 final class OnboardingService
@@ -32,6 +34,9 @@ final class OnboardingService
         $user->loadMissing(['profile', 'onboardingState', 'industryAssignment']);
         $resolved = $this->stateResolver->resolve($user);
 
+        /** @var UserProfile|null $profile */
+        $profile = $user->profile;
+
         return [
             'state' => $resolved['state'],
             'currentStep' => $resolved['currentStep'],
@@ -40,15 +45,15 @@ final class OnboardingService
             'selectedIndustry' => $resolved['selectedIndustry'],
             'selectedIndustryConfigVersion' => $resolved['selectedIndustryConfigVersion'],
             'profile' => [
-                'firstName' => (string) ($user->profile?->first_name ?? ''),
-                'lastName' => (string) ($user->profile?->last_name ?? ''),
-                'phone' => (string) ($user->profile?->phone ?? ''),
-                'birthday' => $user->profile?->birthday?->format('Y-m-d'),
-                'addressLine1' => (string) ($user->profile?->address_line_1 ?? ''),
-                'addressLine2' => (string) ($user->profile?->address_line_2 ?? ''),
-                'city' => (string) ($user->profile?->city ?? ''),
-                'stateCode' => (string) ($user->profile?->state_code ?? ''),
-                'postalCode' => (string) ($user->profile?->postal_code ?? ''),
+                'firstName' => (string) ($profile?->first_name ?? ''),
+                'lastName' => (string) ($profile?->last_name ?? ''),
+                'phone' => (string) ($profile?->phone ?? ''),
+                'birthday' => $profile?->birthday?->format('Y-m-d'),
+                'addressLine1' => (string) ($profile?->address_line_1 ?? ''),
+                'addressLine2' => (string) ($profile?->address_line_2 ?? ''),
+                'city' => (string) ($profile?->city ?? ''),
+                'stateCode' => (string) ($profile?->state_code ?? ''),
+                'postalCode' => (string) ($profile?->postal_code ?? ''),
             ],
             'canComplete' => $resolved['currentStep'] === 'completion',
         ];
@@ -62,7 +67,10 @@ final class OnboardingService
     {
         $this->assertNotOwnerBypass($user);
 
-        $profile = $user->profile ?? new UserProfile([
+        /** @var UserProfile|null $currentProfile */
+        $currentProfile = $user->profile;
+
+        $profile = $currentProfile ?? new UserProfile([
             'id' => (string) Str::uuid(),
             'tenant_id' => (string) $user->tenant_id,
             'user_id' => (string) $user->id,
@@ -118,14 +126,20 @@ final class OnboardingService
         $this->assertNotOwnerBypass($user);
         $user->loadMissing(['profile', 'industryAssignment', 'onboardingState']);
 
+        /** @var UserProfile|null $profile */
+        $profile = $user->profile;
+        /** @var UserIndustryAssignment|null $existingAssignment */
+        $existingAssignment = $user->industryAssignment;
+
         if (!in_array($industry, self::INDUSTRIES, true)) {
             throw ValidationException::withMessages(['industry' => 'Unsupported industry selection.']);
         }
 
-        if ($user->profile?->profile_confirmed_at === null) {
+        if ($profile?->profile_confirmed_at === null) {
             throw ValidationException::withMessages(['profile' => 'Profile confirmation is required before industry selection.']);
         }
 
+        /** @var TenantIndustryConfiguration|null $activeConfig */
         $activeConfig = $this->industryConfigurationService->activeVersionForTenantAndIndustry(
             (string) $user->tenant_id,
             $industry,
@@ -137,7 +151,7 @@ final class OnboardingService
             ]);
         }
 
-        $assignment = $user->industryAssignment ?? new UserIndustryAssignment([
+        $assignment = $existingAssignment ?? new UserIndustryAssignment([
             'id' => (string) Str::uuid(),
             'tenant_id' => (string) $user->tenant_id,
             'user_id' => (string) $user->id,
@@ -204,7 +218,7 @@ final class OnboardingService
             'subject_id' => (string) $user->id,
             'correlation_id' => $correlationId,
             'before_summary' => null,
-            'after_summary' => json_encode(['completedAt' => $state->completed_at?->toIso8601String()], JSON_THROW_ON_ERROR),
+            'after_summary' => json_encode(['completedAt' => $state->completed_at->toIso8601String()], JSON_THROW_ON_ERROR),
         ]);
 
         $user->unsetRelation('onboardingState');
@@ -221,12 +235,22 @@ final class OnboardingService
 
     private function ensureMutableState(User $user): OnboardingState
     {
-        return $user->onboardingState ?? OnboardingState::query()->create([
+        /** @var OnboardingState|null $existingState */
+        $existingState = $user->onboardingState;
+
+        if ($existingState !== null) {
+            return $existingState;
+        }
+
+        /** @var OnboardingState $state */
+        $state = OnboardingState::query()->create([
             'id' => (string) Str::uuid(),
             'tenant_id' => (string) $user->tenant_id,
             'user_id' => (string) $user->id,
             'state' => 'required',
             'required_at' => now(),
         ]);
+
+        return $state;
     }
 }

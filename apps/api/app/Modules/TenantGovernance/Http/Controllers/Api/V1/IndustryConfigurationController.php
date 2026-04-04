@@ -1,3 +1,4 @@
+\
 <?php
 
 declare(strict_types=1);
@@ -24,7 +25,7 @@ final class IndustryConfigurationController extends Controller
         Gate::authorize('settings.industry-configurations.read');
 
         return ApiResponse::success(
-            $this->industryConfigurationService->listForActor($request->user()),
+            ['items' => $this->industryConfigurationService->listForActor($request->user())],
             (string) $request->attributes->get('correlation_id', ''),
         );
     }
