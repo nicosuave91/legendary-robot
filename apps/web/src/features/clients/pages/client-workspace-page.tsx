@@ -7,7 +7,10 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { PageHeader, AppButton, AppCard, AppCardBody, AppCardHeader, AppInput, AppSelect, AppTextarea, EmptyState, LoadingSkeleton } from '@/components/ui'
 import { ClientStatusBadge } from '@/features/clients/components/client-status-badge'
 import { ClientWorkspaceTabs } from '@/features/clients/components/client-workspace-tabs'
-import { WorkspacePlaceholderPanel } from '@/features/clients/components/workspace-placeholder-panel'
+import { ClientDispositionPanel } from '@/features/disposition/components/client-disposition-panel'
+import { ClientCommunicationsPanel } from '@/features/communications/components/client-communications-panel'
+import { ClientEventsPanel } from '@/features/calendar-tasks/components/client-events-panel'
+import { ClientApplicationsPanel } from '@/features/applications/components/client-applications-panel'
 import { clientsApi } from '@/lib/api/client'
 import { queryKeys } from '@/lib/api/query-keys'
 import { useToast } from '@/components/shell/toast-host'
@@ -34,7 +37,6 @@ type WorkspaceValues = z.infer<typeof workspaceSchema>
 const validTabs = ['overview', 'communications', 'events', 'applications', 'notes', 'documents', 'audit'] as const
 
 type WorkspaceTab = typeof validTabs[number]
-
 
 function normalizeWorkspaceFormStatus(
   status: 'active' | 'lead' | 'qualified' | 'applied' | 'inactive'
@@ -158,32 +160,53 @@ export function ClientWorkspacePage() {
   const renderActivePanel = () => {
     if (activeTab === 'overview') {
       return (
-        <AppCard>
-          <AppCardHeader>
-            <div className="heading-md">Client summary</div>
-            <div className="body-sm text-text-muted">Editable profile fields remain server-authoritative and auditable through the Sprint 4 client APIs.</div>
-          </AppCardHeader>
-          <AppCardBody>
-            <form className="grid gap-4 lg:grid-cols-2" onSubmit={form.handleSubmit(async (values) => updateClientMutation.mutateAsync(values))}>
-              <div className="space-y-2 lg:col-span-2"><label className="label-sm text-text">Display name</label><AppInput {...form.register('displayName')} /></div>
-              <div className="space-y-2"><label className="label-sm text-text">First name</label><AppInput {...form.register('firstName')} /></div>
-              <div className="space-y-2"><label className="label-sm text-text">Last name</label><AppInput {...form.register('lastName')} /></div>
-              <div className="space-y-2 lg:col-span-2"><label className="label-sm text-text">Company name</label><AppInput {...form.register('companyName')} /></div>
-              <div className="space-y-2"><label className="label-sm text-text">Email</label><AppInput type="email" {...form.register('primaryEmail')} /></div>
-              <div className="space-y-2"><label className="label-sm text-text">Phone</label><AppInput {...form.register('primaryPhone')} /></div>
-              <div className="space-y-2"><label className="label-sm text-text">Preferred contact channel</label><AppSelect {...form.register('preferredContactChannel')}><option value="email">Email</option><option value="sms">SMS</option><option value="phone">Phone</option></AppSelect></div>
-              <div className="space-y-2"><label className="label-sm text-text">Status</label><AppSelect {...form.register('status')}><option value="lead">Lead</option><option value="active">Active</option><option value="inactive">Inactive</option></AppSelect></div>
-              <div className="space-y-2"><label className="label-sm text-text">Date of birth</label><AppInput type="date" {...form.register('dateOfBirth')} /></div>
-              <div className="space-y-2 lg:col-span-2"><label className="label-sm text-text">Address line 1</label><AppInput {...form.register('addressLine1')} /></div>
-              <div className="space-y-2 lg:col-span-2"><label className="label-sm text-text">Address line 2</label><AppInput {...form.register('addressLine2')} /></div>
-              <div className="space-y-2"><label className="label-sm text-text">City</label><AppInput {...form.register('city')} /></div>
-              <div className="space-y-2"><label className="label-sm text-text">State</label><AppInput {...form.register('stateCode')} /></div>
-              <div className="space-y-2"><label className="label-sm text-text">Postal code</label><AppInput {...form.register('postalCode')} /></div>
-              <div className="lg:col-span-2"><AppButton type="submit" disabled={updateClientMutation.isPending}>{updateClientMutation.isPending ? 'Saving…' : 'Save profile changes'}</AppButton></div>
-            </form>
-          </AppCardBody>
-        </AppCard>
+        <div className="space-y-6">
+          <ClientDispositionPanel clientId={clientId ?? ''} payload={payload} />
+          <AppCard>
+            <AppCardHeader>
+              <div className="heading-md">Client summary</div>
+              <div className="body-sm text-text-muted">Editable profile fields remain server-authoritative and auditable through the Sprint 4 client APIs.</div>
+            </AppCardHeader>
+            <AppCardBody>
+              <form className="grid gap-4 lg:grid-cols-2" onSubmit={form.handleSubmit(async (values) => updateClientMutation.mutateAsync(values))}>
+                <div className="space-y-2 lg:col-span-2"><label className="label-sm text-text">Display name</label><AppInput {...form.register('displayName')} /></div>
+                <div className="space-y-2"><label className="label-sm text-text">First name</label><AppInput {...form.register('firstName')} /></div>
+                <div className="space-y-2"><label className="label-sm text-text">Last name</label><AppInput {...form.register('lastName')} /></div>
+                <div className="space-y-2 lg:col-span-2"><label className="label-sm text-text">Company name</label><AppInput {...form.register('companyName')} /></div>
+                <div className="space-y-2"><label className="label-sm text-text">Email</label><AppInput type="email" {...form.register('primaryEmail')} /></div>
+                <div className="space-y-2"><label className="label-sm text-text">Phone</label><AppInput {...form.register('primaryPhone')} /></div>
+                <div className="space-y-2"><label className="label-sm text-text">Preferred contact channel</label><AppSelect {...form.register('preferredContactChannel')}><option value="email">Email</option><option value="sms">SMS</option><option value="phone">Phone</option></AppSelect></div>
+                <div className="space-y-2"><label className="label-sm text-text">Status</label><AppSelect {...form.register('status')}><option value="lead">Lead</option><option value="active">Active</option><option value="inactive">Inactive</option></AppSelect></div>
+                <div className="space-y-2"><label className="label-sm text-text">Date of birth</label><AppInput type="date" {...form.register('dateOfBirth')} /></div>
+                <div className="space-y-2 lg:col-span-2"><label className="label-sm text-text">Address line 1</label><AppInput {...form.register('addressLine1')} /></div>
+                <div className="space-y-2 lg:col-span-2"><label className="label-sm text-text">Address line 2</label><AppInput {...form.register('addressLine2')} /></div>
+                <div className="space-y-2"><label className="label-sm text-text">City</label><AppInput {...form.register('city')} /></div>
+                <div className="space-y-2"><label className="label-sm text-text">State</label><AppInput {...form.register('stateCode')} /></div>
+                <div className="space-y-2"><label className="label-sm text-text">Postal code</label><AppInput {...form.register('postalCode')} /></div>
+                <div className="lg:col-span-2"><AppButton type="submit" disabled={updateClientMutation.isPending}>{updateClientMutation.isPending ? 'Saving…' : 'Save profile changes'}</AppButton></div>
+              </form>
+            </AppCardBody>
+          </AppCard>
+        </div>
       )
+    }
+
+    if (activeTab === 'communications') {
+      return (
+        <ClientCommunicationsPanel
+          clientId={clientId ?? ''}
+          fallbackEmail={payload.client.primaryEmail}
+          fallbackPhone={payload.client.primaryPhone}
+        />
+      )
+    }
+
+    if (activeTab === 'events') {
+      return <ClientEventsPanel clientId={clientId ?? ''} />
+    }
+
+    if (activeTab === 'applications') {
+      return <ClientApplicationsPanel clientId={clientId ?? ''} />
     }
 
     if (activeTab === 'notes') {
@@ -292,15 +315,14 @@ export function ClientWorkspacePage() {
       ) : <EmptyState title="No audit entries yet" description="Client mutations will appear here once they are recorded through the audit module." />
     }
 
-    const fallbackTabLabel = String(activeTab ?? 'workspace')
-    return <WorkspacePlaceholderPanel title={fallbackTabLabel.charAt(0).toUpperCase() + fallbackTabLabel.slice(1)} />
+    return <EmptyState title="Workspace tab unavailable" description="The requested workspace view is not available for this client." />
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={payload.client.displayName}
-        description="The client workspace centralizes profile data, notes, documents, and audit evidence without fragmenting record ownership across separate pages."
+        description="The client workspace centralizes profile data, disposition, communications, events, applications, notes, documents, and audit evidence in one governed record view."
         actions={<AppButton type="button" variant="secondary" onClick={() => navigate('/app/clients')}>Back to list</AppButton>}
       />
 
@@ -333,4 +355,3 @@ export function ClientWorkspacePage() {
     </div>
   )
 }
-
