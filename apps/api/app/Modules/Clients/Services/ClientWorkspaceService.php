@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Modules\Clients\Services;
 
 use App\Modules\Applications\Models\Application;
-use App\Modules\CalendarTasks\Models\CalendarEvent;
 use App\Modules\Audit\Models\AuditLog;
+use App\Modules\CalendarTasks\Models\CalendarEvent;
 use App\Modules\Clients\Models\Client;
+use App\Modules\Clients\Models\ClientDocument;
+use App\Modules\Clients\Models\ClientNote;
 use App\Modules\Disposition\Services\DispositionProjectionService;
 use App\Modules\IdentityAccess\Models\User;
 
@@ -27,57 +29,106 @@ final class ClientWorkspaceService
 
         $client->loadMissing(['address', 'owner']);
         $client->loadCount(['notes', 'documents']);
+
         $currentDisposition = $this->dispositionProjectionService->currentForClient($client);
         $dispositionHistory = $this->dispositionProjectionService->historyForClient($client);
         $availableDispositionTransitions = $this->dispositionProjectionService->availableTransitionsForClient($client);
-        $applicationsCount = Application::query()->where('tenant_id', $actor->tenant_id)->where('client_id', $client->id)->count();
-        $eventsCount = CalendarEvent::query()->withoutGlobalScopes()->where('tenant_id', $actor->tenant_id)->where('client_id', $client->id)->count();
 
-        $recentNotes = $client->notes()->with('author')->latest('created_at')->limit(10)->get()->map(fn ($note): array => [
-            'id' => (string) $note->id,
-            'sourceType' => (string) $note->source_type,
-            'body' => (string) $note->body,
-            'isEditable' => (bool) $note->is_editable,
-            'authorDisplayName' => (string) ($note->author?->name ?? 'Unknown'),
-            'createdAt' => $note->created_at?->toIso8601String(),
-        ])->values()->all();
+        $applicationsCount = Application::query()
+            ->where('tenant_id', $actor->tenant_id)
+            ->where('client_id', $client->id)
+            ->count();
 
-        $recentDocuments = $client->documents()->with('uploadedBy')->latest('created_at')->limit(10)->get()->map(fn ($document): array => [
-            'id' => (string) $document->id,
-            'originalFilename' => (string) $document->original_filename,
-            'mimeType' => (string) $document->mime_type,
-            'sizeBytes' => (int) $document->size_bytes,
-            'provenance' => (string) $document->provenance,
-            'attachmentCategory' => $document->attachment_category,
-            'uploadedByDisplayName' => (string) ($document->uploadedBy?->name ?? 'Unknown'),
-            'uploadedAt' => $document->created_at?->toIso8601String(),
-            'storageReference' => (string) $document->storage_reference,
-        ])->values()->all();
+        $eventsCount = CalendarEvent::query()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $actor->tenant_id)
+            ->where('client_id', $client->id)
+            ->count();
+
+        /** @var \Illuminate\Database\Eloquent\Collection<int, ClientNote> $recentNotesCollection */
+        $recentNotesCollection = $client->notes()
+            ->with('author')
+            ->latest('created_at')
+            ->limit(10)
+            ->get();
+
+        $recentNotes = $recentNotesCollection
+            ->map(fn (ClientNote $note): array => [
+                'id' => (string) $note->id,
+                'sourceType' => (string) $note->source_type,
+                'body' => (string) $note->body,
+                'isEditable' => (bool) $note->is_editable,
+                'authorDisplayName' => $note->author !== null ? $note->author->name : 'Unknown',
+                'createdAt' => $note->created_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
+
+        /** @var \Illuminate\Database\Eloquent\Collection<int, ClientDocument> $recentDocumentsCollection */
+        $recentDocumentsCollection = $client->documents()
+            ->with('uploadedBy')
+            ->latest('created_at')
+            ->limit(10)
+            ->get();
+
+        $recentDocuments = $recentDocumentsCollection
+            ->map(fn (ClientDocument $document): array => [
+                'id' => (string) $document->id,
+                'originalFilename' => (string) $document->original_filename,
+                'mimeType' => (string) $document->mime_type,
+                'sizeBytes' => (int) $document->size_bytes,
+                'provenance' => (string) $document->provenance,
+                'attachmentCategory' => $document->attachment_category,
+                'uploadedByDisplayName' => $document->uploadedBy !== null ? $document->uploadedBy->name : 'Unknown',
+                'uploadedAt' => $document->created_at?->toIso8601String(),
+                'storageReference' => (string) $document->storage_reference,
+            ])
+            ->values()
+            ->all();
 
         $noteIds = $client->notes()->pluck('id')->all();
         $documentIds = $client->documents()->pluck('id')->all();
-        $applicationIds = Application::query()->where('tenant_id', $actor->tenant_id)->where('client_id', $client->id)->pluck('id')->all();
-        $auditEntries = AuditLog::query()->where(function ($query) use ($client, $noteIds, $documentIds, $applicationIds): void {
-            $query->where(fn ($inner) => $inner->where('subject_type', 'client')->where('subject_id', (string) $client->id));
-            if (!empty($noteIds)) {
-                $query->orWhere(fn ($inner) => $inner->where('subject_type', 'client_note')->whereIn('subject_id', $noteIds));
-            }
-            if (!empty($documentIds)) {
-                $query->orWhere(fn ($inner) => $inner->where('subject_type', 'client_document')->whereIn('subject_id', $documentIds));
-            }
-            if (!empty($applicationIds)) {
-                $query->orWhere(fn ($inner) => $inner->where('subject_type', 'application')->whereIn('subject_id', $applicationIds));
-            }
-        })->latest('created_at')->limit(10)->get();
+        $applicationIds = Application::query()
+            ->where('tenant_id', $actor->tenant_id)
+            ->where('client_id', $client->id)
+            ->pluck('id')
+            ->all();
 
-        $actorNames = User::query()->whereIn('id', $auditEntries->pluck('actor_id')->filter()->unique()->values()->all())->pluck('name', 'id');
-        $recentAudit = $auditEntries->map(fn (AuditLog $entry): array => [
-            'id' => (string) $entry->id,
-            'action' => (string) $entry->action,
-            'actorDisplayName' => (string) ($actorNames[(string) $entry->actor_id] ?? 'System'),
-            'subjectType' => (string) $entry->subject_type,
-            'createdAt' => $entry->created_at?->toIso8601String(),
-        ])->values()->all();
+        /** @var \Illuminate\Database\Eloquent\Collection<int, AuditLog> $auditEntries */
+        $auditEntries = AuditLog::query()
+            ->where(function ($query) use ($client, $noteIds, $documentIds, $applicationIds): void {
+                $query->where(fn ($inner) => $inner->where('subject_type', 'client')->where('subject_id', (string) $client->id));
+
+                if (!empty($noteIds)) {
+                    $query->orWhere(fn ($inner) => $inner->where('subject_type', 'client_note')->whereIn('subject_id', $noteIds));
+                }
+
+                if (!empty($documentIds)) {
+                    $query->orWhere(fn ($inner) => $inner->where('subject_type', 'client_document')->whereIn('subject_id', $documentIds));
+                }
+
+                if (!empty($applicationIds)) {
+                    $query->orWhere(fn ($inner) => $inner->where('subject_type', 'application')->whereIn('subject_id', $applicationIds));
+                }
+            })
+            ->latest('created_at')
+            ->limit(10)
+            ->get();
+
+        $actorNames = User::query()
+            ->whereIn('id', $auditEntries->pluck('actor_id')->filter()->unique()->values()->all())
+            ->pluck('name', 'id');
+
+        $recentAudit = $auditEntries
+            ->map(fn (AuditLog $entry): array => [
+                'id' => (string) $entry->id,
+                'action' => (string) $entry->action,
+                'actorDisplayName' => (string) ($actorNames[(string) $entry->actor_id] ?? 'System'),
+                'subjectType' => (string) $entry->subject_type,
+                'createdAt' => $entry->created_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
 
         return [
             'client' => [
