@@ -7,6 +7,7 @@ namespace App\Modules\CalendarTasks\Services;
 use Carbon\CarbonImmutable;
 use App\Modules\CalendarTasks\Models\CalendarEvent;
 use App\Modules\CalendarTasks\Models\EventTask;
+use App\Modules\CalendarTasks\Models\TaskStatusHistory;
 use App\Modules\Clients\Models\Client;
 use App\Modules\IdentityAccess\Models\User;
 
@@ -46,6 +47,7 @@ final class EventQueryService
             ->with(['client', 'owner', 'tasks.assignedUser', 'tasks.history.actor'])
             ->firstOrFail();
 
+        /** @var \Illuminate\Support\Collection<int, EventTask> $tasks */
         $tasks = $event->tasks->sortBy('sort_order')->values();
 
         return [
@@ -54,8 +56,8 @@ final class EventQueryService
             'description' => $event->description,
             'eventType' => (string) $event->event_type,
             'status' => (string) $event->status,
-            'startsAt' => $event->starts_at?->toIso8601String(),
-            'endsAt' => $event->ends_at?->toIso8601String(),
+            'startsAt' => $event->starts_at->toIso8601String(),
+            'endsAt' => $event->ends_at->toIso8601String(),
             'isAllDay' => (bool) $event->is_all_day,
             'location' => $event->location,
             'client' => $event->client ? ['id' => (string) $event->client->id, 'displayName' => (string) $event->client->display_name] : null,
@@ -73,7 +75,7 @@ final class EventQueryService
                 'blockedReason' => $task->blocked_reason,
                 'assignedUser' => $task->assignedUser ? ['id' => (string) $task->assignedUser->id, 'displayName' => (string) $task->assignedUser->name] : null,
                 'availableActions' => $this->availableTaskActions((string) $task->status),
-                'history' => $task->history->sortByDesc('occurred_at')->values()->map(fn ($history): array => [
+                'history' => $task->history->sortByDesc('occurred_at')->values()->map(fn (TaskStatusHistory $history): array => [
                     'id' => (string) $history->id,
                     'fromStatus' => $history->from_status,
                     'toStatus' => (string) $history->to_status,
@@ -108,8 +110,8 @@ final class EventQueryService
             'description' => $event->description,
             'eventType' => (string) $event->event_type,
             'status' => (string) $event->status,
-            'startsAt' => $event->starts_at?->toIso8601String(),
-            'endsAt' => $event->ends_at?->toIso8601String(),
+            'startsAt' => $event->starts_at->toIso8601String(),
+            'endsAt' => $event->ends_at->toIso8601String(),
             'isAllDay' => (bool) $event->is_all_day,
             'location' => $event->location,
             'client' => $event->client ? ['id' => (string) $event->client->id, 'displayName' => (string) $event->client->display_name] : null,
@@ -118,9 +120,10 @@ final class EventQueryService
         ];
     }
 
-    public function taskSummary($tasks): array
+    public function taskSummary(iterable $tasks): array
     {
         $collection = collect($tasks);
+
         return [
             'total' => $collection->count(),
             'open' => $collection->where('status', 'open')->count(),

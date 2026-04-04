@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Applications\Services;
 
 use App\Modules\Applications\Models\Application;
+use App\Modules\Applications\Models\ApplicationRuleApplication;
+use App\Modules\Applications\Models\ApplicationStatusHistory;
 use App\Modules\Clients\Models\Client;
 use App\Modules\IdentityAccess\Models\User;
 
@@ -38,6 +40,17 @@ final class ApplicationQueryService
 
         $application->loadMissing(['owner', 'statusHistory.actor', 'ruleApplications']);
 
+        /** @var \Illuminate\Database\Eloquent\Collection<int, ApplicationStatusHistory> $statusHistory */
+        $statusHistory = $application->statusHistory()
+            ->with('actor')
+            ->latest('occurred_at')
+            ->get();
+
+        /** @var \Illuminate\Database\Eloquent\Collection<int, ApplicationRuleApplication> $ruleNotes */
+        $ruleNotes = $application->ruleApplications()
+            ->latest('applied_at')
+            ->get();
+
         return [
             'application' => $this->serializeSummary($application) + [
                 'externalReference' => $application->external_reference,
@@ -45,11 +58,8 @@ final class ApplicationQueryService
                 'submittedAt' => $application->submitted_at?->toIso8601String(),
                 'availableStatusTransitions' => $this->applicationStatusTransitionService->availableTransitions((string) $application->status),
             ],
-            'statusHistory' => $application->statusHistory()
-                ->with('actor')
-                ->latest('occurred_at')
-                ->get()
-                ->map(fn ($entry): array => [
+            'statusHistory' => $statusHistory
+                ->map(fn (ApplicationStatusHistory $entry): array => [
                     'id' => (string) $entry->id,
                     'fromStatus' => $entry->from_status,
                     'toStatus' => (string) $entry->to_status,
@@ -59,10 +69,8 @@ final class ApplicationQueryService
                 ])
                 ->values()
                 ->all(),
-            'ruleNotes' => $application->ruleApplications()
-                ->latest('applied_at')
-                ->get()
-                ->map(fn ($rule): array => [
+            'ruleNotes' => $ruleNotes
+                ->map(fn (ApplicationRuleApplication $rule): array => [
                     'id' => (string) $rule->id,
                     'ruleId' => $rule->rule_id,
                     'ruleVersionId' => $rule->rule_version_id,
@@ -82,8 +90,10 @@ final class ApplicationQueryService
 
     public function serializeSummary(Application $application): array
     {
+        /** @var \Illuminate\Database\Eloquent\Collection<int, ApplicationRuleApplication> $ruleApplications */
         $ruleApplications = $application->relationLoaded('ruleApplications') ? $application->ruleApplications : $application->ruleApplications()->get();
 
+        /** @var ApplicationStatusHistory|null $latestStatusHistory */
         $latestStatusHistory = $application->relationLoaded('statusHistory')
             ? $application->statusHistory->sortByDesc('occurred_at')->first()
             : $application->statusHistory()->latest('occurred_at')->first();

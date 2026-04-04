@@ -11,6 +11,23 @@ use App\Modules\Clients\Models\Client;
 use App\Modules\IdentityAccess\Models\User;
 use App\Modules\Shared\Tenancy\TenantScoped;
 
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $client_id
+ * @property string $application_number
+ * @property string|null $owner_user_id
+ * @property string $product_type
+ * @property string|null $external_reference
+ * @property float|int|string|null $amount_requested
+ * @property string $status
+ * @property \Illuminate\Support\Carbon|null $submitted_at
+ * @property array<string, mixed>|null $metadata
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read Client $client
+ * @property-read User|null $owner
+ */
 final class Application extends Model
 {
     use TenantScoped;
@@ -19,6 +36,9 @@ final class Application extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
+    /**
+     * @var list<string>
+     */
     protected $fillable = [
         'id',
         'tenant_id',
@@ -35,6 +55,9 @@ final class Application extends Model
         'updated_by',
     ];
 
+    /**
+     * @var array<string, string>
+     */
     protected $casts = [
         'submitted_at' => 'datetime',
         'metadata' => 'array',

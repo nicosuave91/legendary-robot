@@ -6,6 +6,7 @@ namespace App\Modules\WorkflowBuilder\Services;
 
 use App\Modules\IdentityAccess\Models\User;
 use App\Modules\WorkflowBuilder\Models\Workflow;
+use App\Modules\WorkflowBuilder\Models\WorkflowVersion;
 
 final class WorkflowCatalogService
 {
@@ -33,6 +34,7 @@ final class WorkflowCatalogService
     {
         abort_unless((string) $workflow->tenant_id === (string) $actor->tenant_id, 404);
 
+        /** @var \Illuminate\Database\Eloquent\Collection<int, WorkflowVersion> $versions */
         $versions = $workflow->versions()->withoutGlobalScopes()->where('tenant_id', $actor->tenant_id)->latest('version_number')->get();
 
         return [
@@ -40,7 +42,7 @@ final class WorkflowCatalogService
                 'currentDraftVersionId' => $workflow->current_draft_version_id,
                 'latestPublishedVersionId' => $workflow->latest_published_version_id,
             ],
-            'versions' => $versions->map(fn ($version): array => [
+            'versions' => $versions->map(fn (WorkflowVersion $version): array => [
                 'id' => (string) $version->id,
                 'versionNumber' => (int) $version->version_number,
                 'lifecycleState' => (string) $version->lifecycle_state,

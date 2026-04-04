@@ -113,9 +113,12 @@ final class WorkflowRunService
     {
         abort_unless((string) $run->tenant_id === $tenantId && (string) $run->workflow_id === (string) $workflow->id, 404);
 
+        /** @var \Illuminate\Database\Eloquent\Collection<int, WorkflowRunLog> $logs */
+        $logs = $run->logs()->withoutGlobalScopes()->where('tenant_id', $tenantId)->oldest('occurred_at')->get();
+
         return [
             'run' => $this->serializeRun($run),
-            'logs' => $run->logs()->withoutGlobalScopes()->where('tenant_id', $tenantId)->oldest('occurred_at')->get()->map(fn (WorkflowRunLog $log): array => [
+            'logs' => $logs->map(fn (WorkflowRunLog $log): array => [
                 'id' => (string) $log->id,
                 'workflowRunId' => (string) $log->workflow_run_id,
                 'workflowVersionId' => (string) $log->workflow_version_id,

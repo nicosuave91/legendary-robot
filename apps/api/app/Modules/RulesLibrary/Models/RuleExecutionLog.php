@@ -8,6 +8,22 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Modules\Shared\Tenancy\TenantScoped;
 
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $rule_id
+ * @property string $rule_version_id
+ * @property string $subject_type
+ * @property string $subject_id
+ * @property string $trigger_event
+ * @property string $execution_source
+ * @property string $outcome
+ * @property string|null $correlation_id
+ * @property string|null $actor_user_id
+ * @property array<string, mixed>|null $context_snapshot
+ * @property array<string, mixed>|null $outcome_summary
+ * @property \Illuminate\Support\Carbon|null $executed_at
+ */
 final class RuleExecutionLog extends Model
 {
     use TenantScoped;
@@ -16,6 +32,9 @@ final class RuleExecutionLog extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
+    /**
+     * @var list<string>
+     */
     protected $fillable = [
         'id',
         'tenant_id',
@@ -33,6 +52,9 @@ final class RuleExecutionLog extends Model
         'executed_at',
     ];
 
+    /**
+     * @var array<string, string>
+     */
     protected $casts = [
         'context_snapshot' => 'array',
         'outcome_summary' => 'array',

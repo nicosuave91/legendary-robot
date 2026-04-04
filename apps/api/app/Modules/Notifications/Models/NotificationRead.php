@@ -8,6 +8,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Modules\Shared\Tenancy\TenantScoped;
 
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $notification_id
+ * @property string $user_id
+ * @property \Illuminate\Support\Carbon|null $read_at
+ */
 final class NotificationRead extends Model
 {
     use TenantScoped;
@@ -16,6 +23,9 @@ final class NotificationRead extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
+    /**
+     * @var list<string>
+     */
     protected $fillable = [
         'id',
         'tenant_id',
@@ -24,6 +34,9 @@ final class NotificationRead extends Model
         'read_at',
     ];
 
+    /**
+     * @var array<string, string>
+     */
     protected $casts = [
         'read_at' => 'datetime',
     ];

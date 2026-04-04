@@ -9,6 +9,25 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Modules\Shared\Tenancy\TenantScoped;
 
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $workflow_id
+ * @property string $workflow_version_id
+ * @property string $trigger_event
+ * @property string $subject_type
+ * @property string $subject_id
+ * @property string $status
+ * @property int|null $current_step_index
+ * @property string|null $correlation_id
+ * @property array<string, mixed>|null $trigger_payload_snapshot
+ * @property array<string, mixed>|null $runtime_context
+ * @property array<string, mixed>|null $failure_summary
+ * @property \Illuminate\Support\Carbon|null $queued_at
+ * @property \Illuminate\Support\Carbon|null $started_at
+ * @property \Illuminate\Support\Carbon|null $completed_at
+ * @property \Illuminate\Support\Carbon|null $failed_at
+ */
 final class WorkflowRun extends Model
 {
     use TenantScoped;
@@ -17,6 +36,9 @@ final class WorkflowRun extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
+    /**
+     * @var list<string>
+     */
     protected $fillable = [
         'id',
         'tenant_id',
@@ -38,6 +60,9 @@ final class WorkflowRun extends Model
         'failure_summary',
     ];
 
+    /**
+     * @var array<string, string>
+     */
     protected $casts = [
         'trigger_payload_snapshot' => 'array',
         'runtime_context' => 'array',

@@ -11,6 +11,23 @@ use App\Modules\Clients\Models\Client;
 use App\Modules\IdentityAccess\Models\User;
 use App\Modules\Shared\Tenancy\TenantScoped;
 
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string|null $client_id
+ * @property string|null $owner_user_id
+ * @property string $title
+ * @property string|null $description
+ * @property string $event_type
+ * @property string $status
+ * @property \Illuminate\Support\Carbon $starts_at
+ * @property \Illuminate\Support\Carbon $ends_at
+ * @property bool $is_all_day
+ * @property string|null $location
+ * @property array<string, mixed>|null $metadata
+ * @property-read Client|null $client
+ * @property-read User|null $owner
+ */
 final class CalendarEvent extends Model
 {
     use TenantScoped;
@@ -19,6 +36,9 @@ final class CalendarEvent extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
+    /**
+     * @var list<string>
+     */
     protected $fillable = [
         'id',
         'tenant_id',
@@ -37,6 +57,9 @@ final class CalendarEvent extends Model
         'metadata',
     ];
 
+    /**
+     * @var array<string, string>
+     */
     protected $casts = [
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',

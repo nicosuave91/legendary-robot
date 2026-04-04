@@ -7,6 +7,7 @@ namespace App\Modules\RulesLibrary\Services;
 use App\Modules\IdentityAccess\Models\User;
 use App\Modules\RulesLibrary\Models\Rule;
 use App\Modules\RulesLibrary\Models\RuleExecutionLog;
+use App\Modules\RulesLibrary\Models\RuleVersion;
 
 final class RuleCatalogService
 {
@@ -38,7 +39,10 @@ final class RuleCatalogService
     {
         abort_unless((string) $rule->tenant_id === (string) $actor->tenant_id, 404);
 
+        /** @var \Illuminate\Database\Eloquent\Collection<int, RuleVersion> $versions */
         $versions = $rule->versions()->withoutGlobalScopes()->where('tenant_id', $actor->tenant_id)->latest('version_number')->get();
+
+        /** @var \Illuminate\Database\Eloquent\Collection<int, RuleExecutionLog> $logs */
         $logs = RuleExecutionLog::query()
             ->withoutGlobalScopes()
             ->where('tenant_id', $actor->tenant_id)
@@ -52,7 +56,7 @@ final class RuleCatalogService
                 'currentDraftVersionId' => $rule->current_draft_version_id,
                 'latestPublishedVersionId' => $rule->latest_published_version_id,
             ],
-            'versions' => $versions->map(fn ($version): array => [
+            'versions' => $versions->map(fn (RuleVersion $version): array => [
                 'id' => (string) $version->id,
                 'versionNumber' => (int) $version->version_number,
                 'lifecycleState' => (string) $version->lifecycle_state,
@@ -90,6 +94,7 @@ final class RuleCatalogService
     {
         abort_unless((string) $rule->tenant_id === (string) $actor->tenant_id, 404);
 
+        /** @var \Illuminate\Database\Eloquent\Collection<int, RuleExecutionLog> $items */
         $items = RuleExecutionLog::query()
             ->withoutGlobalScopes()
             ->where('tenant_id', $actor->tenant_id)

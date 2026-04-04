@@ -8,6 +8,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Modules\Shared\Tenancy\TenantScoped;
 
+/**
+ * @property string $id
+ * @property string $tenant_id
+ * @property string $workflow_run_id
+ * @property string $workflow_version_id
+ * @property int|null $step_index
+ * @property string $log_type
+ * @property string $message
+ * @property array<string, mixed>|null $payload_snapshot
+ * @property \Illuminate\Support\Carbon|null $occurred_at
+ */
 final class WorkflowRunLog extends Model
 {
     use TenantScoped;
@@ -16,6 +27,9 @@ final class WorkflowRunLog extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
+    /**
+     * @var list<string>
+     */
     protected $fillable = [
         'id',
         'tenant_id',
@@ -28,6 +42,9 @@ final class WorkflowRunLog extends Model
         'occurred_at',
     ];
 
+    /**
+     * @var array<string, string>
+     */
     protected $casts = [
         'payload_snapshot' => 'array',
         'occurred_at' => 'datetime',

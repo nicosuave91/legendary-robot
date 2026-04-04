@@ -6,6 +6,8 @@ namespace App\Modules\Notifications\Services;
 
 use App\Modules\IdentityAccess\Models\User;
 use App\Modules\Notifications\Models\Notification;
+use App\Modules\Notifications\Models\NotificationRead;
+use App\Modules\Notifications\Models\ToastDismissal;
 
 final class NotificationFeedService
 {
@@ -42,9 +44,12 @@ final class NotificationFeedService
 
     public function serializeForUser(Notification $notification, User $actor): array
     {
+        /** @var NotificationRead|null $read */
         $read = $notification->reads->first();
+
+        /** @var ToastDismissal|null $dismissal */
         $dismissal = $notification->dismissals
-            ->sortByDesc(fn ($item) => $item->dismissed_at?->timestamp ?? 0)
+            ->sortByDesc(static fn (ToastDismissal $item): int => $item->dismissed_at?->timestamp ?? 0)
             ->first();
 
         return [
