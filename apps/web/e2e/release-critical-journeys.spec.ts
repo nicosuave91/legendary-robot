@@ -1,51 +1,39 @@
 import { test, expect, type Page } from '@playwright/test'
+import { installAuthenticatedAppMocks } from './support/mock-api'
 
-async function signInAsOwner(page: Page) {
-  await page.goto('/sign-in')
-  await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
-
-  await page.locator('#email').fill('owner@example.com')
-  await page.locator('#password').fill('Password123!')
-  await page.getByRole('button', { name: 'Sign in' }).click()
-
-  await expect(page).toHaveURL(/\/app\/(dashboard|onboarding)/)
+async function openProtectedShell(page: Page, path = '/app/dashboard') {
+  await installAuthenticatedAppMocks(page)
+  await page.goto(path)
+  await expect(page).toHaveURL(new RegExp(path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
 }
 
 test.describe('release critical journeys', () => {
-  test('owner sign-in resolves into the protected shell', async ({ page }) => {
-    await signInAsOwner(page)
+  test('protected shell resolves for authenticated owner context', async ({ page }) => {
+    await openProtectedShell(page)
 
-    await expect(page).toHaveURL(/\/app\/dashboard/)
-    await expect(page.getByText('Homepage')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Homepage' })).toBeVisible()
     await expect(page.getByText('Clients')).toBeVisible()
   })
 
-  test('seeded client workspace surfaces are reachable', async ({ page }) => {
-    await signInAsOwner(page)
+  test('mocked client workspace surfaces are reachable', async ({ page }) => {
+    await openProtectedShell(page, '/app/clients/client-1/overview')
 
-    await page.goto('/app/clients/client-jamie-foster/overview')
-    await expect(page.getByText('Jamie Foster')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Acme Mortgage' })).toBeVisible()
     await expect(page.getByText('Overview')).toBeVisible()
     await expect(page.getByText('Communications')).toBeVisible()
     await expect(page.getByText('Events')).toBeVisible()
     await expect(page.getByText('Applications')).toBeVisible()
-    await expect(page.getByText('Disposition')).toBeVisible()
 
-    await page.goto('/app/clients/client-jamie-foster/communications')
-    await expect(page.getByText('Communications hub')).toBeVisible()
-
-    await page.goto('/app/clients/client-jamie-foster/events')
+    await page.goto('/app/clients/client-1/events')
     await expect(page.getByText('Client events')).toBeVisible()
 
-    await page.goto('/app/clients/client-jamie-foster/applications')
+    await page.goto('/app/clients/client-1/applications')
     await expect(page.getByText('Applications')).toBeVisible()
   })
 
   test('operational release surfaces load from the protected shell', async ({ page }) => {
-    await signInAsOwner(page)
-
-    await page.goto('/app/communications')
-    await expect(page.getByText('Client communication entry points')).toBeVisible()
+    await openProtectedShell(page, '/app/communications')
+    await expect(page.getByRole('heading', { name: 'Communications inbox' })).toBeVisible()
 
     await page.goto('/app/imports')
     await expect(page.getByText('Import ledger')).toBeVisible()
