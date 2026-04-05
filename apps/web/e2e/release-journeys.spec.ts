@@ -11,10 +11,10 @@ test('homepage renders governed summary content', async ({ page }) => {
 
 test('calendar page supports event drilldown and task status mutation', async ({ page }) => {
   await installAuthenticatedAppMocks(page)
-  await page.goto('/app/calendar?date=2026-03-31')
+  await page.goto('/app/calendar?date=2026-03-31&eventId=event-1')
 
   await expect(page.getByRole('heading', { name: 'Calendar & Tasks' })).toBeVisible()
-  await page.getByRole('button', { name: 'Open event' }).first().click()
+  await expect(page.getByText('Event detail')).toBeVisible()
   await expect(page.getByText('Required tasks')).toBeVisible()
 
   await page.getByRole('button', { name: 'Completed' }).click()

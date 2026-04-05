@@ -57,14 +57,13 @@ final class SendGridInboundWebhookController extends Controller
 
         /** @var Client $client */
         $client = $route['client'];
-        $tenantId = (string) $route['tenantId'];
-        /** @var CommunicationThread|null $thread */
         $thread = $route['thread'] ?? null;
         $mailbox = $route['mailbox'] ?? null;
         $resolvedBy = (string) ($route['resolvedBy'] ?? 'mailbox_alias');
 
         $fromAddress = trim((string) $request->input('from', ''));
-        $participantKey = strtolower($communicationMailboxService->extractEmailAddresses($fromAddress)[0] ?? $fromAddress);
+        $fromAddresses = $communicationMailboxService->extractEmailAddresses($fromAddress);
+        $participantKey = $fromAddresses !== [] ? $fromAddresses[0] : strtolower($fromAddress);
         $subject = (string) $request->input('subject', '');
         $toAddresses = $communicationMailboxService->extractEmailAddresses((string) $request->input('to', ''));
 

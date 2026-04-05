@@ -42,9 +42,14 @@ final class CommunicationCommandService
             }
 
             $retrySource = $this->resolveRetrySmsSource($client, (string) ($payload['retryOfMessageId'] ?? ''));
+            $retryToAddress = $retrySource !== null ? (string) $retrySource->to_address : '';
+            $retryBody = $retrySource !== null ? (string) $retrySource->body_text : '';
+            $retryChannel = $retrySource !== null ? (string) $retrySource->channel : '';
+            $retrySourceId = $retrySource !== null ? (string) $retrySource->id : null;
+
             $uploadedFiles = array_values(array_filter((array) ($payload['attachments'] ?? []), fn ($file) => $file instanceof UploadedFile));
 
-            $participantKey = $this->normalizePhone((string) ($payload['toPhone'] ?? $retrySource?->to_address ?? $client->primary_phone ?? ''));
+            $participantKey = $this->normalizePhone((string) ($payload['toPhone'] ?? $retryToAddress ?: (string) ($client->primary_phone ?? '')));
             if ($participantKey === '') {
                 throw ValidationException::withMessages([
                     'toPhone' => ['A destination phone number is required when no retry source is supplied.'],
@@ -53,7 +58,7 @@ final class CommunicationCommandService
 
             $body = array_key_exists('body', $payload)
                 ? (string) ($payload['body'] ?? '')
-                : (string) ($retrySource?->body_text ?? '');
+                : $retryBody;
 
             if (trim($body) === '' && $uploadedFiles === [] && !$this->sourceMessageHasAttachments($retrySource)) {
                 throw ValidationException::withMessages([
@@ -69,7 +74,7 @@ final class CommunicationCommandService
                 'tenant_id' => (string) $client->tenant_id,
                 'client_id' => (string) $client->id,
                 'communication_thread_id' => (string) $thread->id,
-                'channel' => ($uploadedFiles !== [] || $this->sourceMessageHasAttachments($retrySource) || ($retrySource?->channel === 'mms')) ? 'mms' : 'sms',
+                'channel' => ($uploadedFiles !== [] || $this->sourceMessageHasAttachments($retrySource) || $retryChannel === 'mms') ? 'mms' : 'sms',
                 'direction' => 'outbound',
                 'lifecycle_status' => 'queued',
                 'provider_name' => 'twilio',
@@ -105,7 +110,7 @@ final class CommunicationCommandService
             $this->auditService->record($actor, (string) $client->tenant_id, 'communication.sms.queued', 'communication_message', (string) $message->id, $correlationId, [
                 'channel' => (string) $message->channel,
                 'toAddress' => (string) $message->to_address,
-                'retryOfMessageId' => $retrySource?->id,
+                'retryOfMessageId' => $retrySourceId,
                 'idempotencyKey' => $idempotencyKey,
             ]);
 
@@ -127,12 +132,20 @@ final class CommunicationCommandService
             }
 
             $retryContext = $this->resolveRetryEmailContext($client, (string) ($payload['retryOfMessageId'] ?? ''));
-            $retrySource = $retryContext['message'] ?? null;
-            $retryEmailLog = $retryContext['emailLog'] ?? null;
+            $retrySource = $retryContext['message'];
+            $retryEmailLog = $retryContext['emailLog'];
+
+            $retryToEmails = $retryEmailLog !== null ? (array) $retryEmailLog->to_emails : [];
+            $retrySubject = $retrySource !== null ? (string) $retrySource->subject : '';
+            $retryBodyText = $retrySource !== null ? (string) $retrySource->body_text : '';
+            $retryBodyHtml = $retrySource !== null ? (string) $retrySource->body_html : '';
+            $retryCcEmails = $retryEmailLog !== null ? (array) $retryEmailLog->cc_emails : [];
+            $retryBccEmails = $retryEmailLog !== null ? (array) $retryEmailLog->bcc_emails : [];
+            $retrySourceId = $retrySource !== null ? (string) $retrySource->id : null;
 
             $toEmails = array_values(array_unique(array_map('strtolower', array_filter(array_map(
                 fn (mixed $value): string => trim((string) $value),
-                (array) ($payload['to'] ?? ($retryEmailLog?->to_emails ?? [])),
+                (array) ($payload['to'] ?? $retryToEmails),
             )))));
 
             if ($toEmails === []) {
@@ -141,7 +154,7 @@ final class CommunicationCommandService
                 ]);
             }
 
-            $subject = trim((string) ($payload['subject'] ?? $retrySource?->subject ?? ''));
+            $subject = trim((string) ($payload['subject'] ?? $retrySubject));
             if ($subject === '') {
                 throw ValidationException::withMessages([
                     'subject' => ['A subject is required when no retry source is supplied.'],
@@ -150,11 +163,11 @@ final class CommunicationCommandService
 
             $bodyText = array_key_exists('bodyText', $payload)
                 ? (string) ($payload['bodyText'] ?? '')
-                : (string) ($retrySource?->body_text ?? '');
+                : $retryBodyText;
 
             $bodyHtml = array_key_exists('bodyHtml', $payload)
                 ? (string) ($payload['bodyHtml'] ?? '')
-                : (string) ($retrySource?->body_html ?? '');
+                : $retryBodyHtml;
 
             if (trim($bodyText) === '' && trim($bodyHtml) === '') {
                 throw ValidationException::withMessages([
@@ -216,11 +229,11 @@ final class CommunicationCommandService
                 'provider_name' => 'sendgrid',
                 'from_email' => config('services.sendgrid.from_email'),
                 'to_emails' => $toEmails,
-                'cc_emails' => array_values((array) ($payload['cc'] ?? ($retryEmailLog?->cc_emails ?? []))) ?: null,
-                'bcc_emails' => array_values((array) ($payload['bcc'] ?? ($retryEmailLog?->bcc_emails ?? []))) ?: null,
+                'cc_emails' => array_values((array) ($payload['cc'] ?? $retryCcEmails)) ?: null,
+                'bcc_emails' => array_values((array) ($payload['bcc'] ?? $retryBccEmails)) ?: null,
                 'reply_to_email' => $replyToAddress,
                 'provider_metadata' => [
-                    'retryOfMessageId' => $retrySource?->id,
+                    'retryOfMessageId' => $retrySourceId,
                     'replyMailboxAddress' => $replyToAddress,
                     'replyThreadId' => (string) $thread->id,
                 ],
@@ -230,7 +243,7 @@ final class CommunicationCommandService
             $this->auditService->record($actor, (string) $client->tenant_id, 'communication.email.queued', 'communication_message', (string) $message->id, $correlationId, [
                 'toCount' => count($toEmails),
                 'subject' => (string) $message->subject,
-                'retryOfMessageId' => $retrySource?->id,
+                'retryOfMessageId' => $retrySourceId,
                 'idempotencyKey' => $idempotencyKey,
                 'replyToEmail' => $replyToAddress,
             ]);
@@ -253,15 +266,20 @@ final class CommunicationCommandService
             }
 
             $retrySource = $this->resolveRetryCallSource($client, (string) ($payload['retryOfCallLogId'] ?? ''));
-            $toNumber = $this->normalizePhone((string) ($payload['toPhone'] ?? $retrySource?->to_number ?? $client->primary_phone ?? ''));
+            $retryToNumber = $retrySource !== null ? (string) $retrySource->to_number : '';
+            $retryPurposeNote = $retrySource !== null ? (string) $retrySource->purpose_note : '';
+            $retryBridgedToNumber = $retrySource !== null ? (string) $retrySource->bridged_to_number : '';
+            $retrySourceId = $retrySource !== null ? (string) $retrySource->id : null;
+
+            $toNumber = $this->normalizePhone((string) ($payload['toPhone'] ?? $retryToNumber ?: (string) ($client->primary_phone ?? '')));
             if ($toNumber === '') {
                 throw ValidationException::withMessages([
                     'toPhone' => ['A destination phone number is required when no retry source is supplied.'],
                 ]);
             }
 
-            $purposeNote = trim((string) ($payload['purposeNote'] ?? $retrySource?->purpose_note ?? ''));
-            $bridgedToNumber = trim((string) ($retrySource?->bridged_to_number ?? config('communications.voice.bridge.default_agent_number', '')));
+            $purposeNote = trim((string) ($payload['purposeNote'] ?? $retryPurposeNote));
+            $bridgedToNumber = trim((string) ($retryBridgedToNumber !== '' ? $retryBridgedToNumber : (string) config('communications.voice.bridge.default_agent_number', '')));
 
             $callLog = CallLog::query()->create([
                 'id' => (string) Str::uuid(),
@@ -274,7 +292,7 @@ final class CommunicationCommandService
                 'to_number' => $toNumber,
                 'purpose_note' => $purposeNote !== '' ? $purposeNote : null,
                 'idempotency_key' => $idempotencyKey,
-                'retry_of_call_log_id' => $retrySource?->id,
+                'retry_of_call_log_id' => $retrySourceId,
                 'bridged_to_number' => $bridgedToNumber !== '' ? $bridgedToNumber : null,
                 'correlation_key' => (string) Str::uuid(),
                 'queued_at' => now(),
@@ -285,7 +303,7 @@ final class CommunicationCommandService
             $this->auditService->record($actor, (string) $client->tenant_id, 'communication.call.queued', 'call_log', (string) $callLog->id, $correlationId, [
                 'toNumber' => (string) $callLog->to_number,
                 'purposeNote' => $callLog->purpose_note,
-                'retryOfCallLogId' => $retrySource?->id,
+                'retryOfCallLogId' => $retrySourceId,
                 'idempotencyKey' => $idempotencyKey,
                 'bridgedToNumber' => $callLog->bridged_to_number,
             ]);
