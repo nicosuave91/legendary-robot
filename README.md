@@ -1,28 +1,34 @@
-# Sprint F — Communications Attachment Security Completion
+# Sprint G — Communications Prerelease Stabilization
 
-This bundle implements the next communications sprint after timeline/inbox completion.
+This bundle implements the communications prerelease stabilization sprint.
 
 ## Scope
-- attachment security lifecycle metadata
-- tenant-authenticated attachment scan-status update endpoint
-- outbound provider policy enforcement for Twilio and SendGrid
-- stricter signed public attachment serving (clean-only)
-- upload policy validation for manual communication attachments
-- scan-status visibility in the client communications timeline UI
-- backend feature tests for scan-status updates, public delivery gating, and provider submission blocking
+- restores the communications contract as the source of truth
+- adds inbox and cursor support to the communications OpenAPI fragment
+- removes compile-time dependence on the stale generated communications client
+- adds attachment scan-status wrapper support in the web API layer
+- adds a contract test for release-critical communications paths
+- adds contract-sync verification and an ordered release-check script
+- adds a dedicated GitHub Actions workflow for communications prerelease validation
+- adds an operator-facing prerelease checklist
 
 ## Included files
-- `apps/api/config/communications.php`
-- `apps/api/app/Modules/Communications/Database/Migrations/2026_04_04_000008_add_scan_lifecycle_fields_to_communication_attachments_table.php`
-- `apps/api/app/Modules/Communications/Models/CommunicationAttachment.php`
-- `apps/api/app/Modules/Communications/Services/CommunicationAttachmentGovernanceService.php`
-- `apps/api/app/Modules/Communications/Services/CommunicationAttachmentService.php`
-- `apps/api/app/Modules/Communications/Http/Requests/UpdateCommunicationAttachmentScanStatusRequest.php`
-- `apps/api/app/Modules/Communications/Http/Controllers/Api/V1/CommunicationAttachmentScanStatusController.php`
-- `apps/api/app/Modules/Communications/Http/Controllers/Webhooks/PublicCommunicationAttachmentController.php`
-- `apps/api/app/Modules/Communications/Services/Providers/TwilioMessagingAdapter.php`
-- `apps/api/app/Modules/Communications/Services/Providers/SendGridEmailAdapter.php`
-- `apps/api/app/Modules/Communications/Routes/api.php`
+- `package.json`
+- `scripts/verify-communications-contract-sync.mjs`
+- `scripts/release-communications-check.mjs`
+- `.github/workflows/communications-prerelease.yml`
 - `apps/api/contracts/openapi.communications.php`
-- `apps/web/src/features/communications/components/client-communications-panel.tsx`
-- `apps/api/app/Modules/Communications/Tests/Feature/CommunicationAttachmentGovernanceFeatureTest.php`
+- `apps/api/tests/Contract/CommunicationsOpenApiContractTest.php`
+- `apps/web/src/lib/api/client.ts`
+- `docs/release/communications-prerelease-checklist.md`
+
+## Apply
+Copy these files into the repo root, preserving paths.
+
+Then run:
+
+```bash
+npm ci
+composer install --working-dir=apps/api
+npm run release:communications:check
+```

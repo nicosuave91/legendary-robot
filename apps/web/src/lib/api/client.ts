@@ -7,7 +7,6 @@ import {
   getClient,
   getClientApplication,
   getClientApplications,
-  getClientCommunications,
   getClientEvents,
   getClients,
   getDashboardProduction,
@@ -116,6 +115,46 @@ type ApiMeta = {
 
 export type CommunicationTimelineItem = ClientCommunicationsEnvelope['data']['items'][number]
 
+export type ClientCommunicationsQuery = {
+  channel?: 'all' | 'sms' | 'email' | 'voice'
+  status?: 'all' | 'pending' | 'failed'
+  limit?: number
+  cursor?: string
+}
+
+export type CommunicationsInboxQuery = {
+  search?: string
+  channel?: 'all' | 'sms' | 'email' | 'voice'
+  status?: 'all' | 'pending' | 'failed'
+  limit?: number
+  cursor?: string
+}
+
+export type CommunicationAttachmentScanStatusUpdateRequest = {
+  status: 'pending' | 'clean' | 'rejected' | 'quarantined'
+  engine?: string | null
+  detail?: string | null
+  quarantineReason?: string | null
+}
+
+export type CommunicationAttachmentGovernanceSummary = {
+  id: string
+  originalFilename: string
+  mimeType: string
+  sizeBytes: number
+  scanStatus: string
+  scanRequestedAt: string | null
+  scannedAt: string | null
+  scanEngine: string | null
+  scanResultDetail: string | null
+  quarantineReason: string | null
+}
+
+export type CommunicationAttachmentGovernanceEnvelope = {
+  data: CommunicationAttachmentGovernanceSummary
+  meta: ApiMeta
+}
+
 export type CommunicationsInboxItem = {
   client: {
     id: string
@@ -214,16 +253,28 @@ export const clientsApi = {
 }
 
 export const communicationsApi = {
-  inbox: (queryParams?: Record<string, string | number | boolean | null | undefined>) =>
+  inbox: (queryParams?: CommunicationsInboxQuery) =>
     apiHttpClient.request<CommunicationsInboxEnvelope>({
       path: '/api/v1/communications/inbox',
       method: 'GET',
       queryParams
     }),
-  list: (clientId: string, queryParams?: Parameters<typeof getClientCommunications>[2]) => getClientCommunications(apiHttpClient, { clientId }, queryParams),
+  list: (clientId: string, queryParams?: ClientCommunicationsQuery) =>
+    apiHttpClient.request<ClientCommunicationsEnvelope>({
+      path: `/api/v1/clients/${clientId}/communications`,
+      method: 'GET',
+      queryParams
+    }),
   sendSms: (clientId: string, body: FormData) => postClientCommunicationsSms(apiHttpClient, { clientId }, body),
   sendEmail: (clientId: string, body: FormData) => postClientCommunicationsEmail(apiHttpClient, { clientId }, body),
-  startCall: (clientId: string, body: StartCallRequest) => postClientCommunicationsCall(apiHttpClient, { clientId }, body)
+  startCall: (clientId: string, body: StartCallRequest) => postClientCommunicationsCall(apiHttpClient, { clientId }, body),
+  updateAttachmentScanStatus: (attachmentId: string, body: CommunicationAttachmentScanStatusUpdateRequest) =>
+    apiHttpClient.request<CommunicationAttachmentGovernanceEnvelope>({
+      path: `/api/v1/communications/attachments/${attachmentId}/scan-status`,
+      method: 'PATCH',
+      body,
+      contentType: 'application/json'
+    })
 }
 
 export const applicationsApi = {

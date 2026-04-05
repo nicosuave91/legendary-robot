@@ -11,6 +11,8 @@
     "client:generate": "node scripts/generate-web-client.mjs",
     "contracts:sync": "npm run contracts:publish && npm run client:generate",
     "guard:no-handwritten-api": "node scripts/verify-no-handwritten-api.mjs",
-    "check": "npm run contracts:sync && npm run guard:no-handwritten-api"
+    "check": "npm run contracts:sync && npm run guard:no-handwritten-api",
+    "verify:communications:contract-sync": "node scripts/verify-communications-contract-sync.mjs",
+    "release:communications:check": "node scripts/release-communications-check.mjs"
   }
 }
