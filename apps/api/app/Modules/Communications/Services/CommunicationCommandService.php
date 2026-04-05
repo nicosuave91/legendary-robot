@@ -33,8 +33,35 @@ final class CommunicationCommandService
     public function queueSms(User $actor, Client $client, array $payload, string $correlationId): array
     {
         return DB::transaction(function () use ($actor, $client, $payload, $correlationId): array {
+            $idempotencyKey = $this->resolveIdempotencyKey($payload['idempotencyKey'] ?? null);
+            if ($idempotencyKey !== null) {
+                $existingMessage = $this->findExistingSmsByIdempotencyKey($client, $idempotencyKey);
+                if ($existingMessage !== null) {
+                    return $this->presentMessage($existingMessage, $this->attachmentService->serializeForMessage($existingMessage), true);
+                }
+            }
+
+            $retrySource = $this->resolveRetrySmsSource($client, (string) ($payload['retryOfMessageId'] ?? ''));
+            $uploadedFiles = array_values(array_filter((array) ($payload['attachments'] ?? []), fn ($file) => $file instanceof UploadedFile));
+
+            $participantKey = $this->normalizePhone((string) ($payload['toPhone'] ?? $retrySource?->to_address ?? $client->primary_phone ?? ''));
+            if ($participantKey === '') {
+                throw ValidationException::withMessages([
+                    'toPhone' => ['A destination phone number is required when no retry source is supplied.'],
+                ]);
+            }
+
+            $body = array_key_exists('body', $payload)
+                ? (string) ($payload['body'] ?? '')
+                : (string) ($retrySource?->body_text ?? '');
+
+            if (trim($body) === '' && $uploadedFiles === [] && !$this->sourceMessageHasAttachments($retrySource)) {
+                throw ValidationException::withMessages([
+                    'body' => ['A message body, attachment, or retry source is required.'],
+                ]);
+            }
+
             $messageId = (string) Str::uuid();
-            $participantKey = $this->normalizePhone((string) ($payload['toPhone'] ?? $client->primary_phone ?? ''));
             $thread = $this->firstOrCreateThread($client, 'sms', $participantKey, null, (string) $actor->id);
 
             $message = CommunicationMessage::query()->create([
@@ -42,14 +69,14 @@ final class CommunicationCommandService
                 'tenant_id' => (string) $client->tenant_id,
                 'client_id' => (string) $client->id,
                 'communication_thread_id' => (string) $thread->id,
-                'channel' => !empty($payload['attachments']) ? 'mms' : 'sms',
+                'channel' => ($uploadedFiles !== [] || $this->sourceMessageHasAttachments($retrySource) || ($retrySource?->channel === 'mms')) ? 'mms' : 'sms',
                 'direction' => 'outbound',
                 'lifecycle_status' => 'queued',
                 'provider_name' => 'twilio',
                 'from_address' => config('services.twilio.from_number'),
                 'to_address' => $participantKey,
-                'body_text' => $payload['body'] ?? null,
-                'idempotency_key' => $payload['idempotencyKey'] ?? null,
+                'body_text' => trim($body) !== '' ? $body : null,
+                'idempotency_key' => $idempotencyKey,
                 'correlation_key' => (string) Str::uuid(),
                 'queued_at' => now(),
                 'created_by' => (string) $actor->id,
@@ -60,14 +87,26 @@ final class CommunicationCommandService
                 subjectType: CommunicationMessage::class,
                 subjectId: (string) $message->id,
                 channel: (string) $message->channel,
-                files: array_values(array_filter((array) ($payload['attachments'] ?? []), fn ($file) => $file instanceof UploadedFile)),
+                files: $uploadedFiles,
                 uploadedBy: (string) $actor->id,
             );
 
-            $this->appendEvent((string) $client->tenant_id, (string) $client->id, 'communication_message', (string) $message->id, 'internal_queued', 'queued', $message->correlation_key, true, ['kind' => 'sms_queued']);
+            if ($retrySource !== null && $uploadedFiles === []) {
+                $attachments = $this->attachmentService->cloneMessageAttachments(
+                    client: $client,
+                    sourceMessage: $retrySource,
+                    targetSubjectType: CommunicationMessage::class,
+                    targetSubjectId: (string) $message->id,
+                    uploadedBy: (string) $actor->id,
+                );
+            }
+
+            $this->appendEvent((string) $client->tenant_id, (string) $client->id, 'communication_message', (string) $message->id, 'internal_queued', 'queued', $message->correlation_key, true, ['kind' => $retrySource !== null ? 'sms_retry_queued' : 'sms_queued']);
             $this->auditService->record($actor, (string) $client->tenant_id, 'communication.sms.queued', 'communication_message', (string) $message->id, $correlationId, [
                 'channel' => (string) $message->channel,
                 'toAddress' => (string) $message->to_address,
+                'retryOfMessageId' => $retrySource?->id,
+                'idempotencyKey' => $idempotencyKey,
             ]);
 
             dispatch(new SubmitOutboundSmsJob((string) $client->tenant_id, $correlationId, (string) $message->id));
@@ -279,6 +318,18 @@ final class CommunicationCommandService
         return $value !== '' ? $value : null;
     }
 
+    private function findExistingSmsByIdempotencyKey(Client $client, string $idempotencyKey): ?CommunicationMessage
+    {
+        return CommunicationMessage::query()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $client->tenant_id)
+            ->where('client_id', $client->id)
+            ->where('direction', 'outbound')
+            ->whereIn('channel', ['sms', 'mms'])
+            ->where('idempotency_key', $idempotencyKey)
+            ->first();
+    }
+
     private function findExistingEmailByIdempotencyKey(Client $client, string $idempotencyKey): ?CommunicationMessage
     {
         return CommunicationMessage::query()
@@ -298,6 +349,36 @@ final class CommunicationCommandService
             ->where('client_id', $client->id)
             ->where('idempotency_key', $idempotencyKey)
             ->first();
+    }
+
+    private function resolveRetrySmsSource(Client $client, string $retryOfMessageId): ?CommunicationMessage
+    {
+        if (trim($retryOfMessageId) === '') {
+            return null;
+        }
+
+        $message = CommunicationMessage::query()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $client->tenant_id)
+            ->where('client_id', $client->id)
+            ->where('id', $retryOfMessageId)
+            ->where('direction', 'outbound')
+            ->whereIn('channel', ['sms', 'mms'])
+            ->first();
+
+        if ($message === null) {
+            throw ValidationException::withMessages([
+                'retryOfMessageId' => ['The referenced outbound SMS/MMS message could not be found for this client.'],
+            ]);
+        }
+
+        if (!in_array((string) $message->lifecycle_status, ['failed', 'undelivered', 'bounced', 'dropped'], true)) {
+            throw ValidationException::withMessages([
+                'retryOfMessageId' => ['Only failed outbound SMS/MMS messages can be retried.'],
+            ]);
+        }
+
+        return $message;
     }
 
     private function resolveRetryCallSource(Client $client, string $retryOfCallLogId): ?CallLog
@@ -475,6 +556,43 @@ final class CommunicationCommandService
 
     private function normalizePhone(string $value): string
     {
-        return preg_replace('/\s+/', '', trim($value)) ?: $value;
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return '';
+        }
+
+        if (str_starts_with(strtolower($trimmed), 'whatsapp:')) {
+            $trimmed = substr($trimmed, strlen('whatsapp:'));
+        }
+
+        $hasPlusPrefix = str_starts_with($trimmed, '+');
+        $digits = preg_replace('/\D+/', '', $trimmed) ?? '';
+
+        if ($digits === '') {
+            return '';
+        }
+
+        if ($hasPlusPrefix) {
+            return '+' . $digits;
+        }
+
+        if (strlen($digits) === 10) {
+            return '+1' . $digits;
+        }
+
+        if (strlen($digits) === 11 && str_starts_with($digits, '1')) {
+            return '+' . $digits;
+        }
+
+        return '+' . $digits;
+    }
+
+    private function sourceMessageHasAttachments(?CommunicationMessage $sourceMessage): bool
+    {
+        if ($sourceMessage === null) {
+            return false;
+        }
+
+        return count($this->attachmentService->serializeForMessage($sourceMessage)) > 0;
     }
 }

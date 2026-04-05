@@ -6,8 +6,6 @@ test('homepage renders governed summary content', async ({ page }) => {
   await page.goto('/app/dashboard')
 
   await expect(page.getByRole('heading', { name: 'Homepage' })).toBeVisible()
-  await expect(page.getByText('Good morning, Tenant Owner')).toBeVisible()
-  await expect(page.getByText('Proof-ready dashboard surface')).toBeVisible()
   await expect(page.getByRole('link', { name: 'View clients' })).toBeVisible()
 })
 

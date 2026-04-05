@@ -6,14 +6,14 @@ namespace App\Modules\Communications\Http\Controllers\Webhooks;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\Response;
 use App\Http\Controllers\Controller;
 use App\Modules\Communications\Models\CommunicationAttachment;
 use App\Modules\Communications\Services\CommunicationAttachmentGovernanceService;
 
 final class PublicCommunicationAttachmentController extends Controller
 {
-    public function __invoke(Request $request, string $attachmentId, CommunicationAttachmentGovernanceService $communicationAttachmentGovernanceService): BinaryFileResponse
+    public function __invoke(Request $request, string $attachmentId, CommunicationAttachmentGovernanceService $communicationAttachmentGovernanceService): Response
     {
         abort_unless($request->hasValidSignature(), 401);
 

@@ -41,7 +41,7 @@ const authContext = {
       'settings.profile.read',
       'settings.accounts.read',
       'settings.theme.read',
-      'settings.industry-configurations.read'
+      'settings.industry-configurations.read',
     ],
     onboardingState: 'completed',
     onboardingStep: null,
@@ -65,22 +65,94 @@ const dashboardSummary = {
       subtitle: 'Proof-ready dashboard surface',
     },
     kpis: [
-      { key: 'clients', label: 'Clients', value: 12, href: '/app/clients', delta: { direction: 'up', value: 2, label: 'vs prior window' } },
-      { key: 'events', label: 'Events', value: 3, href: '/app/calendar', delta: { direction: 'flat', value: 0, label: 'today' } },
+      {
+        key: 'clients_total',
+        label: 'Clients',
+        value: 12,
+        description: 'Visible client records across the workspace.',
+        href: '/app/clients',
+        delta: { direction: 'up', value: 2, label: 'vs prior window' },
+      },
+      {
+        key: 'clients_new_7d',
+        label: 'New in 7 days',
+        value: 3,
+        description: 'Recently created client records.',
+        href: '/app/clients',
+        delta: { direction: 'up', value: 1, label: 'vs prior window' },
+      },
+      {
+        key: 'notes_7d',
+        label: 'Notes in 7 days',
+        value: 8,
+        description: 'Recent activity notes.',
+        href: '/app/clients',
+        delta: { direction: 'flat', value: 0, label: 'stable' },
+      },
+      {
+        key: 'documents_7d',
+        label: 'Documents in 7 days',
+        value: 4,
+        description: 'Recent uploaded evidence.',
+        href: '/app/clients',
+        delta: { direction: 'up', value: 2, label: 'vs prior window' },
+      },
     ],
+    activitySummary: {
+      visibleClientCount: 12,
+      recentNoteCount: 8,
+      recentDocumentCount: 4,
+    },
+    calendarPanelEnabled: true,
   },
   meta: { apiVersion: 'v1', correlationId: 'corr-dashboard' },
 }
 
 const dashboardProduction = {
   data: {
-    window: '30d',
-    points: [
-      { label: 'Week 1', value: 8 },
-      { label: 'Week 2', value: 11 },
-      { label: 'Week 3', value: 14 },
-      { label: 'Week 4', value: 16 },
+    range: {
+      window: '30d',
+      startDate: '2026-03-01',
+      endDate: '2026-03-31',
+      granularity: 'day',
+    },
+    series: [
+      {
+        key: 'clientsCreated',
+        label: 'Clients created',
+        points: [
+          { bucketDate: '2026-03-08', value: 2 },
+          { bucketDate: '2026-03-15', value: 3 },
+          { bucketDate: '2026-03-22', value: 4 },
+          { bucketDate: '2026-03-29', value: 3 },
+        ],
+      },
+      {
+        key: 'notesCreated',
+        label: 'Notes created',
+        points: [
+          { bucketDate: '2026-03-08', value: 4 },
+          { bucketDate: '2026-03-15', value: 5 },
+          { bucketDate: '2026-03-22', value: 7 },
+          { bucketDate: '2026-03-29', value: 6 },
+        ],
+      },
+      {
+        key: 'documentsUploaded',
+        label: 'Documents uploaded',
+        points: [
+          { bucketDate: '2026-03-08', value: 1 },
+          { bucketDate: '2026-03-15', value: 2 },
+          { bucketDate: '2026-03-22', value: 2 },
+          { bucketDate: '2026-03-29', value: 3 },
+        ],
+      },
     ],
+    totals: {
+      clientsCreated: 12,
+      notesCreated: 22,
+      documentsUploaded: 8,
+    },
   },
   meta: { apiVersion: 'v1', correlationId: 'corr-production' },
 }
@@ -103,6 +175,10 @@ const calendarEvent = {
 const calendarRange = {
   data: {
     items: [calendarEvent],
+    range: {
+      startDate: '2026-03-01',
+      endDate: '2026-03-31',
+    },
   },
   meta: { apiVersion: 'v1', correlationId: 'corr-range' },
 }
@@ -127,7 +203,11 @@ const eventDetail = {
         description: 'Validate required documents',
         status: 'open',
         isRequired: true,
+        sortOrder: 1,
+        dueAt: null,
+        completedAt: null,
         blockedReason: null,
+        assignedUser: { id: 'owner-user', displayName: 'Tenant Owner' },
         availableActions: ['completed', 'blocked', 'skipped'],
         history: [],
       },
@@ -211,9 +291,9 @@ export async function installAuthenticatedAppMocks(page: Page) {
   await fulfillJson(page, '**/api/v1/notifications**', notifications)
   await fulfillJson(page, '**/api/v1/dashboard/summary', dashboardSummary)
   await fulfillJson(page, '**/api/v1/dashboard/production**', dashboardProduction)
+  await fulfillJson(page, '**/api/v1/events/event-1', eventDetail)
   await fulfillJson(page, '**/api/v1/events**', calendarRange)
   await fulfillJson(page, '**/api/v1/calendar/day**', calendarDay)
-  await fulfillJson(page, '**/api/v1/events/event-1', eventDetail)
   await fulfillJson(page, '**/api/v1/tasks/task-1/status', {
     data: {
       result: 'updated',
@@ -242,6 +322,6 @@ export async function installAuthenticatedAppMocks(page: Page) {
     },
     meta: { apiVersion: 'v1', correlationId: 'corr-task-update' },
   })
-  await fulfillJson(page, '**/api/v1/clients/client-1', clientWorkspace)
   await fulfillJson(page, '**/api/v1/clients/client-1/events**', clientEvents)
+  await fulfillJson(page, '**/api/v1/clients/client-1', clientWorkspace)
 }

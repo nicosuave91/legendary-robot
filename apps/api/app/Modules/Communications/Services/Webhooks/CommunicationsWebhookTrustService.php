@@ -27,11 +27,15 @@ final class CommunicationsWebhookTrustService
             return new WebhookVerificationResultData(true, false, 'unverified_allowed', 'Twilio webhook signature is not configured in this environment.');
         }
 
-        if (!$this->twilioWebhookSignatureVerifier->verify($request)) {
+        if ($this->twilioWebhookSignatureVerifier->verify($request)) {
+            return new WebhookVerificationResultData(true, true, 'twilio_signature_verified');
+        }
+
+        if ($this->resolveTwilioEnforcement()) {
             return new WebhookVerificationResultData(false, false, 'twilio_signature_invalid', 'Twilio webhook signature validation failed.');
         }
 
-        return new WebhookVerificationResultData(true, true, 'twilio_signature_verified');
+        return new WebhookVerificationResultData(true, false, 'unverified_allowed', 'Twilio webhook signature validation failed, but enforcement is disabled in this environment.');
     }
 
     public function verifySendGrid(Request $request): WebhookVerificationResultData
@@ -44,11 +48,15 @@ final class CommunicationsWebhookTrustService
             return new WebhookVerificationResultData(true, false, 'unverified_allowed', 'SendGrid webhook verification is not configured in this environment.');
         }
 
-        if (!$this->sendGridWebhookSignatureVerifier->verify($request)) {
+        if ($this->sendGridWebhookSignatureVerifier->verify($request)) {
+            return new WebhookVerificationResultData(true, true, 'sendgrid_verified');
+        }
+
+        if ($this->resolveSendGridEnforcement()) {
             return new WebhookVerificationResultData(false, false, 'sendgrid_verification_invalid', 'SendGrid webhook verification failed.');
         }
 
-        return new WebhookVerificationResultData(true, true, 'sendgrid_verified');
+        return new WebhookVerificationResultData(true, false, 'unverified_allowed', 'SendGrid webhook verification failed, but enforcement is disabled in this environment.');
     }
 
     private function resolveTwilioEnforcement(): bool

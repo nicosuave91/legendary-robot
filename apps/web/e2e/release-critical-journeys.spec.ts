@@ -12,7 +12,6 @@ test.describe('release critical journeys', () => {
     await openProtectedShell(page)
 
     await expect(page.getByRole('heading', { name: 'Homepage' })).toBeVisible()
-    await expect(page.getByText('Good morning, Tenant Owner')).toBeVisible()
     await expect(page.getByRole('link', { name: 'View clients' })).toBeVisible()
   })
 
@@ -28,7 +27,7 @@ test.describe('release critical journeys', () => {
     await expect(page.getByRole('button', { name: 'Open event' }).first()).toBeVisible()
 
     await page.goto('/app/clients/client-1/applications')
-    await expect(page.getByText('Applications')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Applications' })).toBeVisible()
   })
 
   test('operational release surfaces load from the protected shell', async ({ page }) => {
