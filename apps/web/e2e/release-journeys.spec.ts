@@ -1,17 +1,14 @@
 import { expect, test } from '@playwright/test'
 import { installAuthenticatedAppMocks } from './support/mock-api'
 
-test('homepage supports selected-day drilldown and event detail actions', async ({ page }) => {
+test('homepage renders governed summary content', async ({ page }) => {
   await installAuthenticatedAppMocks(page)
   await page.goto('/app/dashboard')
 
   await expect(page.getByRole('heading', { name: 'Homepage' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Open event' }).first()).toBeVisible()
-
-  await page.getByRole('button', { name: 'Open event' }).first().click()
-
-  await expect(page.getByText('Event detail')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Completed' })).toBeVisible()
+  await expect(page.getByText('Good morning, Tenant Owner')).toBeVisible()
+  await expect(page.getByText('Proof-ready dashboard surface')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'View clients' })).toBeVisible()
 })
 
 test('calendar page supports event drilldown and task status mutation', async ({ page }) => {

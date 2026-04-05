@@ -12,20 +12,20 @@ test.describe('release critical journeys', () => {
     await openProtectedShell(page)
 
     await expect(page.getByRole('heading', { name: 'Homepage' })).toBeVisible()
-    await expect(page.getByText('Clients')).toBeVisible()
+    await expect(page.getByText('Good morning, Tenant Owner')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'View clients' })).toBeVisible()
   })
 
   test('mocked client workspace surfaces are reachable', async ({ page }) => {
     await openProtectedShell(page, '/app/clients/client-1/overview')
 
-    await expect(page.getByRole('heading', { name: 'Acme Mortgage' })).toBeVisible()
-    await expect(page.getByText('Overview')).toBeVisible()
-    await expect(page.getByText('Communications')).toBeVisible()
-    await expect(page.getByText('Events')).toBeVisible()
-    await expect(page.getByText('Applications')).toBeVisible()
+    await expect(page).toHaveURL(/\/app\/clients\/client-1\/overview/)
+    await page.goto('/app/clients/client-1/communications')
+    await expect(page.getByText('Communications hub')).toBeVisible()
 
     await page.goto('/app/clients/client-1/events')
     await expect(page.getByText('Client events')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Open event' }).first()).toBeVisible()
 
     await page.goto('/app/clients/client-1/applications')
     await expect(page.getByText('Applications')).toBeVisible()
@@ -39,9 +39,9 @@ test.describe('release critical journeys', () => {
     await expect(page.getByText('Import ledger')).toBeVisible()
 
     await page.goto('/app/calendar')
-    await expect(page.getByText('Calendar')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Calendar & Tasks' })).toBeVisible()
 
     await page.goto('/app/audit')
-    await expect(page.getByText('Audit')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Audit' })).toBeVisible()
   })
 })

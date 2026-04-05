@@ -115,7 +115,7 @@ final class TwilioMessagingCompletionFeatureTest extends TestCase
             'mime_type' => 'image/jpeg',
             'size_bytes' => 11,
             'checksum_sha256' => hash('sha256', 'binary-body'),
-            'scan_status' => 'pending',
+            'scan_status' => 'clean',
         ]);
 
         $url = app(CommunicationAttachmentUrlService::class)->temporaryPublicUrl($attachment, 10);
