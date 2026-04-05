@@ -229,7 +229,9 @@ export const industryConfigurationsApi = {
 
 export const dashboardApi = {
   summary: () => getDashboardSummary(apiHttpClient),
-  production: (window: string) => getDashboardProduction(apiHttpClient, { window })
+  production: (
+    queryParams?: Parameters<typeof getDashboardProduction>[1],
+  ): Promise<DashboardProductionEnvelope> => getDashboardProduction(apiHttpClient, queryParams),
 }
 
 export const calendarApi = {
