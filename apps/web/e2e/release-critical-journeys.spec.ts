@@ -30,6 +30,16 @@ test.describe('release critical journeys', () => {
     await expect(page.getByRole('link', { name: 'Applications' })).toBeVisible()
   })
 
+  test('workflow detail surfaces publish blockers and durable run evidence', async ({ page }) => {
+    await openProtectedShell(page, '/app/workflows/workflow-1')
+
+    await expect(page.getByRole('heading', { name: 'Application review follow-up' })).toBeVisible()
+    await expect(page.getByText('Draft validation')).toBeVisible()
+    await expect(page.getByText('Publish is currently blocked by 2 issues.')).toBeVisible()
+    await expect(page.getByText('workflow.step.missing_to')).toBeVisible()
+    await expect(page.getByText('Workflow created a client note through the governed client note service.')).toBeVisible()
+  })
+
   test('operational release surfaces load from the protected shell', async ({ page }) => {
     await openProtectedShell(page, '/app/communications')
     await expect(page.getByRole('heading', { name: 'Communications inbox' })).toBeVisible()
