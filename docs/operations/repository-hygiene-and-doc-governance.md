@@ -1,71 +1,51 @@
 # Repository Hygiene and Documentation Governance
 
-This document defines what is allowed at the repository root, where active documentation belongs, and how historical sprint artifacts must be handled.
+This document defines how Snowball keeps source, release evidence, and documentation from drifting apart.
 
-## Purpose
+## Authoritative documentation locations
 
-The platform can no longer rely on sprint-era root documents as a living planning surface. The repository root must stay readable and authoritative. Anything historical, temporary, or release-pass specific belongs in `docs/` or `docs/archive/`.
+- `README.md` — entrypoint and setup
+- `docs/release/current-platform-status.md` — current thesis, closure standard, and release status
+- `docs/testing/verification-matrix.md` — ongoing delivery blueprint and verification policy
+- `docs/release-readiness-checklist.md` — release signoff checklist
+- `docs/known-issues-and-accepted-risks.md` — sanctioned residual-risk register
+- `docs/archive/` — historical material only
 
-## Allowed root files
+## Root-level repository policy
 
-The repository root should contain only:
+The repository root should contain:
 
-- source-level workspace config and package manifests
-- the authoritative `README.md`
-- intentionally current top-level config files
-- helper scripts only when they are repo-wide and operationally useful
+- source and package directories
+- configuration files
+- scripts
+- the current root README
+- other clearly current, durable project-level files
 
-The following should **not** remain at root after this closure pass:
+The repository root should not contain:
 
-- `current-platform-status.md`
-- `verification-matrix.md`
-- `IMPLEMENTATION-NOTES.md`
-- sprint handoff files
+- sprint handoff notes
 - changed-file manifests
-- sprint release notes that duplicate current docs
+- temporary implementation notes
+- status snapshots replaced by canonical docs
+- code snapshot directories like `merge-hotfix-*`
 
-## Canonical documentation locations
+## Required review checks
 
-- `docs/architecture/` — platform thesis, ADR-linked architecture rules, development blueprint
-- `docs/release/` — current release posture, readiness checklists, critical journeys, closure notes
-- `docs/testing/` — verification matrix, testing policy, release-evidence expectations
-- `docs/operations/` — repository governance, deployment, rollback, queues, webhook setup
-- `docs/archive/` — historical sprint material and superseded closure notes
+Any PR that introduces or changes product behavior should confirm:
 
-## Archive rules
+- docs were updated or no doc change was necessary
+- contract changes were published and generated artifacts reconciled
+- root-level file additions do not introduce status or sprint drift
+- archived content was not reintroduced as active documentation
 
-A document is archive-only if any of the following is true:
+## Migration targets
 
-- it describes a previous sprint rather than the current platform
-- it is a changed-files manifest
-- it is an implementation handoff from an earlier pass
-- it duplicates a newer authoritative document
-
-Archived files should be moved, not silently discarded, unless the information is fully duplicated by Git history and a current archive index.
-
-## Anti-drift rules
-
-1. Root documentation other than `README.md` requires explicit justification.
-2. New sprint or handoff artifacts must be created under `docs/archive/` or `docs/release/`, not at root.
-3. Current platform truth must live under `docs/release/` and `docs/testing/`.
-4. CI should fail if prohibited root docs reappear.
-5. README links must point to the current canonical docs, not historical sprint files.
-
-## Review checklist for documentation moves
-
-When moving a root doc into `docs/` or `docs/archive/`, verify:
-
-- the new location is linked from the README or archive index where appropriate
-- any stale root references are removed
-- the file’s new purpose is clear
-- a delete/remove list is included in the closure bundle
-
-## Immediate relocation set
-
-This closure pass relocates the following root documents:
+These historical root docs are now expected to live elsewhere:
 
 - `current-platform-status.md` → `docs/release/current-platform-status.md`
 - `verification-matrix.md` → `docs/testing/verification-matrix.md`
 - `IMPLEMENTATION-NOTES.md` → `docs/archive/closure/IMPLEMENTATION-NOTES-closure-pass-1.md`
 
-The root originals should be deleted after the replacements are applied.
+## Code snapshot directories
+
+Root directories like `merge-hotfix-2/` are treated as repository contamination, not active source. They should be deleted after confirmation that their content is already represented by Git history or by the canonical source tree.

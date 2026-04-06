@@ -1,22 +1,19 @@
 # Sprint Archive
 
-This directory is the long-term home for historical sprint material that should no longer compete with the current platform documentation surface.
+This directory is the home for historical sprint artifacts that previously lived at the repository root.
 
-## What belongs here
+## Expected contents
 
-- sprint handoff documents
-- sprint backlogs
-- changed-file manifests
-- sprint release-readiness notes
-- implementation-status snapshots from earlier delivery phases
+- `SPRINT*-HANDOFF.md`
+- `SPRINT*-BACKLOG.md`
+- `SPRINT*-IMPLEMENTATION-STATUS.md`
+- `SPRINT*-EXECUTION-PLAN.md`
+- `SPRINT*-RELEASE-READINESS-*.md`
+- `SPRINT*-CHANGED-FILES.txt`
+- sprint-specific deliverable notes or zip manifests
 
-## What does not belong here
+## Current migration policy
 
-- current release readiness documents
-- current platform status
-- ongoing development blueprint
-- active operations or testing policy
+When applying the closure passes, move root sprint artifacts into this directory rather than leaving them at repo root.
 
-## Migration rule
-
-If a root or top-level file is sprint-specific and not part of the active release surface, move it here and add it to the archive manifest.
+Root files matching `SPRINT*` should not remain alongside source code, configs, and the root README.
