@@ -276,7 +276,9 @@ const notifications = {
   meta: { apiVersion: 'v1', correlationId: 'corr-notifications' },
 }
 
-async function fulfillJson(page: Page, matcher: string, payload: JsonValue) {
+type RouteMatcher = string | RegExp | ((url: URL) => boolean)
+
+async function fulfillJson(page: Page, matcher: RouteMatcher, payload: JsonValue) {
   await page.route(matcher, async (route) => {
     await route.fulfill({
       status: 200,
@@ -286,15 +288,19 @@ async function fulfillJson(page: Page, matcher: string, payload: JsonValue) {
   })
 }
 
+const pathIs = (pathname: string) => (url: URL) => url.pathname === pathname
+
 export async function installAuthenticatedAppMocks(page: Page) {
-  await fulfillJson(page, '**/api/v1/auth/me', authContext)
-  await fulfillJson(page, '**/api/v1/notifications**', notifications)
-  await fulfillJson(page, '**/api/v1/dashboard/summary', dashboardSummary)
-  await fulfillJson(page, '**/api/v1/dashboard/production**', dashboardProduction)
-  await fulfillJson(page, '**/api/v1/events/event-1', eventDetail)
-  await fulfillJson(page, '**/api/v1/events**', calendarRange)
-  await fulfillJson(page, '**/api/v1/calendar/day**', calendarDay)
-  await fulfillJson(page, '**/api/v1/tasks/task-1/status', {
+  await fulfillJson(page, pathIs('/api/v1/auth/me'), authContext)
+  await fulfillJson(page, /\/api\/v1\/notifications(?:\?.*)?$/, notifications)
+  await fulfillJson(page, pathIs('/api/v1/dashboard/summary'), dashboardSummary)
+  await fulfillJson(page, /\/api\/v1\/dashboard\/production(?:\?.*)?$/, dashboardProduction)
+
+  await fulfillJson(page, pathIs('/api/v1/events/event-1'), eventDetail)
+  await fulfillJson(page, pathIs('/api/v1/events'), calendarRange)
+  await fulfillJson(page, pathIs('/api/v1/calendar/day'), calendarDay)
+
+  await fulfillJson(page, pathIs('/api/v1/tasks/task-1/status'), {
     data: {
       result: 'updated',
       mutatedTaskId: 'task-1',
@@ -322,6 +328,7 @@ export async function installAuthenticatedAppMocks(page: Page) {
     },
     meta: { apiVersion: 'v1', correlationId: 'corr-task-update' },
   })
-  await fulfillJson(page, '**/api/v1/clients/client-1/events**', clientEvents)
-  await fulfillJson(page, '**/api/v1/clients/client-1', clientWorkspace)
+
+  await fulfillJson(page, /\/api\/v1\/clients\/client-1\/events(?:\?.*)?$/, clientEvents)
+  await fulfillJson(page, pathIs('/api/v1/clients/client-1'), clientWorkspace)
 }
