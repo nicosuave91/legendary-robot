@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\WorkflowBuilder\Jobs;
 
+use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use App\Modules\Shared\Contracts\QueuesTenantAware;
 use App\Modules\WorkflowBuilder\Models\WorkflowRun;
@@ -12,6 +13,8 @@ use App\Modules\WorkflowBuilder\Services\WorkflowStepExecutor;
 
 final class ExecuteWorkflowRunStepJob implements ShouldQueue, QueuesTenantAware
 {
+    use Queueable;
+
     private string $tenantIdValue;
     private string $correlationIdValue;
     private string $runId;
