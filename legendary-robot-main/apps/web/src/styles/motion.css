@@ -1,0 +1,9 @@
+.motion-base {
+  transition-duration: var(--motion-base);
+  transition-timing-function: ease;
+}
+
+.focus-ring {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ring) 18%, transparent);
+}

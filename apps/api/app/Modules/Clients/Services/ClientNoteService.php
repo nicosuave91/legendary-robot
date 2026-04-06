@@ -55,7 +55,7 @@ final class ClientNoteService
             'sourceType' => (string) $note->source_type,
             'body' => (string) $note->body,
             'isEditable' => (bool) $note->is_editable,
-            'authorDisplayName' => (string) ($note->author?->name ?? $actor->name),
+            'authorDisplayName' => $note->author ? (string) $note->author->name : (string) $actor->name,
             'createdAt' => $note->created_at?->toIso8601String(),
         ];
     }

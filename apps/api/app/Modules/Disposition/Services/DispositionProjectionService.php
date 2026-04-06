@@ -35,7 +35,7 @@ final class DispositionProjectionService
             : 'lead';
 
         $definition = $this->catalog->findForTenant((string) $client->tenant_id, $candidate);
-        $candidate = $definition?->code ?? 'lead';
+        $candidate = $definition !== null ? (string) $definition->code : 'lead';
 
         $history = ClientDispositionHistory::query()->create([
             'id' => (string) Str::uuid(),
@@ -72,9 +72,9 @@ final class DispositionProjectionService
 
         return [
             'code' => (string) $history->to_disposition_code,
-            'label' => (string) ($definition?->label ?? Str::headline((string) $history->to_disposition_code)),
+            'label' => $definition !== null ? (string) $definition->label : Str::headline((string) $history->to_disposition_code),
             'tone' => $this->toneForCode((string) $history->to_disposition_code),
-            'isTerminal' => (bool) ($definition?->is_terminal ?? ((string) $history->to_disposition_code === 'inactive')),
+            'isTerminal' => $definition !== null ? (bool) $definition->is_terminal : ((string) $history->to_disposition_code === 'inactive'),
             'changedAt' => $history->occurred_at?->toIso8601String(),
             'changedByDisplayName' => $history->actor?->name,
         ];
@@ -85,14 +85,14 @@ final class DispositionProjectionService
         $current = $this->currentForClient($client);
         $definition = $this->catalog->findForTenant((string) $client->tenant_id, (string) $current['code']);
 
-        $allowed = $definition?->allowed_next_codes ?? [];
+        $allowed = $definition !== null ? $definition->allowed_next_codes : [];
 
         return collect($allowed)->map(function (string $code) use ($client): array {
             $definition = $this->catalog->findForTenant((string) $client->tenant_id, $code);
 
             return [
                 'code' => $code,
-                'label' => (string) ($definition?->label ?? Str::headline($code)),
+                'label' => $definition !== null ? (string) $definition->label : Str::headline($code),
                 'tone' => $this->toneForCode($code),
             ];
         })->values()->all();
