@@ -704,6 +704,115 @@
                 }
             }
         },
+        "/api/v1/communications/inbox": {
+            "get": {
+                "operationId": "getCommunicationsInbox",
+                "summary": "Return operational communications inbox across visible clients",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "channel",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "all",
+                                "sms",
+                                "email",
+                                "voice"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "all",
+                                "pending",
+                                "failed"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Communications inbox response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CommunicationsInboxEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/communications/attachments/{attachmentId}/scan-status": {
+            "patch": {
+                "operationId": "patchCommunicationAttachmentScanStatus",
+                "summary": "Update communication attachment security scan status",
+                "parameters": [
+                    {
+                        "name": "attachmentId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateCommunicationAttachmentScanStatusRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated attachment governance summary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CommunicationAttachmentGovernanceEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/clients/{clientId}/communications": {
             "get": {
                 "operationId": "getClientCommunications",
@@ -750,6 +859,14 @@
                         "required": false,
                         "schema": {
                             "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ],
@@ -1142,7 +1259,7 @@
         "/api/v1/rules": {
             "get": {
                 "operationId": "getRules",
-                "summary": "List governed rules.",
+                "summary": "List rules",
                 "parameters": [
                     {
                         "name": "moduleScope",
@@ -1163,7 +1280,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successful response",
+                        "description": "Rules list response",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1176,7 +1293,7 @@
             },
             "post": {
                 "operationId": "postRules",
-                "summary": "Create a draft rule.",
+                "summary": "Create rule",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -1188,8 +1305,8 @@
                     }
                 },
                 "responses": {
-                    "201": {
-                        "description": "Created response",
+                    "200": {
+                        "description": "Rule detail response",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1204,7 +1321,7 @@
         "/api/v1/rules/{ruleId}": {
             "get": {
                 "operationId": "getRule",
-                "summary": "Get rule detail and versions.",
+                "summary": "Get rule detail",
                 "parameters": [
                     {
                         "name": "ruleId",
@@ -1217,7 +1334,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successful response",
+                        "description": "Rule detail response",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1230,7 +1347,7 @@
             },
             "patch": {
                 "operationId": "patchRule",
-                "summary": "Update a draft rule or create a new draft from the latest published version.",
+                "summary": "Update rule draft",
                 "parameters": [
                     {
                         "name": "ruleId",
@@ -1253,7 +1370,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Successful response",
+                        "description": "Rule detail response",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1268,7 +1385,7 @@
         "/api/v1/rules/{ruleId}/publish": {
             "post": {
                 "operationId": "postRulePublish",
-                "summary": "Publish an immutable rule version.",
+                "summary": "Publish rule",
                 "parameters": [
                     {
                         "name": "ruleId",
@@ -1280,7 +1397,7 @@
                     }
                 ],
                 "requestBody": {
-                    "required": false,
+                    "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
@@ -1290,8 +1407,8 @@
                     }
                 },
                 "responses": {
-                    "201": {
-                        "description": "Published response",
+                    "200": {
+                        "description": "Rule detail response",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1306,7 +1423,7 @@
         "/api/v1/rules/{ruleId}/execution-logs": {
             "get": {
                 "operationId": "getRuleExecutionLogs",
-                "summary": "List rule execution evidence.",
+                "summary": "List rule execution logs",
                 "parameters": [
                     {
                         "name": "ruleId",
@@ -1319,7 +1436,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successful response",
+                        "description": "Rule execution logs response",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1334,7 +1451,7 @@
         "/api/v1/workflows": {
             "get": {
                 "operationId": "getWorkflows",
-                "summary": "List workflow definitions.",
+                "summary": "List workflows",
                 "parameters": [
                     {
                         "name": "status",
@@ -1347,7 +1464,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successful response",
+                        "description": "Workflow list response",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1360,7 +1477,7 @@
             },
             "post": {
                 "operationId": "postWorkflows",
-                "summary": "Create a draft workflow.",
+                "summary": "Create workflow",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -1372,8 +1489,8 @@
                     }
                 },
                 "responses": {
-                    "201": {
-                        "description": "Created response",
+                    "200": {
+                        "description": "Workflow detail response",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1388,7 +1505,7 @@
         "/api/v1/workflows/{workflowId}": {
             "get": {
                 "operationId": "getWorkflow",
-                "summary": "Get workflow detail and versions.",
+                "summary": "Get workflow detail",
                 "parameters": [
                     {
                         "name": "workflowId",
@@ -1401,7 +1518,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successful response",
+                        "description": "Workflow detail response",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1414,7 +1531,7 @@
             },
             "patch": {
                 "operationId": "patchWorkflow",
-                "summary": "Update a draft workflow or create a new draft from the latest published version.",
+                "summary": "Update workflow draft",
                 "parameters": [
                     {
                         "name": "workflowId",
@@ -1437,7 +1554,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Successful response",
+                        "description": "Workflow detail response",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1452,7 +1569,7 @@
         "/api/v1/workflows/{workflowId}/publish": {
             "post": {
                 "operationId": "postWorkflowPublish",
-                "summary": "Publish an immutable workflow version.",
+                "summary": "Publish workflow",
                 "parameters": [
                     {
                         "name": "workflowId",
@@ -1464,7 +1581,7 @@
                     }
                 ],
                 "requestBody": {
-                    "required": false,
+                    "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
@@ -1474,8 +1591,8 @@
                     }
                 },
                 "responses": {
-                    "201": {
-                        "description": "Published response",
+                    "200": {
+                        "description": "Workflow detail response",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1490,7 +1607,7 @@
         "/api/v1/workflows/{workflowId}/runs": {
             "get": {
                 "operationId": "getWorkflowRuns",
-                "summary": "List workflow runs.",
+                "summary": "List workflow runs",
                 "parameters": [
                     {
                         "name": "workflowId",
@@ -1503,7 +1620,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successful response",
+                        "description": "Workflow run list response",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1518,7 +1635,7 @@
         "/api/v1/workflows/{workflowId}/runs/{runId}": {
             "get": {
                 "operationId": "getWorkflowRun",
-                "summary": "Get workflow run detail and append-only logs.",
+                "summary": "Get workflow run detail",
                 "parameters": [
                     {
                         "name": "workflowId",
@@ -1539,7 +1656,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successful response",
+                        "description": "Workflow run detail response",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -4059,6 +4176,102 @@
                     "meta"
                 ]
             },
+            "UpdateCommunicationAttachmentScanStatusRequest": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "clean",
+                            "rejected",
+                            "quarantined"
+                        ]
+                    },
+                    "engine": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "detail": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "quarantineReason": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "status"
+                ]
+            },
+            "CommunicationAttachmentGovernanceSummary": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "originalFilename": {
+                        "type": "string"
+                    },
+                    "mimeType": {
+                        "type": "string"
+                    },
+                    "sizeBytes": {
+                        "type": "integer"
+                    },
+                    "scanStatus": {
+                        "type": "string"
+                    },
+                    "scanRequestedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "scannedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "scanEngine": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "scanResultDetail": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "quarantineReason": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "id",
+                    "originalFilename",
+                    "mimeType",
+                    "sizeBytes",
+                    "scanStatus",
+                    "scanRequestedAt",
+                    "scannedAt",
+                    "scanEngine",
+                    "scanResultDetail",
+                    "quarantineReason"
+                ]
+            },
+            "CommunicationAttachmentGovernanceEnvelope": {
+                "type": "object",
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/CommunicationAttachmentGovernanceSummary"
+                    },
+                    "meta": {
+                        "$ref": "#/components/schemas/ResponseMeta"
+                    }
+                },
+                "required": [
+                    "data",
+                    "meta"
+                ]
+            },
             "SendSmsRequest": {
                 "type": "object",
                 "properties": {
@@ -4496,11 +4709,165 @@
                     "refresh"
                 ]
             },
+            "CommunicationInboxClientSummary": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "displayName": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "ownerDisplayName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "primaryEmail": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "primaryPhone": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "lastActivityAt": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "id",
+                    "displayName",
+                    "status",
+                    "ownerDisplayName",
+                    "primaryEmail",
+                    "primaryPhone",
+                    "lastActivityAt"
+                ]
+            },
+            "CommunicationInboxItem": {
+                "type": "object",
+                "properties": {
+                    "client": {
+                        "$ref": "#/components/schemas/CommunicationInboxClientSummary"
+                    },
+                    "timelineItem": {
+                        "$ref": "#/components/schemas/CommunicationTimelineItem"
+                    }
+                },
+                "required": [
+                    "client",
+                    "timelineItem"
+                ]
+            },
+            "CommunicationsInboxResponse": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CommunicationInboxItem"
+                        }
+                    },
+                    "paging": {
+                        "type": "object",
+                        "properties": {
+                            "nextCursor": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "hasMore": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": [
+                            "nextCursor",
+                            "hasMore"
+                        ]
+                    },
+                    "filters": {
+                        "type": "object",
+                        "properties": {
+                            "search": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "channel": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "search",
+                            "channel",
+                            "status"
+                        ]
+                    },
+                    "refresh": {
+                        "type": "object",
+                        "properties": {
+                            "hasPendingRecentItems": {
+                                "type": "boolean"
+                            },
+                            "recommendedPollSeconds": {
+                                "type": "integer",
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "hasPendingRecentItems",
+                            "recommendedPollSeconds"
+                        ]
+                    },
+                    "summary": {
+                        "type": "object",
+                        "properties": {
+                            "clientCount": {
+                                "type": "integer"
+                            },
+                            "itemCount": {
+                                "type": "integer"
+                            }
+                        },
+                        "required": [
+                            "clientCount",
+                            "itemCount"
+                        ]
+                    }
+                },
+                "required": [
+                    "items",
+                    "paging",
+                    "filters",
+                    "refresh",
+                    "summary"
+                ]
+            },
             "ClientCommunicationsEnvelope": {
                 "type": "object",
                 "properties": {
                     "data": {
                         "$ref": "#/components/schemas/ClientCommunicationsResponse"
+                    },
+                    "meta": {
+                        "$ref": "#/components/schemas/ResponseMeta"
+                    }
+                },
+                "required": [
+                    "data",
+                    "meta"
+                ]
+            },
+            "CommunicationsInboxEnvelope": {
+                "type": "object",
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/CommunicationsInboxResponse"
                     },
                     "meta": {
                         "$ref": "#/components/schemas/ResponseMeta"
@@ -5540,12 +5907,10 @@
                         "type": "string"
                     },
                     "conditionDefinition": {
-                        "type": "object",
-                        "additionalProperties": true
+                        "type": "object"
                     },
                     "actionDefinition": {
-                        "type": "object",
-                        "additionalProperties": true
+                        "type": "object"
                     },
                     "executionLabel": {
                         "type": "string",
@@ -5628,12 +5993,10 @@
                         "nullable": true
                     },
                     "contextSnapshot": {
-                        "type": "object",
-                        "additionalProperties": true
+                        "type": "object"
                     },
                     "outcomeSummary": {
-                        "type": "object",
-                        "additionalProperties": true
+                        "type": "object"
                     },
                     "executedAt": {
                         "type": "string",
@@ -5760,16 +6123,13 @@
                     },
                     "industryScope": {
                         "type": "object",
-                        "additionalProperties": true,
                         "nullable": true
                     },
                     "conditionDefinition": {
-                        "type": "object",
-                        "additionalProperties": true
+                        "type": "object"
                     },
                     "actionDefinition": {
-                        "type": "object",
-                        "additionalProperties": true
+                        "type": "object"
                     },
                     "executionLabel": {
                         "type": "string",
@@ -5815,16 +6175,13 @@
                     },
                     "industryScope": {
                         "type": "object",
-                        "additionalProperties": true,
                         "nullable": true
                     },
                     "conditionDefinition": {
-                        "type": "object",
-                        "additionalProperties": true
+                        "type": "object"
                     },
                     "actionDefinition": {
-                        "type": "object",
-                        "additionalProperties": true
+                        "type": "object"
                     },
                     "executionLabel": {
                         "type": "string",
@@ -5901,14 +6258,12 @@
                         "type": "string"
                     },
                     "triggerDefinition": {
-                        "type": "object",
-                        "additionalProperties": true
+                        "type": "object"
                     },
                     "stepsDefinition": {
                         "type": "array",
                         "items": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "object"
                         }
                     },
                     "checksum": {
@@ -5993,8 +6348,7 @@
                         "nullable": true
                     },
                     "failureSummary": {
-                        "type": "object",
-                        "additionalProperties": true
+                        "type": "object"
                     }
                 },
                 "required": [
@@ -6037,8 +6391,7 @@
                         "type": "string"
                     },
                     "payloadSnapshot": {
-                        "type": "object",
-                        "additionalProperties": true
+                        "type": "object"
                     },
                     "occurredAt": {
                         "type": "string",
@@ -6069,8 +6422,7 @@
                         }
                     },
                     "meta": {
-                        "type": "object",
-                        "additionalProperties": true
+                        "type": "object"
                     }
                 },
                 "required": [
@@ -6163,14 +6515,12 @@
                         "nullable": true
                     },
                     "triggerDefinition": {
-                        "type": "object",
-                        "additionalProperties": true
+                        "type": "object"
                     },
                     "stepsDefinition": {
                         "type": "array",
                         "items": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "object"
                         }
                     }
                 },
@@ -6192,14 +6542,12 @@
                         "nullable": true
                     },
                     "triggerDefinition": {
-                        "type": "object",
-                        "additionalProperties": true
+                        "type": "object"
                     },
                     "stepsDefinition": {
                         "type": "array",
                         "items": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "object"
                         }
                     }
                 }
