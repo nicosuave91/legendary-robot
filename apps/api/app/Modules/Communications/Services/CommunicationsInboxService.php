@@ -56,12 +56,12 @@ final class CommunicationsInboxService
                         'lastActivityAt' => $client->last_activity_at?->toIso8601String(),
                     ],
                     'timelineItem' => $item,
-                    '_sortAt' => (string) ($item['occurredAt'] ?? ''),
+                    '_sortAt' => (string) $item['occurredAt'],
                 ];
             }
         }
 
-        usort($items, fn (array $left, array $right): int => strcmp((string) ($right['_sortAt'] ?? ''), (string) ($left['_sortAt'] ?? '')));
+        usort($items, fn (array $left, array $right): int => strcmp((string) $right['_sortAt'], (string) $left['_sortAt']));
 
         $pagination = $this->communicationTimelineService->paginateItems($items, $filters);
         $pagedItems = array_map(function (array $item): array {

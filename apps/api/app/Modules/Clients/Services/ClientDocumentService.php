@@ -77,7 +77,7 @@ final class ClientDocumentService
             'sizeBytes' => (int) $document->size_bytes,
             'provenance' => (string) $document->provenance,
             'attachmentCategory' => $document->attachment_category,
-            'uploadedByDisplayName' => (string) ($document->uploadedBy?->name ?? $actor->name),
+            'uploadedByDisplayName' => $document->uploadedBy ? (string) $document->uploadedBy->name : (string) $actor->name,
             'uploadedAt' => $document->created_at?->toIso8601String(),
             'storageReference' => (string) $document->storage_reference,
         ];

@@ -51,7 +51,7 @@ final class TwilioVoiceTwiMLController extends Controller
             ->where('id', $callLogId)
             ->firstOrFail();
 
-        $clientName = $callLog->client?->display_name ?? 'client';
+        $clientName = $callLog->client ? (string) data_get($callLog->client, 'display_name', 'client') : 'client';
         $purposeNote = trim((string) ($callLog->purpose_note ?? ''));
 
         $messages = [

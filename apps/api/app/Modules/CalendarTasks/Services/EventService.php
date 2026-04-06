@@ -97,7 +97,7 @@ final class EventService
 
     public function update(User $actor, CalendarEvent $event, array $payload, string $correlationId): array
     {
-        $before = ['status' => $event->status, 'startsAt' => $event->starts_at?->toIso8601String(), 'clientId' => $event->client_id];
+        $before = ['status' => $event->status, 'startsAt' => $event->starts_at->toIso8601String(), 'clientId' => $event->client_id];
 
         DB::transaction(function () use ($actor, $event, $payload): void {
             if (array_key_exists('clientId', $payload)) {
@@ -131,7 +131,7 @@ final class EventService
             'subject_id' => (string) $event->id,
             'correlation_id' => $correlationId,
             'before_summary' => json_encode($before, JSON_THROW_ON_ERROR),
-            'after_summary' => json_encode(['status' => $event->status, 'startsAt' => $event->starts_at?->toIso8601String(), 'clientId' => $event->client_id], JSON_THROW_ON_ERROR),
+            'after_summary' => json_encode(['status' => $event->status, 'startsAt' => $event->starts_at->toIso8601String(), 'clientId' => $event->client_id], JSON_THROW_ON_ERROR),
         ]);
 
         $event->refresh();
@@ -141,13 +141,19 @@ final class EventService
 
     private function resolveClient(User $actor, ?string $clientId): ?Client
     {
-        if ($clientId === null || $clientId === '') return null;
+        if ($clientId === null || $clientId === '') {
+            return null;
+        }
+
         return Client::query()->withoutGlobalScopes()->where('tenant_id', $actor->tenant_id)->where('id', $clientId)->firstOrFail();
     }
 
     private function resolveOwner(User $actor, ?string $ownerUserId): ?User
     {
-        if ($ownerUserId === null || $ownerUserId === '') return null;
+        if ($ownerUserId === null || $ownerUserId === '') {
+            return null;
+        }
+
         return User::query()->where('tenant_id', $actor->tenant_id)->where('id', $ownerUserId)->firstOrFail();
     }
 }

@@ -161,7 +161,7 @@ final class CommunicationTimelineService
 
         usort($items, fn (array $left, array $right): int => strcmp((string) ($right['occurredAt'] ?? ''), (string) ($left['occurredAt'] ?? '')));
 
-        return array_values($items);
+        return $items;
     }
 
     /**
@@ -176,7 +176,7 @@ final class CommunicationTimelineService
         $hasMore = ($offset + $limit) < count($items);
 
         return [
-            'items' => array_values($slice),
+            'items' => $slice,
             'nextCursor' => $hasMore ? $this->encodeCursor($offset + $limit) : null,
             'hasMore' => $hasMore,
             'hasPendingRecentItems' => collect($items)->contains(fn (array $item): bool => !((bool) ($item['status']['isTerminal'] ?? true))),

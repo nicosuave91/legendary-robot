@@ -81,7 +81,7 @@ final class EventQueryService
                     'toStatus' => (string) $history->to_status,
                     'reason' => $history->reason,
                     'occurredAt' => $history->occurred_at?->toIso8601String(),
-                    'actorDisplayName' => (string) ($history->actor?->name ?? 'System'),
+                    'actorDisplayName' => $history->actor ? (string) $history->actor->name : 'System',
                 ])->all(),
             ])->all(),
         ];

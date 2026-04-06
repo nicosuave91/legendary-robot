@@ -107,7 +107,7 @@ final class CommunicationMailboxService
 
         $addresses = array_values(array_unique(array_map(
             fn (string $email): string => strtolower(trim($email)),
-            $matches[0] ?? [],
+            $matches[0],
         )));
 
         if ($addresses !== []) {

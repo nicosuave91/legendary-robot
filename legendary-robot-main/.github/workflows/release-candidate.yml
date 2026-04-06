@@ -1,0 +1,54 @@
+name: release-candidate
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  verify-release-candidate:
+    runs-on: ubuntu-latest
+    env:
+      NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Show npm registry
+        run: npm config get registry
+
+      - name: Verify release candidate
+        run: bash scripts/verify-release-candidate.sh
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sprint12-release-artifacts
+          path: |
+            packages/contracts/openapi.json
+            apps/web/src/lib/api/generated/client.ts
+            SPRINT12-IMPLEMENTATION-STATUS.md
+            SPRINT12-EXECUTION-PLAN.md
+            SPRINT12-BACKLOG.md
+            SPRINT12-CHANGED-FILES.txt
+            SPRINT12-UAT-OWNER-GUIDE.md
+            docs/release-readiness-checklist.md
+            docs/environment-checklist.md
+            docs/deployment-runbook.md
+            docs/rollback-plan.md
+            docs/incident-monitoring-baseline.md
+            docs/known-issues-and-accepted-risks.md
+            docs/release-blocker-register.md
+            docs/accepted-risk-register.md
