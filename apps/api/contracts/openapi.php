@@ -11,7 +11,7 @@ $sprint11 = require __DIR__ . '/openapi.calendar_tasks.php';
 $workflowClosure = require __DIR__ . '/openapi.workflow_closure.php';
 
 $base['info']['version'] = '15.1.0';
-$base['info']['description'] = 'Closure hardening contracts layered onto the Sprint 15 platform baseline.';
+$base['info']['description'] = 'Closure-phase contracts layered onto the verified Sprint 15 platform baseline.';
 $base['paths'] = array_replace_recursive(
     $base['paths'] ?? [],
     $communications['paths'] ?? [],
