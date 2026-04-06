@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\WorkflowBuilder\Services;
 
-use Carbon\CarbonImmutable;
-use RuntimeException;
 use Throwable;
+use Illuminate\Support\Str;
 use App\Modules\Applications\Models\Application;
 use App\Modules\Clients\Models\Client;
 use App\Modules\Clients\Services\ClientNoteService;
@@ -22,8 +21,8 @@ final class WorkflowStepExecutor
     public function __construct(
         private readonly WorkflowRunService $runService,
         private readonly WorkflowExecutionActorResolver $actorResolver,
-        private readonly CommunicationCommandService $communicationCommandService,
         private readonly ClientNoteService $clientNoteService,
+        private readonly CommunicationCommandService $communicationCommandService,
     ) {
     }
 
@@ -33,11 +32,7 @@ final class WorkflowStepExecutor
         $stepIndex = (int) ($run->current_step_index ?? 0);
 
         if (!isset($steps[$stepIndex]) || !is_array($steps[$stepIndex])) {
-            $run->forceFill([
-                'status' => 'completed',
-                'completed_at' => now(),
-            ])->save();
-
+            $run->forceFill(['status' => 'completed', 'completed_at' => now()])->save();
             $this->runService->appendLog($run, null, 'run_completed', 'Workflow run completed with durable version-bound evidence.');
 
             return;
@@ -48,362 +43,253 @@ final class WorkflowStepExecutor
         $definition = is_array($step['definition'] ?? null) ? $step['definition'] : [];
         $context = (array) ($run->runtime_context ?? []);
 
-        $run->forceFill([
-            'status' => 'running',
-            'started_at' => $run->started_at ?? now(),
-        ])->save();
-
+        $run->forceFill(['status' => 'running', 'started_at' => $run->started_at ?? now()])->save();
         $this->runService->appendLog($run, $stepIndex, 'step_started', 'Executing workflow step.', ['type' => $type]);
 
         try {
             if ($type === 'condition') {
                 $matched = $this->evaluateCondition($context, $definition);
-
-                $this->runService->appendLog(
-                    $run,
-                    $stepIndex,
-                    'condition_evaluated',
-                    $matched ? 'Condition matched.' : 'Condition did not match.',
-                    ['matched' => $matched],
-                );
-
-                $this->scheduleNextStep($run, $stepIndex);
+                $this->runService->appendLog($run, $stepIndex, 'condition_evaluated', $matched ? 'Condition matched.' : 'Condition did not match.', ['matched' => $matched]);
+                $this->continueRun($run, $stepIndex + 1);
 
                 return;
             }
 
             if ($type === 'wait') {
-                $renderedDefinition = $this->renderDefinition($definition, $context);
-                $delaySeconds = $this->resolveWaitDelaySeconds($renderedDefinition);
-                $resumeAt = $delaySeconds > 0 ? now()->addSeconds($delaySeconds)->toIso8601String() : now()->toIso8601String();
-
-                $this->runService->appendLog(
-                    $run,
-                    $stepIndex,
-                    'wait_scheduled',
-                    $delaySeconds > 0
-                        ? 'Wait step scheduled for delayed queue-driven continuation.'
-                        : 'Wait step resolved immediately and will continue on the queue.',
-                    [
-                        'delaySeconds' => $delaySeconds,
-                        'resumeAt' => $resumeAt,
-                        'definition' => $renderedDefinition,
-                    ],
-                );
-
-                $this->scheduleNextStep($run, $stepIndex, $delaySeconds);
+                $this->scheduleWait($run, $stepIndex, $definition);
 
                 return;
             }
 
-            if (in_array($type, ['send_sms', 'send_email', 'create_client_note'], true)) {
-                [$client, $application] = $this->resolveSubjectRecords($run);
-                $actor = $this->actorResolver->resolve($run, $client, $application);
-                $runtimeContext = $this->buildRuntimeContext($run, $client, $application, $context);
-                $renderedDefinition = $this->renderDefinition($definition, $runtimeContext);
-
-                if ($type === 'send_sms') {
-                    $result = $this->communicationCommandService->queueSms(
-                        $actor,
-                        $client,
-                        [
-                            'body' => $this->nullableString($renderedDefinition['body'] ?? $renderedDefinition['bodyText'] ?? null),
-                            'toPhone' => $this->nullableString($renderedDefinition['toPhone'] ?? $client->primary_phone),
-                            'idempotencyKey' => $this->workflowIdempotencyKey($run, $stepIndex, $type),
-                        ],
-                        (string) ($run->correlation_id ?? ''),
-                    );
-
-                    $this->runService->appendLog(
-                        $run,
-                        $stepIndex,
-                        'communication_queued',
-                        'Workflow step queued an outbound SMS/MMS through the governed communications module.',
-                        [
-                            'type' => $type,
-                            'messageId' => $result['id'] ?? null,
-                            'channel' => $result['channel'] ?? null,
-                            'toAddress' => $result['counterpart']['address'] ?? null,
-                        ],
-                    );
-
-                    $this->scheduleNextStep($run, $stepIndex);
-
-                    return;
-                }
-
-                if ($type === 'send_email') {
-                    $to = $this->normalizeEmailList($renderedDefinition['to'] ?? null, $client->primary_email);
-                    $cc = $this->normalizeEmailList($renderedDefinition['cc'] ?? null);
-                    $bcc = $this->normalizeEmailList($renderedDefinition['bcc'] ?? null);
-
-                    $result = $this->communicationCommandService->queueEmail(
-                        $actor,
-                        $client,
-                        [
-                            'to' => $to,
-                            'cc' => $cc !== [] ? $cc : null,
-                            'bcc' => $bcc !== [] ? $bcc : null,
-                            'subject' => (string) ($renderedDefinition['subject'] ?? ('Workflow follow-up for ' . $client->display_name)),
-                            'bodyText' => $this->nullableString($renderedDefinition['bodyText'] ?? $renderedDefinition['body'] ?? null),
-                            'bodyHtml' => $this->nullableString($renderedDefinition['bodyHtml'] ?? null),
-                            'idempotencyKey' => $this->workflowIdempotencyKey($run, $stepIndex, $type),
-                        ],
-                        (string) ($run->correlation_id ?? ''),
-                    );
-
-                    $this->runService->appendLog(
-                        $run,
-                        $stepIndex,
-                        'communication_queued',
-                        'Workflow step queued an outbound email through the governed communications module.',
-                        [
-                            'type' => $type,
-                            'messageId' => $result['id'] ?? null,
-                            'channel' => $result['channel'] ?? null,
-                            'toAddress' => $result['counterpart']['address'] ?? null,
-                        ],
-                    );
-
-                    $this->scheduleNextStep($run, $stepIndex);
-
-                    return;
-                }
-
-                $note = $this->clientNoteService->create(
-                    $actor,
-                    $client,
-                    [
-                        'body' => (string) ($renderedDefinition['body'] ?? ('Workflow note for ' . $client->display_name)),
-                    ],
-                    (string) ($run->correlation_id ?? ''),
-                );
-
-                $this->runService->appendLog(
-                    $run,
-                    $stepIndex,
-                    'note_created',
-                    'Workflow step created a governed client note.',
-                    [
-                        'type' => $type,
-                        'noteId' => $note['id'] ?? null,
-                        'preview' => mb_substr((string) ($note['body'] ?? ''), 0, 140),
-                    ],
-                );
-
-                $this->scheduleNextStep($run, $stepIndex);
+            if ($type === 'create_client_note') {
+                $this->executeCreateClientNote($run, $stepIndex, $definition, $context);
 
                 return;
             }
 
-            throw new RuntimeException(sprintf('Unsupported workflow step type [%s].', $type));
+            if ($type === 'send_sms') {
+                $this->executeSendSms($run, $stepIndex, $definition, $context);
+
+                return;
+            }
+
+            if ($type === 'send_email') {
+                $this->executeSendEmail($run, $stepIndex, $definition, $context);
+
+                return;
+            }
+
+            $this->failRun($run, $stepIndex, sprintf('Unsupported workflow step type [%s].', $type), ['type' => $type]);
         } catch (Throwable $exception) {
-            $run->forceFill([
-                'status' => 'failed',
-                'failed_at' => now(),
-                'failure_summary' => [
-                    'message' => $exception->getMessage(),
-                    'stepType' => $type,
-                ],
-            ])->save();
-
-            $this->runService->appendLog(
+            $this->failRun(
                 $run,
                 $stepIndex,
-                'step_failed',
-                'Workflow step execution failed.',
-                [
-                    'type' => $type,
-                    'message' => $exception->getMessage(),
-                ],
+                $exception->getMessage() !== '' ? $exception->getMessage() : 'Workflow step execution failed.',
+                ['type' => $type, 'exception' => $exception::class],
             );
         }
     }
 
-    /**
-     * @return array{0: Client, 1: Application|null}
-     */
-    private function resolveSubjectRecords(WorkflowRun $run): array
+    private function executeCreateClientNote(WorkflowRun $run, int $stepIndex, array $definition, array $context): void
+    {
+        $actor = $this->actorResolver->resolveForRun($run);
+        $client = $this->resolveClientForRun($run);
+        $body = $this->renderTemplate((string) ($definition['bodyTemplate'] ?? $definition['body'] ?? ''), $context, $run);
+
+        if (trim($body) === '') {
+            throw new \RuntimeException('Workflow client-note steps require a non-empty bodyTemplate or body.');
+        }
+
+        $note = $this->clientNoteService->create(
+            $actor,
+            $client,
+            ['body' => $body],
+            $this->correlationIdForRun($run),
+        );
+
+        $this->runService->appendLog($run, $stepIndex, 'note_created', 'Workflow created a governed client note.', [
+            'clientId' => (string) $client->id,
+            'noteId' => $note['id'] ?? null,
+        ]);
+
+        $this->continueRun($run, $stepIndex + 1);
+    }
+
+    private function executeSendSms(WorkflowRun $run, int $stepIndex, array $definition, array $context): void
+    {
+        $actor = $this->actorResolver->resolveForRun($run);
+        $client = $this->resolveClientForRun($run);
+        $body = $this->renderTemplate((string) ($definition['bodyTemplate'] ?? $definition['body'] ?? ''), $context, $run);
+
+        if (trim($body) === '') {
+            throw new \RuntimeException('Workflow SMS steps require a non-empty bodyTemplate or body.');
+        }
+
+        $result = $this->communicationCommandService->queueSms(
+            $actor,
+            $client,
+            [
+                'body' => $body,
+                'toPhone' => $definition['toPhone'] ?? $client->primary_phone,
+                'idempotencyKey' => $this->idempotencyKey($run, $stepIndex, 'sms'),
+            ],
+            $this->correlationIdForRun($run),
+        );
+
+        $this->runService->appendLog($run, $stepIndex, 'communication_queued', 'Workflow queued an outbound SMS/MMS.', [
+            'clientId' => (string) $client->id,
+            'messageId' => $result['id'] ?? null,
+            'channel' => $result['channel'] ?? null,
+        ]);
+
+        $this->continueRun($run, $stepIndex + 1);
+    }
+
+    private function executeSendEmail(WorkflowRun $run, int $stepIndex, array $definition, array $context): void
+    {
+        $actor = $this->actorResolver->resolveForRun($run);
+        $client = $this->resolveClientForRun($run);
+
+        $subject = $this->renderTemplate((string) ($definition['subjectTemplate'] ?? $definition['subject'] ?? ''), $context, $run);
+        $bodyText = $this->renderTemplate((string) ($definition['bodyTemplate'] ?? $definition['bodyText'] ?? ''), $context, $run);
+
+        if (trim($subject) === '') {
+            throw new \RuntimeException('Workflow email steps require a non-empty subjectTemplate or subject.');
+        }
+
+        if (trim($bodyText) === '') {
+            throw new \RuntimeException('Workflow email steps require a non-empty bodyTemplate or bodyText.');
+        }
+
+        $to = array_values(array_filter(array_map(
+            static fn (mixed $value): string => trim((string) $value),
+            is_array($definition['to'] ?? null) ? $definition['to'] : [$definition['to'] ?? $client->primary_email],
+        )));
+
+        if ($to === []) {
+            throw new \RuntimeException('Workflow email steps require a recipient or a client primary email address.');
+        }
+
+        $result = $this->communicationCommandService->queueEmail(
+            $actor,
+            $client,
+            [
+                'to' => $to,
+                'subject' => $subject,
+                'bodyText' => $bodyText,
+                'idempotencyKey' => $this->idempotencyKey($run, $stepIndex, 'email'),
+            ],
+            $this->correlationIdForRun($run),
+        );
+
+        $this->runService->appendLog($run, $stepIndex, 'communication_queued', 'Workflow queued an outbound email.', [
+            'clientId' => (string) $client->id,
+            'messageId' => $result['id'] ?? null,
+            'channel' => $result['channel'] ?? null,
+        ]);
+
+        $this->continueRun($run, $stepIndex + 1);
+    }
+
+    private function scheduleWait(WorkflowRun $run, int $stepIndex, array $definition): void
+    {
+        $minutes = max(1, (int) ($definition['durationMinutes'] ?? 0));
+        $resumeAt = now()->addMinutes($minutes);
+
+        $run->forceFill([
+            'status' => 'waiting',
+            'current_step_index' => $stepIndex + 1,
+        ])->save();
+
+        $this->runService->appendLog($run, $stepIndex, 'wait_scheduled', 'Wait step scheduled a delayed continuation.', [
+            'durationMinutes' => $minutes,
+            'resumeAt' => $resumeAt->toIso8601String(),
+        ]);
+
+        dispatch(
+            (new ExecuteWorkflowRunStepJob((string) $run->tenant_id, $this->correlationIdForRun($run), (string) $run->id))
+                ->delay($resumeAt)
+        );
+    }
+
+    private function resolveClientForRun(WorkflowRun $run): Client
     {
         if ((string) $run->subject_type === 'client') {
-            /** @var Client|null $client */
-            $client = Client::query()
+            return Client::query()
                 ->withoutGlobalScopes()
                 ->where('tenant_id', (string) $run->tenant_id)
                 ->where('id', (string) $run->subject_id)
-                ->first();
-
-            if ($client === null) {
-                throw new RuntimeException('Workflow run client subject could not be resolved.');
-            }
-
-            return [$client, null];
+                ->firstOrFail();
         }
 
         if ((string) $run->subject_type === 'application') {
-            /** @var Application|null $application */
+            /** @var Application $application */
             $application = Application::query()
                 ->withoutGlobalScopes()
-                ->with('client')
                 ->where('tenant_id', (string) $run->tenant_id)
                 ->where('id', (string) $run->subject_id)
-                ->first();
+                ->firstOrFail();
 
-            if ($application === null || $application->client === null) {
-                throw new RuntimeException('Workflow run application subject could not be resolved.');
-            }
-
-            return [$application->client, $application];
+            return Client::query()
+                ->withoutGlobalScopes()
+                ->where('tenant_id', (string) $run->tenant_id)
+                ->where('id', (string) $application->client_id)
+                ->firstOrFail();
         }
 
-        throw new RuntimeException(sprintf('Workflow subject type [%s] is not supported for action execution.', (string) $run->subject_type));
+        throw new \RuntimeException(sprintf('Workflow runs for subject type [%s] cannot resolve a client target.', (string) $run->subject_type));
     }
 
-    /**
-     * @param array<string, mixed> $context
-     * @return array<string, mixed>
-     */
-    private function buildRuntimeContext(WorkflowRun $run, Client $client, ?Application $application, array $context): array
+    private function renderTemplate(string $template, array $context, WorkflowRun $run): string
     {
-        return array_merge($context, [
+        $rendered = $template;
+        $replacements = [
             'workflowRunId' => (string) $run->id,
             'workflowVersionId' => (string) $run->workflow_version_id,
             'subjectType' => (string) $run->subject_type,
             'subjectId' => (string) $run->subject_id,
-            'clientId' => (string) $client->id,
-            'clientDisplayName' => (string) $client->display_name,
-            'clientEmail' => $client->primary_email,
-            'clientPhone' => $client->primary_phone,
-            'clientStatus' => (string) $client->status,
-            'applicationId' => $application?->id,
-            'applicationNumber' => $application?->application_number,
-            'applicationStatus' => $application?->status,
-            'productType' => $application?->product_type ?? ($context['productType'] ?? null),
-            'amountRequested' => $application?->amount_requested ?? ($context['amountRequested'] ?? null),
-            'correlationId' => $run->correlation_id,
-        ]);
+            'triggerEvent' => (string) $run->trigger_event,
+            'correlationId' => $this->correlationIdForRun($run),
+        ] + $context;
+
+        foreach ($replacements as $key => $value) {
+            if (is_scalar($value) || $value === null) {
+                $rendered = str_replace('{{' . $key . '}}', (string) ($value ?? ''), $rendered);
+            }
+        }
+
+        return trim($rendered);
     }
 
-    /**
-     * @param array<string, mixed> $definition
-     * @param array<string, mixed> $context
-     * @return array<string, mixed>
-     */
-    private function renderDefinition(array $definition, array $context): array
+    private function continueRun(WorkflowRun $run, int $nextStepIndex): void
     {
-        $render = function (mixed $value) use (&$render, $context): mixed {
-            if (is_string($value)) {
-                return preg_replace_callback('/\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/', static function (array $matches) use ($context): string {
-                    $resolved = data_get($context, (string) ($matches[1] ?? ''));
-
-                    if (is_scalar($resolved) || $resolved === null) {
-                        return $resolved === null ? '' : (string) $resolved;
-                    }
-
-                    return json_encode($resolved, JSON_THROW_ON_ERROR);
-                }, $value);
-            }
-
-            if (is_array($value)) {
-                foreach ($value as $key => $item) {
-                    $value[$key] = $render($item);
-                }
-            }
-
-            return $value;
-        };
-
-        /** @var array<string, mixed> $rendered */
-        $rendered = $render($definition);
-
-        return $rendered;
+        $run->forceFill(['current_step_index' => $nextStepIndex, 'status' => 'running'])->save();
+        dispatch(new ExecuteWorkflowRunStepJob((string) $run->tenant_id, $this->correlationIdForRun($run), (string) $run->id));
     }
 
-    private function workflowIdempotencyKey(WorkflowRun $run, int $stepIndex, string $type): string
+    private function failRun(WorkflowRun $run, int $stepIndex, string $message, array $payload = []): void
+    {
+        $run->forceFill([
+            'status' => 'failed',
+            'failed_at' => now(),
+            'failure_summary' => ['message' => $message],
+        ])->save();
+
+        $this->runService->appendLog($run, $stepIndex, 'step_failed', $message, $payload);
+    }
+
+    private function correlationIdForRun(WorkflowRun $run): string
+    {
+        return (string) ($run->correlation_id ?: ('workflow-' . Str::uuid()));
+    }
+
+    private function idempotencyKey(WorkflowRun $run, int $stepIndex, string $channel): string
     {
         return hash('sha256', implode(':', [
             (string) $run->tenant_id,
             (string) $run->id,
-            (string) $run->workflow_version_id,
             (string) $stepIndex,
-            $type,
+            $channel,
         ]));
-    }
-
-    private function nullableString(mixed $value): ?string
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        $string = trim((string) $value);
-
-        return $string !== '' ? $string : null;
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function normalizeEmailList(mixed $value, ?string $fallback = null): array
-    {
-        $raw = [];
-
-        if (is_array($value)) {
-            $raw = $value;
-        } elseif (is_string($value) && trim($value) !== '') {
-            $raw = [$value];
-        }
-
-        if ($raw === [] && $fallback !== null && trim($fallback) !== '') {
-            $raw = [$fallback];
-        }
-
-        return array_values(array_filter(array_map(
-            static fn (mixed $item): string => trim((string) $item),
-            $raw,
-        )));
-    }
-
-    private function resolveWaitDelaySeconds(array $definition): int
-    {
-        if (($definition['seconds'] ?? null) !== null) {
-            return max(0, (int) $definition['seconds']);
-        }
-
-        if (($definition['minutes'] ?? null) !== null) {
-            return max(0, (int) $definition['minutes'] * 60);
-        }
-
-        if (($definition['hours'] ?? null) !== null) {
-            return max(0, (int) $definition['hours'] * 3600);
-        }
-
-        if (($definition['until'] ?? null) !== null) {
-            $target = CarbonImmutable::parse((string) $definition['until']);
-
-            return max(0, now()->diffInSeconds($target, false));
-        }
-
-        return 0;
-    }
-
-    private function scheduleNextStep(WorkflowRun $run, int $stepIndex, int $delaySeconds = 0): void
-    {
-        $nextStatus = $delaySeconds > 0 ? 'waiting' : 'running';
-
-        $run->forceFill([
-            'current_step_index' => $stepIndex + 1,
-            'status' => $nextStatus,
-        ])->save();
-
-        $job = new ExecuteWorkflowRunStepJob((string) $run->tenant_id, (string) ($run->correlation_id ?? ''), (string) $run->id);
-
-        if ($delaySeconds > 0) {
-            dispatch($job->delay(now()->addSeconds($delaySeconds)));
-
-            return;
-        }
-
-        dispatch($job);
     }
 }

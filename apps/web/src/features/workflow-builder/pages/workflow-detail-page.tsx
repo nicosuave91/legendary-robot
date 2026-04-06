@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { AppBadge, AppButton, AppCard, AppCardBody, AppCardHeader, AppInput, AppTextarea, EmptyState, LoadingSkeleton, PageHeader } from '@/components/ui'
-import { workflowsApi } from '@/lib/api/client'
+import { workflowsApi, type WorkflowDetailEnvelopeWithDraftValidation } from '@/lib/api/client'
 import { queryKeys } from '@/lib/api/query-keys'
 import { WorkflowStatusBadge } from '@/features/workflow-builder/components/workflow-status-badge'
 import { useToast } from '@/components/shell/toast-host'
@@ -16,23 +16,26 @@ export function WorkflowDetailPage() {
   const queryClient = useQueryClient()
   const { notify } = useToast()
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
+
   const detailQuery = useQuery({
     enabled: Boolean(workflowId),
     queryKey: queryKeys.workflows.detail(workflowId),
     queryFn: () => workflowsApi.get(workflowId)
   })
+
   const runsQuery = useQuery({
     enabled: Boolean(workflowId),
     queryKey: queryKeys.workflows.runs(workflowId),
     queryFn: () => workflowsApi.runs(workflowId)
   })
+
   const runDetailQuery = useQuery({
     enabled: Boolean(workflowId && selectedRunId),
     queryKey: queryKeys.workflows.runDetail(workflowId, selectedRunId ?? ''),
     queryFn: () => workflowsApi.run(workflowId, selectedRunId ?? '')
   })
 
-  const payload = detailQuery.data?.data
+  const payload = detailQuery.data?.data as WorkflowDetailEnvelopeWithDraftValidation['data'] | undefined
   const draftVersion = useMemo(() => payload?.versions.find((version) => version.lifecycleState === 'draft') ?? payload?.versions[0], [payload])
   const [form, setForm] = useState({
     name: '',
@@ -43,6 +46,7 @@ export function WorkflowDetailPage() {
 
   useEffect(() => {
     if (!payload || !draftVersion) return
+
     setForm({
       name: payload.workflow.name,
       description: payload.workflow.description ?? '',
@@ -91,13 +95,21 @@ export function WorkflowDetailPage() {
 
   const runs = runsQuery.data?.data.items ?? []
   const runDetail = runDetailQuery.data?.data
+  const draftValidation = payload.draftValidation
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={payload.workflow.name}
         description="Workflow execution stays queue-driven and binds every run to a published immutable version ID."
-        actions={<><Link to="/app/workflows"><AppButton type="button" variant="secondary">Back to workflows</AppButton></Link><AppButton type="button" onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending}>{publishMutation.isPending ? 'Publishing…' : 'Publish latest draft'}</AppButton></>}
+        actions={
+          <>
+            <Link to="/app/workflows"><AppButton type="button" variant="secondary">Back to workflows</AppButton></Link>
+            <AppButton type="button" onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending || (draftValidation?.hasDraft && !draftValidation.isValid)}>
+              {publishMutation.isPending ? 'Publishing…' : 'Publish latest draft'}
+            </AppButton>
+          </>
+        }
       />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_420px]">
@@ -123,6 +135,44 @@ export function WorkflowDetailPage() {
                 <div className="space-y-2"><label className="label-sm text-text">Steps definition JSON</label><AppTextarea className="min-h-[220px] font-mono text-xs" value={form.stepsDefinition} onChange={(event) => setForm((current) => ({ ...current, stepsDefinition: event.currentTarget.value }))} /></div>
                 <AppButton type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>{saveMutation.isPending ? 'Saving…' : payload.workflow.latestPublishedVersionNumber && draftVersion?.lifecycleState !== 'draft' ? 'Create draft revision' : 'Save draft changes'}</AppButton>
               </div>
+            </AppCardBody>
+          </AppCard>
+
+          <AppCard>
+            <AppCardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="heading-md">Draft validation</div>
+                  <div className="body-sm text-text-muted">Publish now enforces executable trigger and step definitions before a draft can become immutable runtime truth.</div>
+                </div>
+                {draftValidation?.hasDraft ? (
+                  draftValidation.isValid ? <AppBadge variant="success">Publishable</AppBadge> : <AppBadge variant="danger">Needs fixes</AppBadge>
+                ) : (
+                  <AppBadge variant="secondary">No draft</AppBadge>
+                )}
+              </div>
+            </AppCardHeader>
+            <AppCardBody>
+              {!draftValidation?.hasDraft ? <EmptyState title="No draft to validate" description="Create or clone a draft revision to see publish-time validation results." /> : null}
+              {draftValidation?.hasDraft && draftValidation.isValid ? (
+                <div className="rounded-lg border border-border bg-muted p-4">
+                  <div className="font-medium text-text">Draft version is publishable.</div>
+                  <div className="body-sm mt-2 text-text-muted">The current trigger and step definitions match the supported runtime contract.</div>
+                </div>
+              ) : null}
+              {draftValidation?.hasDraft && !draftValidation.isValid ? (
+                <div className="space-y-3">
+                  {draftValidation.errors.map((issue) => (
+                    <div key={`${issue.path}-${issue.code}`} className="rounded-lg border border-danger/30 bg-danger/5 p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="font-medium text-text">{issue.code}</div>
+                        <div className="text-xs text-text-muted">{issue.path}</div>
+                      </div>
+                      <div className="body-sm mt-2 text-text-muted">{issue.message}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </AppCardBody>
           </AppCard>
 

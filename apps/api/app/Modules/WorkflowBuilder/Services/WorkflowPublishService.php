@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\WorkflowBuilder\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use App\Modules\IdentityAccess\Models\User;
 use App\Modules\Shared\Audit\AuditLogger;
 use App\Modules\WorkflowBuilder\Models\Workflow;
@@ -17,6 +18,7 @@ final class WorkflowPublishService
     public function __construct(
         private readonly AuditLogger $auditLogger,
         private readonly WorkflowCatalogService $catalogService,
+        private readonly WorkflowDefinitionValidator $definitionValidator,
     ) {
     }
 
@@ -28,6 +30,21 @@ final class WorkflowPublishService
             /** @var WorkflowVersion $draftVersion */
             $draftVersion = $workflow->currentDraftVersion()->withoutGlobalScopes()->firstOrFail();
             abort_if((string) $draftVersion->lifecycle_state !== 'draft', 409, 'Published workflow versions are immutable.');
+
+            $validation = $this->definitionValidator->validate(
+                (array) ($draftVersion->trigger_definition ?? []),
+                (array) ($draftVersion->steps_definition ?? []),
+            );
+
+            if ($validation['isValid'] !== true) {
+                throw ValidationException::withMessages([
+                    'workflow' => ['Draft workflow definition is not publishable.'],
+                    'draftValidation' => array_map(
+                        static fn (array $issue): string => sprintf('%s: %s', $issue['path'], $issue['message']),
+                        $validation['errors'],
+                    ),
+                ]);
+            }
 
             $this->assertTriggerDefinition($draftVersion->trigger_definition ?? []);
             $this->assertStepsDefinition($draftVersion->steps_definition ?? []);

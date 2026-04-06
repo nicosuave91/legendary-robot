@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Modules\WorkflowBuilder\Jobs;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
 use App\Modules\Shared\Contracts\QueuesTenantAware;
 use App\Modules\WorkflowBuilder\Models\WorkflowRun;
 use App\Modules\WorkflowBuilder\Models\WorkflowVersion;
@@ -13,7 +16,10 @@ use App\Modules\WorkflowBuilder\Services\WorkflowStepExecutor;
 
 final class ExecuteWorkflowRunStepJob implements ShouldQueue, QueuesTenantAware
 {
+    use Dispatchable;
+    use InteractsWithQueue;
     use Queueable;
+    use SerializesModels;
 
     private string $tenantIdValue;
     private string $correlationIdValue;

@@ -155,6 +155,25 @@ export type CommunicationAttachmentGovernanceEnvelope = {
   meta: ApiMeta
 }
 
+export type WorkflowValidationIssue = {
+  code: string
+  path: string
+  message: string
+}
+
+export type WorkflowDraftValidation = {
+  hasDraft: boolean
+  versionId: string | null
+  isValid: boolean
+  errors: WorkflowValidationIssue[]
+}
+
+export type WorkflowDetailEnvelopeWithDraftValidation = Omit<WorkflowDetailEnvelope, 'data'> & {
+  data: WorkflowDetailEnvelope['data'] & {
+    draftValidation: WorkflowDraftValidation
+  }
+}
+
 export type CommunicationsInboxItem = {
   client: {
     id: string
@@ -298,10 +317,14 @@ export const rulesApi = {
 
 export const workflowsApi = {
   list: (queryParams?: Parameters<typeof getWorkflows>[1]): Promise<WorkflowListEnvelope> => getWorkflows(apiHttpClient, queryParams),
-  create: (body: CreateWorkflowRequest): Promise<WorkflowDetailEnvelope> => postWorkflows(apiHttpClient, body),
-  get: (workflowId: string): Promise<WorkflowDetailEnvelope> => getWorkflow(apiHttpClient, { workflowId }),
-  updateDraft: (workflowId: string, body: UpdateWorkflowDraftRequest): Promise<WorkflowDetailEnvelope> => patchWorkflow(apiHttpClient, { workflowId }, body),
-  publish: (workflowId: string, body: PublishLifecycleRequest = {}): Promise<WorkflowDetailEnvelope> => postWorkflowPublish(apiHttpClient, { workflowId }, body),
+  create: (body: CreateWorkflowRequest): Promise<WorkflowDetailEnvelopeWithDraftValidation> =>
+    postWorkflows(apiHttpClient, body) as Promise<WorkflowDetailEnvelopeWithDraftValidation>,
+  get: (workflowId: string): Promise<WorkflowDetailEnvelopeWithDraftValidation> =>
+    getWorkflow(apiHttpClient, { workflowId }) as Promise<WorkflowDetailEnvelopeWithDraftValidation>,
+  updateDraft: (workflowId: string, body: UpdateWorkflowDraftRequest): Promise<WorkflowDetailEnvelopeWithDraftValidation> =>
+    patchWorkflow(apiHttpClient, { workflowId }, body) as Promise<WorkflowDetailEnvelopeWithDraftValidation>,
+  publish: (workflowId: string, body: PublishLifecycleRequest = {}): Promise<WorkflowDetailEnvelopeWithDraftValidation> =>
+    postWorkflowPublish(apiHttpClient, { workflowId }, body) as Promise<WorkflowDetailEnvelopeWithDraftValidation>,
   runs: (workflowId: string): Promise<WorkflowRunListEnvelope> => getWorkflowRuns(apiHttpClient, { workflowId }),
   run: (workflowId: string, runId: string): Promise<WorkflowRunDetailEnvelope> => getWorkflowRun(apiHttpClient, { workflowId, runId })
 }

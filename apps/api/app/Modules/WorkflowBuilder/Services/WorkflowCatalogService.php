@@ -10,6 +10,11 @@ use App\Modules\WorkflowBuilder\Models\WorkflowVersion;
 
 final class WorkflowCatalogService
 {
+    public function __construct(
+        private readonly WorkflowDefinitionValidator $definitionValidator,
+    ) {
+    }
+
     public function listForUser(User $actor, array $filters = []): array
     {
         $query = Workflow::query()
@@ -42,6 +47,9 @@ final class WorkflowCatalogService
             ->latest('version_number')
             ->get();
 
+        /** @var WorkflowVersion|null $draftVersion */
+        $draftVersion = $workflow->currentDraftVersion()->withoutGlobalScopes()->first();
+
         return [
             'workflow' => $this->serializeListItem($workflow) + [
                 'currentDraftVersionId' => $workflow->current_draft_version_id,
@@ -59,6 +67,7 @@ final class WorkflowCatalogService
                 'createdAt' => $version->created_at?->toIso8601String(),
                 'updatedAt' => $version->updated_at?->toIso8601String(),
             ])->values()->all(),
+            'draftValidation' => $this->serializeDraftValidation($draftVersion),
             'meta' => ['versionCount' => $versions->count()],
         ];
     }
@@ -80,6 +89,30 @@ final class WorkflowCatalogService
             'currentDraftVersionNumber' => $workflow->currentDraftVersion?->version_number,
             'latestPublishedAt' => $workflow->latestPublishedVersion?->published_at?->toIso8601String(),
             'updatedAt' => $workflow->updated_at?->toIso8601String(),
+        ];
+    }
+
+    private function serializeDraftValidation(?WorkflowVersion $draftVersion): array
+    {
+        if ($draftVersion === null) {
+            return [
+                'hasDraft' => false,
+                'versionId' => null,
+                'isValid' => true,
+                'errors' => [],
+            ];
+        }
+
+        $validated = $this->definitionValidator->validate(
+            (array) ($draftVersion->trigger_definition ?? []),
+            (array) ($draftVersion->steps_definition ?? []),
+        );
+
+        return [
+            'hasDraft' => true,
+            'versionId' => (string) $draftVersion->id,
+            'isValid' => (bool) $validated['isValid'],
+            'errors' => array_values($validated['errors']),
         ];
     }
 }
