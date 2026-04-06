@@ -162,6 +162,10 @@ export function WorkflowDetailPage() {
               ) : null}
               {draftValidation?.hasDraft && !draftValidation.isValid ? (
                 <div className="space-y-3">
+                  <div className="rounded-lg border border-danger/30 bg-danger/5 p-4">
+                    <div className="font-medium text-text">Publish is currently blocked by {draftValidation.errors.length} issue{draftValidation.errors.length === 1 ? '' : 's'}.</div>
+                    <div className="body-sm mt-2 text-text-muted">Resolve these draft definition issues before publishing a new immutable runtime version.</div>
+                  </div>
                   {draftValidation.errors.map((issue) => (
                     <div key={`${issue.path}-${issue.code}`} className="rounded-lg border border-danger/30 bg-danger/5 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
