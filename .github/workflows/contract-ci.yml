@@ -27,11 +27,14 @@ jobs:
       - name: Generate frontend client
         run: node scripts/generate-web-client.mjs
 
+      - name: Verify no handwritten API drift
+        run: node scripts/verify-no-handwritten-api.mjs
+
       - name: Verify workflow contract closure
         run: node scripts/verify-workflow-contract-closure.mjs
 
-      - name: Verify no handwritten API drift
-        run: node scripts/verify-no-handwritten-api.mjs
+      - name: Verify repository root governance
+        run: node scripts/verify-no-root-status-docs.mjs
 
       - name: Fail on generated diff
         run: git diff --exit-code
