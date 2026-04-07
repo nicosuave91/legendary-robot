@@ -25,7 +25,7 @@ final class WorkflowRunService
      */
     public function queueMatchingRuns(string $tenantId, string $correlationId, string $eventName, string $subjectType, string $subjectId, array $payload): void
     {
-        $matches = $this->triggerMatcher->matchingPublishedVersions($tenantId, $eventName, $payload);
+        $matches = $this->triggerMatcher->matchingPublishedVersions($tenantId, $eventName, $subjectType, $payload);
 
         foreach ($matches as $version) {
             $idempotencyKey = hash('sha256', implode(':', [$tenantId, $eventName, $subjectType, $subjectId, (string) $version->id, $correlationId]));
@@ -80,7 +80,7 @@ final class WorkflowRunService
             null,
             'trigger_matched',
             'A published workflow version matched the incoming domain event.',
-            ['workflowVersionId' => (string) $version->id, 'eventName' => $eventName],
+            ['workflowVersionId' => (string) $version->id, 'eventName' => $eventName, 'subjectType' => $subjectType],
         );
 
         $this->auditLogger->record([
@@ -95,6 +95,7 @@ final class WorkflowRunService
                 'workflowId' => $workflow->id,
                 'workflowVersionId' => $version->id,
                 'eventName' => $eventName,
+                'subjectType' => $subjectType,
             ], JSON_THROW_ON_ERROR),
         ]);
 

@@ -1,5 +1,5 @@
 import { AppButton, AppCard, AppCardBody, AppCardHeader, AppInput, AppSelect } from '@/components/ui'
-import { WORKFLOW_OPERATOR_OPTIONS, createWorkflowFilter } from '@/features/workflow-builder/workflow-builder-utils'
+import { WORKFLOW_OPERATOR_OPTIONS, WORKFLOW_RUNTIME_CLIENT_SUBJECT_TYPES, createWorkflowFilter } from '@/features/workflow-builder/workflow-builder-utils'
 import type { WorkflowTriggerBuilderState } from '@/features/workflow-builder/workflow-builder-types'
 
 type Props = {
@@ -32,7 +32,9 @@ export function WorkflowTriggerBuilder({ value, onChange }: Props) {
               onChange={(event) => onChange({ ...value, subjectType: event.currentTarget.value })}
               placeholder="application"
             />
-            <div className="text-xs text-text-muted">Subject type should match the record this workflow runs against.</div>
+            <div className="text-xs text-text-muted">
+              Subject type should match the record this workflow runs against. Current executable steps are validated for {WORKFLOW_RUNTIME_CLIENT_SUBJECT_TYPES.join(' and ')} subjects.
+            </div>
           </div>
         </div>
 

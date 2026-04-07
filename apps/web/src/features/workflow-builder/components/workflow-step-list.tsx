@@ -101,32 +101,37 @@ export function WorkflowStepList({ steps, onChange }: Props) {
               </div>
 
               {step.type === 'condition' ? (
-                <div className="grid gap-4 lg:grid-cols-3">
-                  <div className="space-y-2">
-                    <label className="label-sm text-text">Fact</label>
-                    <AppInput
-                      value={step.definition.fact}
-                      onChange={(event) => updateStep(step.id, { ...step, definition: { ...step.definition, fact: event.currentTarget.value } })}
-                      placeholder="amountRequested"
-                    />
+                <div className="grid gap-4">
+                  <div className="rounded-lg border border-border bg-surface p-3 text-sm text-text-muted">
+                    This step acts as a guard. When the condition does not match, the workflow run stops and later steps are not executed.
                   </div>
-                  <div className="space-y-2">
-                    <label className="label-sm text-text">Operator</label>
-                    <AppSelect
-                      value={step.definition.operator}
-                      onChange={(event) => updateStep(step.id, { ...step, definition: { ...step.definition, operator: event.currentTarget.value as typeof step.definition.operator } })}
-                    >
-                      {WORKFLOW_OPERATOR_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                    </AppSelect>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="label-sm text-text">Value</label>
-                    <AppInput
-                      disabled={step.definition.operator === 'exists'}
-                      value={step.definition.value}
-                      onChange={(event) => updateStep(step.id, { ...step, definition: { ...step.definition, value: event.currentTarget.value } })}
-                      placeholder={step.definition.operator === 'exists' ? 'Not required for exists' : '25000'}
-                    />
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="space-y-2">
+                      <label className="label-sm text-text">Fact</label>
+                      <AppInput
+                        value={step.definition.fact}
+                        onChange={(event) => updateStep(step.id, { ...step, definition: { ...step.definition, fact: event.currentTarget.value } })}
+                        placeholder="amountRequested"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="label-sm text-text">Operator</label>
+                      <AppSelect
+                        value={step.definition.operator}
+                        onChange={(event) => updateStep(step.id, { ...step, definition: { ...step.definition, operator: event.currentTarget.value as typeof step.definition.operator } })}
+                      >
+                        {WORKFLOW_OPERATOR_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      </AppSelect>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="label-sm text-text">Value</label>
+                      <AppInput
+                        disabled={step.definition.operator === 'exists'}
+                        value={step.definition.value}
+                        onChange={(event) => updateStep(step.id, { ...step, definition: { ...step.definition, value: event.currentTarget.value } })}
+                        placeholder={step.definition.operator === 'exists' ? 'Not required for exists' : '25000'}
+                      />
+                    </div>
                   </div>
                 </div>
               ) : null}

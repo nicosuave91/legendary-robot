@@ -15,7 +15,7 @@ final class WorkflowTriggerMatcher
      * @param array<string, mixed> $payload
      * @return Collection<int, WorkflowVersion>
      */
-    public function matchingPublishedVersions(string $tenantId, string $eventName, array $payload): Collection
+    public function matchingPublishedVersions(string $tenantId, string $eventName, string $subjectType, array $payload): Collection
     {
         $versions = WorkflowVersion::query()
             ->withoutGlobalScopes()
@@ -24,10 +24,14 @@ final class WorkflowTriggerMatcher
             ->with('workflow')
             ->get();
 
-        return $versions->filter(function (WorkflowVersion $version) use ($eventName, $payload): bool {
+        return $versions->filter(function (WorkflowVersion $version) use ($eventName, $subjectType, $payload): bool {
             $trigger = $version->trigger_definition ?? [];
 
             if (($trigger['event'] ?? null) !== $eventName) {
+                return false;
+            }
+
+            if (trim((string) ($trigger['subjectType'] ?? '')) !== $subjectType) {
                 return false;
             }
 

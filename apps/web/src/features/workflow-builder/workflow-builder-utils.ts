@@ -15,6 +15,8 @@ export const WORKFLOW_STEP_TYPE_LABELS: Record<WorkflowBuilderStepType, string> 
   send_email: 'Send email'
 }
 
+export const WORKFLOW_RUNTIME_CLIENT_SUBJECT_TYPES = ['client', 'application'] as const
+
 export const WORKFLOW_OPERATOR_OPTIONS: Array<{ value: WorkflowBuilderOperator; label: string }> = [
   { value: 'eq', label: 'Equals' },
   { value: 'neq', label: 'Does not equal' },
@@ -247,6 +249,14 @@ export function validateBuilderStateBeforeSave(state: WorkflowBuilderState): str
     errors.push('At least one workflow step is required.')
   }
 
+  const usesClientResolutionStep = state.steps.some((step) => ['create_client_note', 'send_sms', 'send_email'].includes(step.type))
+  if (
+    usesClientResolutionStep
+    && !WORKFLOW_RUNTIME_CLIENT_SUBJECT_TYPES.includes(state.trigger.subjectType.trim() as typeof WORKFLOW_RUNTIME_CLIENT_SUBJECT_TYPES[number])
+  ) {
+    errors.push('Client note, SMS, and email steps currently require a client or application subject type.')
+  }
+
   state.steps.forEach((step, index) => {
     if (step.type === 'condition') {
       if (!step.definition.fact.trim()) errors.push(`Step ${index + 1}: condition fact is required.`)
@@ -346,18 +356,18 @@ export const WORKFLOW_TEMPLATE_PRESETS: WorkflowTemplatePreset[] = [
     }
   },
   {
-    key: 'event-sms',
-    name: 'Event SMS reminder',
-    description: 'Send an SMS when a linked event lifecycle event occurs.',
-    workflowKeyHint: 'event-sms-reminder',
+    key: 'application-sms',
+    name: 'Application SMS acknowledgement',
+    description: 'Send a short SMS after an application is created using a runtime-safe application subject.',
+    workflowKeyHint: 'application-sms-acknowledgement',
     builderState: {
-      trigger: { event: 'event.updated', subjectType: 'event', filters: [] },
+      trigger: { event: 'application.created', subjectType: 'application', filters: [] },
       steps: [
         {
           id: safeId('wf-step'),
           type: 'send_sms',
           definition: {
-            bodyTemplate: 'A scheduled event tied to your record was updated. We will reach out if anything changes.'
+            bodyTemplate: 'Thanks for submitting your application. We received it and will follow up shortly.'
           }
         }
       ]
