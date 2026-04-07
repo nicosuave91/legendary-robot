@@ -1,84 +1,72 @@
-import { useEffect, useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { AppButton, AppDialog, AppDialogContent, AppTextarea } from '@/components/ui'
-import { clientsApi } from '@/lib/api/client'
-import { queryKeys } from '@/lib/api/query-keys'
-import { useToast } from '@/components/shell/toast-host'
+
+const quickNoteSchema = z.object({
+  body: z.string().min(2, 'A note is required'),
+})
+
+type QuickNoteValues = z.infer<typeof quickNoteSchema>
 
 type Props = {
-  clientId: string
   open: boolean
   onOpenChange: (open: boolean) => void
+  busy?: boolean
+  onSubmit: (payload: { body: string }) => Promise<void>
 }
 
-export function ClientQuickNoteDialog({ clientId, open, onOpenChange }: Props) {
-  const queryClient = useQueryClient()
-  const { notify } = useToast()
-  const [body, setBody] = useState('')
+export function ClientQuickNoteDialog({ open, onOpenChange, busy = false, onSubmit }: Props) {
+  const form = useForm<QuickNoteValues>({
+    resolver: zodResolver(quickNoteSchema),
+    defaultValues: {
+      body: '',
+    },
+  })
 
   useEffect(() => {
     if (open) {
-      setBody('')
+      form.reset({ body: '' })
     }
-  }, [open])
-
-  const createNoteMutation = useMutation({
-    mutationFn: async () => clientsApi.createNote(clientId, { body }),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.clients.detail(clientId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.clients.all }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
-      ])
-      notify({
-        title: 'Note added',
-        description: 'The client note was saved and the workspace refreshed from the server.',
-        tone: 'success',
-      })
-      onOpenChange(false)
-    },
-    onError: (error) => {
-      notify({
-        title: 'Note could not be saved',
-        description: error instanceof Error ? error.message : 'The note could not be created.',
-        tone: 'danger',
-      })
-    },
-  })
+  }, [form, open])
 
   return (
     <AppDialog open={open} onOpenChange={onOpenChange}>
       <AppDialogContent>
-        <div className="space-y-4">
+        <form
+          className="space-y-4"
+          onSubmit={form.handleSubmit(async (values) => {
+            await onSubmit({ body: values.body })
+          })}
+        >
           <div>
             <div className="heading-md">Add note</div>
             <div className="body-sm mt-1 text-text-muted">
-              Capture a quick governed note without leaving the client overview.
+              Add a governed note without leaving the client overview.
             </div>
           </div>
 
           <div className="space-y-2">
             <label className="label-sm text-text">Note</label>
             <AppTextarea
-              value={body}
-              onChange={(event) => setBody(event.currentTarget.value)}
-              placeholder="Capture a client update, next step, or important context."
+              {...form.register('body')}
+              placeholder="Capture the latest client context, decision, or follow-up detail."
             />
+            {form.formState.errors.body ? (
+              <div className="text-sm text-danger">{form.formState.errors.body.message}</div>
+            ) : null}
           </div>
 
-          <div className="flex justify-end gap-2">
-            <AppButton type="button" variant="secondary" onClick={() => onOpenChange(false)}>
+          <div className="flex gap-2">
+            <AppButton type="submit" disabled={busy}>
+              {busy ? 'Saving…' : 'Add note'}
+            </AppButton>
+            <AppButton type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancel
             </AppButton>
-            <AppButton
-              type="button"
-              onClick={() => createNoteMutation.mutate()}
-              disabled={createNoteMutation.isPending || body.trim().length === 0}
-            >
-              {createNoteMutation.isPending ? 'Saving…' : 'Save note'}
-            </AppButton>
           </div>
-        </div>
+        </form>
       </AppDialogContent>
     </AppDialog>
   )

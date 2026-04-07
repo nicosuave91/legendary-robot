@@ -137,18 +137,9 @@ final class ClientWorkspaceService
             ->values()
             ->all();
 
-        $summary = [
-            'notesCount' => (int) $client->notes_count,
-            'documentsCount' => (int) $client->documents_count,
-            'eventsCount' => $eventsCount,
-            'applicationsCount' => $applicationsCount,
-            'lastActivityAt' => $client->last_activity_at?->toIso8601String(),
-        ];
-
-        $overview = $this->buildOverview(
+        $overview = $this->overviewForActor(
             actor: $actor,
             client: $client,
-            summary: $summary,
             recentNotes: $recentNotes,
         );
 
@@ -176,11 +167,17 @@ final class ClientWorkspaceService
                 'createdAt' => $client->created_at?->toIso8601String(),
                 'updatedAt' => $client->updated_at?->toIso8601String(),
             ],
+            'overview' => $overview,
             'currentDisposition' => $currentDisposition,
             'availableDispositionTransitions' => $availableDispositionTransitions,
             'dispositionHistory' => $dispositionHistory,
-            'summary' => $summary,
-            'overview' => $overview,
+            'summary' => [
+                'notesCount' => (int) $client->notes_count,
+                'documentsCount' => (int) $client->documents_count,
+                'eventsCount' => $eventsCount,
+                'applicationsCount' => $applicationsCount,
+                'lastActivityAt' => $client->last_activity_at?->toIso8601String(),
+            ],
             'recentNotes' => $recentNotes,
             'recentDocuments' => $recentDocuments,
             'recentAudit' => $recentAudit,
@@ -197,137 +194,176 @@ final class ClientWorkspaceService
     }
 
     /**
-     * @param array{notesCount:int,documentsCount:int,eventsCount:int,applicationsCount:int,lastActivityAt:?string} $summary
-     * @param list<array{id:string,sourceType:string,body:string,isEditable:bool,authorDisplayName:string,createdAt:?string}> $recentNotes
-     * @return array{
-     *   recommendedAction: array{code:string,title:string,description:string,ctaLabel:?string,ctaHref:?string,tone:string},
-     *   latestCommunication:?array<string,mixed>,
-     *   nextEvent:?array<string,mixed>,
-     *   leadApplication:?array<string,mixed>,
-     *   recentNote:?array<string,mixed>
-     * }
+     * @param list<array<string, mixed>> $recentNotes
+     * @return array<string, mixed>
      */
-    private function buildOverview(User $actor, Client $client, array $summary, array $recentNotes): array
+    private function overviewForActor(User $actor, Client $client, array $recentNotes): array
     {
-        $latestCommunication = $this->communicationTimelineService->collectItemsForClient($client, ['limit' => 1])[0] ?? null;
+        $communications = $this->communicationTimelineService->collectItemsForClient($client, [
+            'channel' => 'all',
+            'status' => 'all',
+            'limit' => 10,
+        ]);
 
-        $nextEventModel = CalendarEvent::query()
-            ->withoutGlobalScopes()
-            ->where('tenant_id', $actor->tenant_id)
-            ->where('client_id', $client->id)
-            ->where('status', 'scheduled')
-            ->where('starts_at', '>=', now())
-            ->with(['client', 'owner', 'tasks'])
-            ->orderBy('starts_at')
+        $latestCommunication = $communications[0] ?? null;
+
+        $eventList = $this->eventQueryService->listForClient($actor, $client, [
+            'startDate' => CarbonImmutable::now()->subDays(1)->toDateString(),
+            'endDate' => CarbonImmutable::now()->addDays(90)->toDateString(),
+        ]);
+
+        $events = collect($eventList['items'] ?? []);
+        $nextEvent = $events
+            ->filter(fn (array $event): bool => isset($event['startsAt']) && is_string($event['startsAt']))
+            ->sortBy('startsAt')
             ->first();
 
-        $nextEvent = $nextEventModel !== null ? $this->eventQueryService->summary($nextEventModel) : null;
-
-        /** @var \Illuminate\Database\Eloquent\Collection<int, Application> $applications */
-        $applications = Application::query()
-            ->where('tenant_id', $actor->tenant_id)
-            ->where('client_id', $client->id)
-            ->with(['owner', 'ruleApplications', 'statusHistory'])
-            ->get();
-
-        $leadApplicationModel = $applications
-            ->sort(function (Application $left, Application $right): int {
-                $leftBlocking = $left->ruleApplications->where('outcome', 'blocking')->count();
-                $rightBlocking = $right->ruleApplications->where('outcome', 'blocking')->count();
-
-                if ($leftBlocking !== $rightBlocking) {
-                    return $rightBlocking <=> $leftBlocking;
-                }
-
-                $leftWarning = $left->ruleApplications->where('outcome', 'warning')->count();
-                $rightWarning = $right->ruleApplications->where('outcome', 'warning')->count();
-
-                if ($leftWarning !== $rightWarning) {
-                    return $rightWarning <=> $leftWarning;
-                }
-
-                return strcmp(
-                    optional($right->updated_at)->toIso8601String() ?? '',
-                    optional($left->updated_at)->toIso8601String() ?? '',
-                );
-            })
+        $applicationList = $this->applicationQueryService->listForClient($actor, $client);
+        $applications = collect($applicationList['items'] ?? []);
+        $leadApplication = $applications
+            ->sortByDesc(fn (array $application): array => [
+                (int) ($application['ruleSummary']['blockingCount'] ?? 0),
+                (int) ($application['ruleSummary']['warningCount'] ?? 0),
+                (string) ($application['updatedAt'] ?? ''),
+            ])
             ->first();
 
-        $leadApplication = $leadApplicationModel !== null ? $this->applicationQueryService->serializeSummary($leadApplicationModel) : null;
         $recentNote = $recentNotes[0] ?? null;
 
+        $recommendedAction = $this->recommendedActionForOverview(
+            client: $client,
+            latestCommunication: is_array($latestCommunication) ? $latestCommunication : null,
+            nextEvent: is_array($nextEvent) ? $nextEvent : null,
+            leadApplication: is_array($leadApplication) ? $leadApplication : null,
+        );
+
         return [
-            'recommendedAction' => $this->recommendedAction($client, $summary, $latestCommunication, $nextEvent, $leadApplication),
-            'latestCommunication' => $latestCommunication,
-            'nextEvent' => $nextEvent,
-            'leadApplication' => $leadApplication,
-            'recentNote' => $recentNote,
+            'recommendedAction' => $recommendedAction,
+            'latestCommunication' => is_array($latestCommunication) ? [
+                'id' => (string) $latestCommunication['id'],
+                'channel' => (string) $latestCommunication['channel'],
+                'direction' => (string) $latestCommunication['direction'],
+                'occurredAt' => $latestCommunication['occurredAt'] ?? null,
+                'preview' => $latestCommunication['content']['preview']
+                    ?? $latestCommunication['content']['subject']
+                    ?? $latestCommunication['content']['bodyText']
+                    ?? null,
+                'status' => [
+                    'label' => (string) ($latestCommunication['status']['displayLabel'] ?? 'Unknown'),
+                    'tone' => (string) ($latestCommunication['status']['tone'] ?? 'neutral'),
+                ],
+            ] : null,
+            'nextEvent' => is_array($nextEvent) ? [
+                'id' => (string) $nextEvent['id'],
+                'title' => (string) $nextEvent['title'],
+                'eventType' => (string) $nextEvent['eventType'],
+                'startsAt' => $nextEvent['startsAt'] ?? null,
+                'endsAt' => $nextEvent['endsAt'] ?? null,
+                'taskSummary' => $nextEvent['taskSummary'] ?? [
+                    'total' => 0,
+                    'open' => 0,
+                    'completed' => 0,
+                    'blocked' => 0,
+                    'skipped' => 0,
+                ],
+            ] : null,
+            'leadApplication' => is_array($leadApplication) ? [
+                'id' => (string) $leadApplication['id'],
+                'applicationNumber' => (string) $leadApplication['applicationNumber'],
+                'productType' => (string) $leadApplication['productType'],
+                'currentStatus' => $leadApplication['currentStatus'] ?? [
+                    'code' => 'unknown',
+                    'label' => 'Unknown',
+                    'tone' => 'neutral',
+                    'changedAt' => null,
+                ],
+                'ruleSummary' => $leadApplication['ruleSummary'] ?? [
+                    'infoCount' => 0,
+                    'warningCount' => 0,
+                    'blockingCount' => 0,
+                    'lastAppliedAt' => null,
+                ],
+            ] : null,
+            'recentNote' => is_array($recentNote) ? [
+                'id' => (string) $recentNote['id'],
+                'body' => (string) $recentNote['body'],
+                'authorDisplayName' => (string) $recentNote['authorDisplayName'],
+                'createdAt' => $recentNote['createdAt'] ?? null,
+            ] : null,
         ];
     }
 
     /**
-     * @param array{notesCount:int,documentsCount:int,eventsCount:int,applicationsCount:int,lastActivityAt:?string} $summary
-     * @param array<string,mixed>|null $latestCommunication
-     * @param array<string,mixed>|null $nextEvent
-     * @param array<string,mixed>|null $leadApplication
-     * @return array{code:string,title:string,description:string,ctaLabel:?string,ctaHref:?string,tone:string}
+     * @param array<string, mixed>|null $latestCommunication
+     * @param array<string, mixed>|null $nextEvent
+     * @param array<string, mixed>|null $leadApplication
+     * @return array<string, string>
      */
-    private function recommendedAction(Client $client, array $summary, ?array $latestCommunication, ?array $nextEvent, ?array $leadApplication): array
-    {
+    private function recommendedActionForOverview(
+        Client $client,
+        ?array $latestCommunication,
+        ?array $nextEvent,
+        ?array $leadApplication,
+    ): array {
         $clientBaseHref = '/app/clients/' . $client->id;
 
-        if ((int) ($leadApplication['ruleSummary']['blockingCount'] ?? 0) > 0) {
+        $blockingCount = (int) ($leadApplication['ruleSummary']['blockingCount'] ?? 0);
+        if ($leadApplication !== null && $blockingCount > 0) {
             return [
                 'code' => 'review_blocking_application',
                 'title' => 'Review blocked application',
-                'description' => 'This client has application rule evidence that needs review before work can continue.',
+                'description' => 'This client has application rule evidence that needs review before work can proceed.',
                 'ctaLabel' => 'Open application',
                 'ctaHref' => $clientBaseHref . '/applications',
                 'tone' => 'danger',
             ];
         }
 
-        if (($latestCommunication['status']['tone'] ?? null) === 'danger') {
+        $latestCommunicationTone = (string) ($latestCommunication['status']['tone'] ?? 'neutral');
+        if ($latestCommunication !== null && $latestCommunicationTone === 'danger') {
             return [
                 'code' => 'retry_failed_communication',
-                'title' => 'Review failed communication',
-                'description' => 'The latest outreach ended in a failed delivery or call outcome and may need follow-up.',
+                'title' => 'Retry failed outreach',
+                'description' => 'The latest communication attempt did not complete successfully.',
                 'ctaLabel' => 'Open communications',
                 'ctaHref' => $clientBaseHref . '/communications',
                 'tone' => 'warning',
             ];
         }
 
-        if ($nextEvent !== null && ((int) ($nextEvent['taskSummary']['open'] ?? 0) > 0 || (int) ($nextEvent['taskSummary']['blocked'] ?? 0) > 0)) {
+        $openTaskCount = (int) ($nextEvent['taskSummary']['open'] ?? 0);
+        $blockedTaskCount = (int) ($nextEvent['taskSummary']['blocked'] ?? 0);
+        if ($nextEvent !== null && ($openTaskCount > 0 || $blockedTaskCount > 0)) {
             return [
                 'code' => 'prepare_upcoming_event',
-                'title' => 'Prepare for the next event',
-                'description' => 'This client has an upcoming scheduled event with open or blocked tasks.',
+                'title' => 'Prepare upcoming event',
+                'description' => 'There is scheduled client work with open or blocked tasks that needs attention.',
                 'ctaLabel' => 'Open event',
                 'ctaHref' => $clientBaseHref . '/events',
-                'tone' => 'info',
+                'tone' => $blockedTaskCount > 0 ? 'warning' : 'info',
             ];
         }
 
-        $lastActivityAt = $summary['lastActivityAt'] !== null ? CarbonImmutable::parse($summary['lastActivityAt']) : null;
-        if ($lastActivityAt === null || $lastActivityAt->lessThan(now()->subDays(7))) {
+        $lastActivityAt = $client->last_activity_at?->toDateString();
+        $staleBoundary = CarbonImmutable::now()->subDays(7)->toDateString();
+        if ($lastActivityAt === null || $lastActivityAt < $staleBoundary) {
             return [
                 'code' => 'follow_up_client',
                 'title' => 'Follow up with this client',
-                'description' => 'There has been no recent recorded activity, so an outreach or check-in may be appropriate.',
+                'description' => 'There has not been a recent recorded touchpoint for this client.',
                 'ctaLabel' => 'Open communications',
                 'ctaHref' => $clientBaseHref . '/communications',
-                'tone' => 'neutral',
+                'tone' => 'info',
             ];
         }
 
         return [
             'code' => 'no_urgent_action',
             'title' => 'No urgent action',
-            'description' => 'This client does not currently show a blocking application, failed outreach, or upcoming task pressure.',
-            'ctaLabel' => null,
-            'ctaHref' => null,
-            'tone' => 'success',
+            'description' => 'This client does not currently have a blocked application, failed outreach, or upcoming task needing attention.',
+            'ctaLabel' => 'Review overview',
+            'ctaHref' => $clientBaseHref . '/overview',
+            'tone' => 'neutral',
         ];
     }
 }

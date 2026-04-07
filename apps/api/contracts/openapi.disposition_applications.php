@@ -257,10 +257,87 @@ return [
                 ],
                 'required' => ['data', 'meta'],
             ],
+            'ClientWorkspaceAction' => [
+                'type' => 'object',
+                'properties' => [
+                    'code' => ['type' => 'string'],
+                    'title' => ['type' => 'string'],
+                    'description' => ['type' => 'string'],
+                    'ctaLabel' => ['type' => 'string'],
+                    'ctaHref' => ['type' => 'string'],
+                    'tone' => ['type' => 'string', 'enum' => ['neutral', 'info', 'warning', 'danger', 'success']],
+                ],
+                'required' => ['code', 'title', 'description', 'ctaLabel', 'ctaHref', 'tone'],
+            ],
+            'ClientWorkspaceCommunicationStatus' => [
+                'type' => 'object',
+                'properties' => [
+                    'label' => ['type' => 'string'],
+                    'tone' => ['type' => 'string', 'enum' => ['neutral', 'info', 'warning', 'danger', 'success']],
+                ],
+                'required' => ['label', 'tone'],
+            ],
+            'ClientWorkspaceLatestCommunication' => [
+                'type' => 'object',
+                'properties' => [
+                    'id' => ['type' => 'string'],
+                    'channel' => ['type' => 'string'],
+                    'direction' => ['type' => 'string'],
+                    'occurredAt' => ['type' => ['string', 'null'], 'format' => 'date-time'],
+                    'preview' => ['type' => ['string', 'null']],
+                    'status' => ['$ref' => '#/components/schemas/ClientWorkspaceCommunicationStatus'],
+                ],
+                'required' => ['id', 'channel', 'direction', 'occurredAt', 'preview', 'status'],
+            ],
+            'ClientWorkspaceNextEvent' => [
+                'type' => 'object',
+                'properties' => [
+                    'id' => ['type' => 'string'],
+                    'title' => ['type' => 'string'],
+                    'eventType' => ['type' => 'string'],
+                    'startsAt' => ['type' => ['string', 'null'], 'format' => 'date-time'],
+                    'endsAt' => ['type' => ['string', 'null'], 'format' => 'date-time'],
+                    'taskSummary' => ['$ref' => '#/components/schemas/EventTaskSummary'],
+                ],
+                'required' => ['id', 'title', 'eventType', 'startsAt', 'endsAt', 'taskSummary'],
+            ],
+            'ClientWorkspaceLeadApplication' => [
+                'type' => 'object',
+                'properties' => [
+                    'id' => ['type' => 'string'],
+                    'applicationNumber' => ['type' => 'string'],
+                    'productType' => ['type' => 'string'],
+                    'currentStatus' => ['$ref' => '#/components/schemas/ApplicationStatusSummary'],
+                    'ruleSummary' => ['$ref' => '#/components/schemas/ApplicationRuleSummary'],
+                ],
+                'required' => ['id', 'applicationNumber', 'productType', 'currentStatus', 'ruleSummary'],
+            ],
+            'ClientWorkspaceRecentNote' => [
+                'type' => 'object',
+                'properties' => [
+                    'id' => ['type' => 'string'],
+                    'body' => ['type' => 'string'],
+                    'authorDisplayName' => ['type' => 'string'],
+                    'createdAt' => ['type' => ['string', 'null'], 'format' => 'date-time'],
+                ],
+                'required' => ['id', 'body', 'authorDisplayName', 'createdAt'],
+            ],
+            'ClientWorkspaceOverview' => [
+                'type' => 'object',
+                'properties' => [
+                    'recommendedAction' => ['$ref' => '#/components/schemas/ClientWorkspaceAction'],
+                    'latestCommunication' => ['oneOf' => [['$ref' => '#/components/schemas/ClientWorkspaceLatestCommunication'], ['type' => 'null']]],
+                    'nextEvent' => ['oneOf' => [['$ref' => '#/components/schemas/ClientWorkspaceNextEvent'], ['type' => 'null']]],
+                    'leadApplication' => ['oneOf' => [['$ref' => '#/components/schemas/ClientWorkspaceLeadApplication'], ['type' => 'null']]],
+                    'recentNote' => ['oneOf' => [['$ref' => '#/components/schemas/ClientWorkspaceRecentNote'], ['type' => 'null']]],
+                ],
+                'required' => ['recommendedAction', 'latestCommunication', 'nextEvent', 'leadApplication', 'recentNote'],
+            ],
             'ClientWorkspaceResponse' => [
                 'type' => 'object',
                 'properties' => [
                     'client' => ['$ref' => '#/components/schemas/ClientDetail'],
+                    'overview' => ['$ref' => '#/components/schemas/ClientWorkspaceOverview'],
                     'currentDisposition' => ['$ref' => '#/components/schemas/DispositionProjection'],
                     'availableDispositionTransitions' => ['type' => 'array', 'items' => ['$ref' => '#/components/schemas/DispositionTransitionOption']],
                     'dispositionHistory' => ['type' => 'array', 'items' => ['$ref' => '#/components/schemas/DispositionHistoryItem']],
@@ -270,7 +347,7 @@ return [
                     'recentAudit' => ['type' => 'array', 'items' => ['$ref' => '#/components/schemas/ClientAuditSummary']],
                     'tabs' => ['type' => 'array', 'items' => ['$ref' => '#/components/schemas/ClientWorkspaceTab']],
                 ],
-                'required' => ['client', 'currentDisposition', 'availableDispositionTransitions', 'dispositionHistory', 'summary', 'recentNotes', 'recentDocuments', 'recentAudit', 'tabs'],
+                'required' => ['client', 'overview', 'currentDisposition', 'availableDispositionTransitions', 'dispositionHistory', 'summary', 'recentNotes', 'recentDocuments', 'recentAudit', 'tabs'],
             ],
             'CreateClientRequest' => [
                 'type' => 'object',

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -5,20 +6,20 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { PageHeader, AppBadge, AppButton, AppCard, AppCardBody, AppCardHeader, AppInput, AppSelect, AppTextarea, EmptyState, LoadingSkeleton } from '@/components/ui'
-import type { ClientDocumentSummary, ClientWorkspaceResponse } from '@/lib/api/generated/client'
 import { ClientStatusBadge } from '@/features/clients/components/client-status-badge'
 import { ClientWorkspaceTabs } from '@/features/clients/components/client-workspace-tabs'
 import { ClientQuickNoteDialog } from '@/features/clients/components/client-quick-note-dialog'
-import type { ClientWorkspaceResponseWithOverview } from '@/features/clients/types/client-workspace-overview'
 import { ClientDispositionPanel } from '@/features/disposition/components/client-disposition-panel'
 import { ClientCommunicationsPanel } from '@/features/communications/components/client-communications-panel'
 import { ClientEventsPanel } from '@/features/calendar-tasks/components/client-events-panel'
 import { ClientApplicationsPanel } from '@/features/applications/components/client-applications-panel'
 import { ApplicationCreateDialog } from '@/features/applications/components/application-create-dialog'
 import { EventCreateDialog } from '@/features/calendar-tasks/components/event-create-dialog'
-import { applicationsApi, clientsApi } from '@/lib/api/client'
+import { clientsApi, applicationsApi } from '@/lib/api/client'
 import { queryKeys } from '@/lib/api/query-keys'
 import { useToast } from '@/components/shell/toast-host'
+import { cn } from '@/lib/utils/cn'
+import type { ClientWorkspaceResponseWithOverview } from '@/features/clients/types/client-workspace-overview'
 
 const workspaceSchema = z.object({
   displayName: z.string().min(2),
@@ -65,21 +66,16 @@ type ClientAddress = {
   postalCode?: string | null
 }
 
-type ActivityItem = {
-  id: string
-  kind: string
-  title: string
-  description: string
-  occurredAt: string | null
-  href: string | null
-}
-
-function toneToBadgeVariant(tone?: string | null): 'neutral' | 'info' | 'success' | 'warning' | 'danger' {
-  if (tone === 'info') return 'info'
+function toneToBadgeVariant(tone: string): 'neutral' | 'info' | 'success' | 'warning' | 'danger' {
   if (tone === 'success') return 'success'
   if (tone === 'warning') return 'warning'
   if (tone === 'danger') return 'danger'
+  if (tone === 'info') return 'info'
   return 'neutral'
+}
+
+function formatDateTime(value?: string | null) {
+  return value ? new Date(value).toLocaleString() : '—'
 }
 
 export function ClientWorkspacePage() {
@@ -91,19 +87,18 @@ export function ClientWorkspacePage() {
   const [documentFile, setDocumentFile] = useState<File | null>(null)
   const [attachmentCategory, setAttachmentCategory] = useState('')
   const [quickNoteOpen, setQuickNoteOpen] = useState(false)
-  const [createEventOpen, setCreateEventOpen] = useState(false)
-  const [createApplicationOpen, setCreateApplicationOpen] = useState(false)
-  const [dispositionOpenSignal, setDispositionOpenSignal] = useState(0)
+  const [eventCreateOpen, setEventCreateOpen] = useState(false)
+  const [applicationCreateOpen, setApplicationCreateOpen] = useState(false)
 
   const activeTab = validTabs.includes((tab ?? 'overview') as WorkspaceTab) ? (tab ?? 'overview') as WorkspaceTab : 'overview'
 
   const detailQuery = useQuery({
     enabled: Boolean(clientId),
     queryKey: queryKeys.clients.detail(clientId ?? ''),
-    queryFn: () => clientsApi.get(clientId ?? '')
+    queryFn: () => clientsApi.get(clientId ?? '') as Promise<{ data: ClientWorkspaceResponseWithOverview }>,
   })
 
-  const payload = detailQuery.data?.data as ClientWorkspaceResponseWithOverview | undefined
+  const payload = detailQuery.data?.data
   const form = useForm<WorkspaceValues>({
     resolver: zodResolver(workspaceSchema)
   })
@@ -147,6 +142,7 @@ export function ClientWorkspacePage() {
     mutationFn: (body: string) => clientsApi.createNote(clientId ?? '', { body }),
     onSuccess: async () => {
       setNoteBody('')
+      setQuickNoteOpen(false)
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.clients.detail(clientId ?? '') }),
         queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all })
@@ -172,22 +168,15 @@ export function ClientWorkspacePage() {
     mutationFn: (body: { productType: string, externalReference?: string | null, amountRequested?: number | null, submittedAt?: string | null }) =>
       applicationsApi.create(clientId ?? '', body),
     onSuccess: async () => {
+      setApplicationCreateOpen(false)
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.applications.list(clientId ?? '') }),
         queryClient.invalidateQueries({ queryKey: queryKeys.clients.detail(clientId ?? '') }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.applications.list(clientId ?? '') }),
       ])
-      setCreateApplicationOpen(false)
       notify({
         title: 'Application created',
-        description: 'The client application and related workspace summaries were refreshed from the server.',
+        description: 'The client overview and application workspace now reflect the new governed record.',
         tone: 'success'
-      })
-    },
-    onError: (error) => {
-      notify({
-        title: 'Application creation failed',
-        description: error instanceof Error ? error.message : 'The application could not be created.',
-        tone: 'danger'
       })
     }
   })
@@ -199,82 +188,6 @@ export function ClientWorkspacePage() {
     ['Applications', payload.summary.applicationsCount]
   ] : [], [payload])
 
-  const recentActivity = useMemo((): ActivityItem[] => {
-    if (!payload?.client) return []
-
-    const items: ActivityItem[] = []
-
-    if (payload.overview?.latestCommunication) {
-      items.push({
-        id: `communication-${payload.overview.latestCommunication.id}`,
-        kind: 'Communication',
-        title: payload.overview.latestCommunication.content.subject ?? payload.overview.latestCommunication.content.preview ?? 'Communication activity',
-        description: payload.overview.latestCommunication.counterpart.address ?? payload.overview.latestCommunication.status.displayLabel,
-        occurredAt: payload.overview.latestCommunication.occurredAt,
-        href: `/app/clients/${payload.client.id}/communications`
-      })
-    }
-
-    if (payload.overview?.nextEvent) {
-      items.push({
-        id: `event-${payload.overview.nextEvent.id}`,
-        kind: 'Event',
-        title: payload.overview.nextEvent.title,
-        description: `${payload.overview.nextEvent.eventType.replaceAll('_', ' ')} • ${payload.overview.nextEvent.taskSummary.open} open tasks`,
-        occurredAt: payload.overview.nextEvent.startsAt,
-        href: `/app/clients/${payload.client.id}/events`
-      })
-    }
-
-    if (payload.overview?.leadApplication) {
-      items.push({
-        id: `application-${payload.overview.leadApplication.id}`,
-        kind: 'Application',
-        title: payload.overview.leadApplication.applicationNumber,
-        description: `${payload.overview.leadApplication.productType} • ${payload.overview.leadApplication.currentStatus.label}`,
-        occurredAt: payload.overview.leadApplication.updatedAt,
-        href: `/app/clients/${payload.client.id}/applications`
-      })
-    }
-
-    if (payload.overview?.recentNote) {
-      items.push({
-        id: `note-${payload.overview.recentNote.id}`,
-        kind: 'Note',
-        title: 'Recent note',
-        description: payload.overview.recentNote.body,
-        occurredAt: payload.overview.recentNote.createdAt,
-        href: `/app/clients/${payload.client.id}/notes`
-      })
-    }
-
-    if (payload.recentDocuments[0]) {
-      items.push({
-        id: `document-${payload.recentDocuments[0].id}`,
-        kind: 'Document',
-        title: payload.recentDocuments[0].originalFilename,
-        description: payload.recentDocuments[0].attachmentCategory ?? payload.recentDocuments[0].mimeType,
-        occurredAt: payload.recentDocuments[0].uploadedAt,
-        href: `/app/clients/${payload.client.id}/documents`
-      })
-    }
-
-    if (payload.recentAudit[0]) {
-      items.push({
-        id: `audit-${payload.recentAudit[0].id}`,
-        kind: 'Audit',
-        title: payload.recentAudit[0].action,
-        description: `${payload.recentAudit[0].actorDisplayName} • ${payload.recentAudit[0].subjectType}`,
-        occurredAt: payload.recentAudit[0].createdAt,
-        href: `/app/clients/${payload.client.id}/audit`
-      })
-    }
-
-    return items
-      .sort((left, right) => new Date(right.occurredAt ?? 0).getTime() - new Date(left.occurredAt ?? 0).getTime())
-      .slice(0, 5)
-  }, [payload])
-
   if (detailQuery.isLoading && !payload) {
     return <LoadingSkeleton lines={8} />
   }
@@ -283,11 +196,13 @@ export function ClientWorkspacePage() {
     return <EmptyState title="Client not found" description="The requested workspace could not be resolved for the current tenant and role scope." />
   }
 
+  const overview = payload.overview
+
   const renderProfileCard = () => (
     <AppCard>
       <AppCardHeader>
         <div className="heading-md">Client profile</div>
-        <div className="body-sm text-text-muted">Update core client details while keeping lifecycle, communication, and document history governed separately.</div>
+        <div className="body-sm text-text-muted">Update core client details while keeping history, communications, and lifecycle changes governed separately.</div>
       </AppCardHeader>
       <AppCardBody>
         <form className="grid gap-4 lg:grid-cols-2" onSubmit={form.handleSubmit(async (values) => updateClientMutation.mutateAsync(values))}>
@@ -311,216 +226,177 @@ export function ClientWorkspacePage() {
     </AppCard>
   )
 
-  const renderOverviewPanel = () => {
-    const recommendedAction = payload.overview?.recommendedAction
-    const latestCommunication = payload.overview?.latestCommunication
-    const nextEvent = payload.overview?.nextEvent
-    const leadApplication = payload.overview?.leadApplication
-    const recentNote = payload.overview?.recentNote
+  const renderOverviewPanel = () => (
+    <div className="space-y-6">
+      <AppCard>
+        <AppCardBody>
+          <div className="flex flex-wrap gap-3">
+            <AppButton asChild type="button" disabled={!payload.client.primaryPhone}>
+              <Link to={`/app/clients/${payload.client.id}/communications?compose=call`}>Call</Link>
+            </AppButton>
+            <AppButton asChild type="button" variant="secondary" disabled={!payload.client.primaryPhone}>
+              <Link to={`/app/clients/${payload.client.id}/communications?compose=sms`}>Text</Link>
+            </AppButton>
+            <AppButton asChild type="button" variant="secondary" disabled={!payload.client.primaryEmail}>
+              <Link to={`/app/clients/${payload.client.id}/communications?compose=email`}>Email</Link>
+            </AppButton>
+            <AppButton type="button" variant="secondary" onClick={() => setEventCreateOpen(true)}>Schedule event</AppButton>
+            <AppButton type="button" variant="secondary" onClick={() => setApplicationCreateOpen(true)}>Create application</AppButton>
+            <AppButton type="button" variant="secondary" onClick={() => setQuickNoteOpen(true)}>Add note</AppButton>
+            <AppButton type="button" variant="secondary" onClick={() => document.getElementById('client-disposition-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+              Change disposition
+            </AppButton>
+          </div>
+          <div className="mt-3 text-xs text-text-muted">
+            {payload.client.primaryPhone ? null : 'Add a primary phone to enable call and text actions. '}
+            {payload.client.primaryEmail ? null : 'Add a primary email to enable email actions.'}
+          </div>
+        </AppCardBody>
+      </AppCard>
 
-    return (
-      <div className="space-y-6">
-        <AppCard>
-          <AppCardBody>
-            <div className="flex flex-wrap gap-3">
-              <AppButton type="button" onClick={() => navigate(`/app/clients/${payload.client.id}/communications?compose=call`)} disabled={!payload.client.primaryPhone}>
-                Call
-              </AppButton>
-              <AppButton type="button" variant="secondary" onClick={() => navigate(`/app/clients/${payload.client.id}/communications?compose=sms`)} disabled={!payload.client.primaryPhone}>
-                Text
-              </AppButton>
-              <AppButton type="button" variant="secondary" onClick={() => navigate(`/app/clients/${payload.client.id}/communications?compose=email`)} disabled={!payload.client.primaryEmail}>
-                Email
-              </AppButton>
-              <AppButton type="button" variant="secondary" onClick={() => setCreateEventOpen(true)}>
-                Schedule event
-              </AppButton>
-              <AppButton type="button" variant="secondary" onClick={() => setCreateApplicationOpen(true)}>
-                Create application
-              </AppButton>
-              <AppButton type="button" variant="secondary" onClick={() => setQuickNoteOpen(true)}>
-                Add note
-              </AppButton>
-              <AppButton type="button" variant="secondary" onClick={() => setDispositionOpenSignal((current) => current + 1)}>
-                Change disposition
+      <AppCard>
+        <AppCardHeader>
+          <div className="heading-md">Recommended next step</div>
+          <div className="body-sm text-text-muted">What should happen next for this client based on current governed activity.</div>
+        </AppCardHeader>
+        <AppCardBody>
+          {overview?.recommendedAction ? (
+            <div className="flex flex-wrap items-start justify-between gap-4 rounded-lg border border-border bg-muted p-4">
+              <div className="space-y-2">
+                <AppBadge variant={toneToBadgeVariant(overview.recommendedAction.tone)}>
+                  {overview.recommendedAction.code.replaceAll('_', ' ')}
+                </AppBadge>
+                <div className="heading-md text-text">{overview.recommendedAction.title}</div>
+                <div className="body-sm text-text-muted">{overview.recommendedAction.description}</div>
+              </div>
+              <AppButton asChild type="button">
+                <Link to={overview.recommendedAction.ctaHref}>{overview.recommendedAction.ctaLabel}</Link>
               </AppButton>
             </div>
-            <div className="mt-3 flex flex-wrap gap-4 text-xs text-text-muted">
-              {!payload.client.primaryPhone ? <span>No primary phone saved</span> : null}
-              {!payload.client.primaryEmail ? <span>No primary email saved</span> : null}
+          ) : (
+            <EmptyState title="No urgent action" description="This client does not currently have a blocked workflow, failed outreach, or upcoming task needing attention." />
+          )}
+        </AppCardBody>
+      </AppCard>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <SnapshotCard
+          title="Latest communication"
+          ctaHref={`/app/clients/${payload.client.id}/communications`}
+          ctaLabel="Open communications"
+        >
+          {overview?.latestCommunication ? (
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <AppBadge>{overview.latestCommunication.channel.toUpperCase()}</AppBadge>
+                <AppBadge variant="neutral">{overview.latestCommunication.direction}</AppBadge>
+                <AppBadge variant={toneToBadgeVariant(overview.latestCommunication.status.tone)}>
+                  {overview.latestCommunication.status.label}
+                </AppBadge>
+              </div>
+              <div className="body-sm text-text-muted">{overview.latestCommunication.preview ?? 'No preview available.'}</div>
+              <div className="text-xs text-text-muted">{formatDateTime(overview.latestCommunication.occurredAt)}</div>
             </div>
-          </AppCardBody>
-        </AppCard>
+          ) : (
+            <EmptyState title="No communications yet" description="Start with a text, email, or call from the action bar." />
+          )}
+        </SnapshotCard>
 
-        <AppCard>
-          <AppCardHeader>
-            <div className="heading-md">Recommended next step</div>
-            <div className="body-sm text-text-muted">What should happen next for this client based on current governed activity.</div>
-          </AppCardHeader>
-          <AppCardBody>
-            {recommendedAction ? (
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="space-y-2">
-                  <AppBadge variant={toneToBadgeVariant(recommendedAction.tone)}>
-                    {recommendedAction.code.replaceAll('_', ' ')}
-                  </AppBadge>
-                  <div className="heading-md text-text">{recommendedAction.title}</div>
-                  <div className="body-sm text-text-muted">{recommendedAction.description}</div>
-                </div>
-                {recommendedAction.ctaHref && recommendedAction.ctaLabel ? (
-                  <AppButton asChild type="button">
-                    <Link to={recommendedAction.ctaHref}>{recommendedAction.ctaLabel}</Link>
-                  </AppButton>
-                ) : null}
+        <SnapshotCard
+          title="Next event"
+          ctaHref={`/app/clients/${payload.client.id}/events`}
+          ctaLabel="Open events"
+        >
+          {overview?.nextEvent ? (
+            <div className="space-y-2">
+              <div className="font-medium text-text">{overview.nextEvent.title}</div>
+              <div className="body-sm text-text-muted">
+                {overview.nextEvent.eventType.replaceAll('_', ' ')} • {formatDateTime(overview.nextEvent.startsAt)}
               </div>
-            ) : (
-              <EmptyState title="No urgent action" description="This client does not currently require an immediate next step." />
-            )}
-          </AppCardBody>
-        </AppCard>
-
-        <div className="grid gap-4 xl:grid-cols-2">
-          <AppCard>
-            <AppCardHeader>
-              <div className="heading-md">Latest communication</div>
-              <div className="body-sm text-text-muted">Most recent outreach or reply recorded for this client.</div>
-            </AppCardHeader>
-            <AppCardBody>
-              {latestCommunication ? (
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <AppBadge>{latestCommunication.channel.toUpperCase()}</AppBadge>
-                    <AppBadge variant={toneToBadgeVariant(latestCommunication.status.tone)}>{latestCommunication.status.displayLabel}</AppBadge>
-                  </div>
-                  <div className="font-medium text-text">{latestCommunication.content.subject ?? latestCommunication.content.preview ?? 'Communication activity'}</div>
-                  <div className="body-sm text-text-muted">{latestCommunication.counterpart.address ?? 'No recipient detail'}</div>
-                  <div className="text-xs text-text-muted">{latestCommunication.occurredAt ? new Date(latestCommunication.occurredAt).toLocaleString() : '—'}</div>
-                  <AppButton asChild type="button" variant="secondary">
-                    <Link to={`/app/clients/${payload.client.id}/communications`}>Open communications</Link>
-                  </AppButton>
-                </div>
-              ) : (
-                <EmptyState title="No communications yet" description="Start with a text, email, or call from the action rail." />
-              )}
-            </AppCardBody>
-          </AppCard>
-
-          <AppCard>
-            <AppCardHeader>
-              <div className="heading-md">Next event</div>
-              <div className="body-sm text-text-muted">Upcoming scheduled work linked to this client.</div>
-            </AppCardHeader>
-            <AppCardBody>
-              {nextEvent ? (
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <AppBadge>{nextEvent.eventType.replaceAll('_', ' ')}</AppBadge>
-                    <AppBadge variant={nextEvent.taskSummary.blocked > 0 ? 'warning' : 'info'}>
-                      {nextEvent.taskSummary.open} open • {nextEvent.taskSummary.blocked} blocked
-                    </AppBadge>
-                  </div>
-                  <div className="font-medium text-text">{nextEvent.title}</div>
-                  <div className="body-sm text-text-muted">
-                    {nextEvent.startsAt ? new Date(nextEvent.startsAt).toLocaleString() : '—'}
-                  </div>
-                  <AppButton asChild type="button" variant="secondary">
-                    <Link to={`/app/clients/${payload.client.id}/events`}>Open events</Link>
-                  </AppButton>
-                </div>
-              ) : (
-                <EmptyState title="No event scheduled" description="Schedule the next task or appointment for this client." />
-              )}
-            </AppCardBody>
-          </AppCard>
-
-          <AppCard>
-            <AppCardHeader>
-              <div className="heading-md">Lead application</div>
-              <div className="body-sm text-text-muted">Current application requiring review or follow-up.</div>
-            </AppCardHeader>
-            <AppCardBody>
-              {leadApplication ? (
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <AppBadge variant={toneToBadgeVariant(leadApplication.currentStatus.tone)}>{leadApplication.currentStatus.label}</AppBadge>
-                    <AppBadge variant={leadApplication.ruleSummary.blockingCount > 0 ? 'danger' : leadApplication.ruleSummary.warningCount > 0 ? 'warning' : 'neutral'}>
-                      {leadApplication.ruleSummary.warningCount} warnings • {leadApplication.ruleSummary.blockingCount} blocking
-                    </AppBadge>
-                  </div>
-                  <div className="font-medium text-text">{leadApplication.applicationNumber}</div>
-                  <div className="body-sm text-text-muted">{leadApplication.productType}</div>
-                  <AppButton asChild type="button" variant="secondary">
-                    <Link to={`/app/clients/${payload.client.id}/applications`}>Open applications</Link>
-                  </AppButton>
-                </div>
-              ) : (
-                <EmptyState title="No applications yet" description="Create the first application to begin workflow and rule tracking." />
-              )}
-            </AppCardBody>
-          </AppCard>
-
-          <AppCard>
-            <AppCardHeader>
-              <div className="heading-md">Recent note</div>
-              <div className="body-sm text-text-muted">Most recent governed note captured on this record.</div>
-            </AppCardHeader>
-            <AppCardBody>
-              {recentNote ? (
-                <div className="space-y-3">
-                  <div className="font-medium text-text">{recentNote.authorDisplayName}</div>
-                  <div className="body-sm text-text-muted">{recentNote.body}</div>
-                  <div className="text-xs text-text-muted">{recentNote.createdAt ? new Date(recentNote.createdAt).toLocaleString() : '—'}</div>
-                  <AppButton asChild type="button" variant="secondary">
-                    <Link to={`/app/clients/${payload.client.id}/notes`}>Open notes</Link>
-                  </AppButton>
-                </div>
-              ) : (
-                <EmptyState title="No recent note" description="Add the first note from the action rail or notes tab." />
-              )}
-            </AppCardBody>
-          </AppCard>
-        </div>
-
-        <ClientDispositionPanel clientId={clientId ?? ''} payload={payload as ClientWorkspaceResponse} openSignal={dispositionOpenSignal} />
-
-        <AppCard>
-          <AppCardHeader>
-            <div className="heading-md">Recent activity</div>
-            <div className="body-sm text-text-muted">The latest record changes, notes, and evidence for this client.</div>
-          </AppCardHeader>
-          <AppCardBody>
-            {recentActivity.length ? (
-              <div className="space-y-3">
-                {recentActivity.map((item) => (
-                  <div key={item.id} className="rounded-lg border border-border bg-muted p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <AppBadge variant="neutral">{item.kind}</AppBadge>
-                        </div>
-                        <div className="mt-2 font-medium text-text">{item.title}</div>
-                        <div className="body-sm mt-1 text-text-muted">{item.description}</div>
-                        <div className="text-xs text-text-muted">{item.occurredAt ? new Date(item.occurredAt).toLocaleString() : '—'}</div>
-                      </div>
-                      {item.href ? (
-                        <AppButton asChild type="button" variant="secondary">
-                          <Link to={item.href}>Open</Link>
-                        </AppButton>
-                      ) : null}
-                    </div>
-                  </div>
-                ))}
+              <div className="flex flex-wrap gap-2">
+                <AppBadge variant="info">{overview.nextEvent.taskSummary.open} open tasks</AppBadge>
+                <AppBadge variant={overview.nextEvent.taskSummary.blocked > 0 ? 'warning' : 'neutral'}>
+                  {overview.nextEvent.taskSummary.blocked} blocked
+                </AppBadge>
               </div>
-            ) : (
-              <EmptyState title="No recent activity" description="Client activity will appear here as communications, notes, documents, and status changes occur." />
-            )}
-          </AppCardBody>
-        </AppCard>
+            </div>
+          ) : (
+            <EmptyState title="No event scheduled" description="Schedule the next task or appointment for this client." />
+          )}
+        </SnapshotCard>
 
-        {renderProfileCard()}
+        <SnapshotCard
+          title="Lead application"
+          ctaHref={`/app/clients/${payload.client.id}/applications`}
+          ctaLabel="Open applications"
+        >
+          {overview?.leadApplication ? (
+            <div className="space-y-2">
+              <div className="font-medium text-text">{overview.leadApplication.applicationNumber}</div>
+              <div className="body-sm text-text-muted">{overview.leadApplication.productType}</div>
+              <div className="flex flex-wrap gap-2">
+                <AppBadge variant={toneToBadgeVariant(overview.leadApplication.currentStatus.tone)}>
+                  {overview.leadApplication.currentStatus.label}
+                </AppBadge>
+                <AppBadge variant={overview.leadApplication.ruleSummary.blockingCount > 0 ? 'danger' : 'warning'}>
+                  {overview.leadApplication.ruleSummary.blockingCount} blocking
+                </AppBadge>
+                <AppBadge variant="warning">{overview.leadApplication.ruleSummary.warningCount} warnings</AppBadge>
+              </div>
+            </div>
+          ) : (
+            <EmptyState title="No applications yet" description="Create the first application to begin workflow and rule tracking." />
+          )}
+        </SnapshotCard>
+
+        <SnapshotCard
+          title="Recent note"
+          ctaHref={`/app/clients/${payload.client.id}/notes`}
+          ctaLabel="Open notes"
+        >
+          {overview?.recentNote ? (
+            <div className="space-y-2">
+              <div className="body-sm text-text-muted">{overview.recentNote.body}</div>
+              <div className="text-xs text-text-muted">
+                {overview.recentNote.authorDisplayName} • {formatDateTime(overview.recentNote.createdAt)}
+              </div>
+            </div>
+          ) : (
+            <EmptyState title="No notes yet" description="Add a note from the action bar to capture the latest client context." />
+          )}
+        </SnapshotCard>
       </div>
-    )
-  }
+
+      <div id="client-disposition-panel">
+        <ClientDispositionPanel clientId={clientId ?? ''} payload={payload as any} />
+      </div>
+
+      <AppCard>
+        <AppCardHeader>
+          <div className="heading-md">Recent activity</div>
+          <div className="body-sm text-text-muted">The latest record changes, notes, and evidence for this client.</div>
+        </AppCardHeader>
+        <AppCardBody>
+          <div className="space-y-3">
+            {payload.recentAudit.slice(0, 5).map((entry) => (
+              <div key={entry.id} className="rounded-lg border border-border bg-muted p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="font-medium text-text">{entry.action}</div>
+                  <div className="text-xs text-text-muted">{formatDateTime(entry.createdAt)}</div>
+                </div>
+                <div className="body-sm mt-1 text-text-muted">{entry.actorDisplayName} • {entry.subjectType}</div>
+              </div>
+            ))}
+            {payload.recentAudit.length === 0 ? (
+              <EmptyState title="No recent activity" description="Audit-backed client activity will appear here after the first governed mutation." />
+            ) : null}
+          </div>
+        </AppCardBody>
+      </AppCard>
+
+      {renderProfileCard()}
+    </div>
+  )
 
   const renderActivePanel = () => {
     if (activeTab === 'overview') {
@@ -611,7 +487,7 @@ export function ClientWorkspacePage() {
                 </AppButton>
               </div>
               <div className="space-y-3">
-                {payload.recentDocuments.length ? payload.recentDocuments.map((document: ClientDocumentSummary) => (
+                {payload.recentDocuments.length ? payload.recentDocuments.map((document) => (
                   <div key={document.id} className="rounded-lg border border-border bg-muted p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
@@ -622,7 +498,7 @@ export function ClientWorkspacePage() {
                     </div>
                     <div className="body-sm mt-2 text-text-muted">Uploaded by {document.uploadedByDisplayName}{document.attachmentCategory ? ` • ${document.attachmentCategory}` : ''}</div>
                   </div>
-                )) : <EmptyState title="No documents yet" description="Upload the first document to validate governed storage and metadata handling." />}
+                )) : <EmptyState title="No documents yet" description="Upload the first document to validate Sprint 4 governed storage and metadata handling." />}
               </div>
             </div>
           </AppCardBody>
@@ -658,7 +534,7 @@ export function ClientWorkspacePage() {
     <div className="space-y-6">
       <PageHeader
         title={payload.client.displayName}
-        description="The client workspace centralizes profile data, lifecycle state, communications, events, applications, notes, documents, and audit evidence in one governed record view."
+        description="The client workspace centralizes profile data, disposition, communications, events, applications, notes, documents, and audit evidence in one governed record view."
         actions={<AppButton type="button" variant="secondary" onClick={() => navigate('/app/clients')}>Back to list</AppButton>}
       />
 
@@ -689,16 +565,56 @@ export function ClientWorkspacePage() {
       <ClientWorkspaceTabs tabs={payload.tabs} />
       {renderActivePanel()}
 
-      <ClientQuickNoteDialog clientId={clientId ?? ''} open={quickNoteOpen} onOpenChange={setQuickNoteOpen} />
-      <EventCreateDialog open={createEventOpen} onOpenChange={setCreateEventOpen} selectedDate={new Date().toISOString().slice(0, 10)} initialClientId={clientId ?? ''} />
+      <ClientQuickNoteDialog
+        open={quickNoteOpen}
+        onOpenChange={setQuickNoteOpen}
+        busy={createNoteMutation.isPending}
+        onSubmit={async ({ body }) => {
+          await createNoteMutation.mutateAsync(body)
+        }}
+      />
+
+      <EventCreateDialog
+        open={eventCreateOpen}
+        onOpenChange={setEventCreateOpen}
+        selectedDate={new Date().toISOString().slice(0, 10)}
+        initialClientId={payload.client.id}
+      />
+
       <ApplicationCreateDialog
-        open={createApplicationOpen}
-        onOpenChange={setCreateApplicationOpen}
+        open={applicationCreateOpen}
+        onOpenChange={setApplicationCreateOpen}
         busy={createApplicationMutation.isPending}
         onSubmit={async (body) => {
           await createApplicationMutation.mutateAsync(body)
         }}
       />
     </div>
+  )
+}
+
+function SnapshotCard({
+  title,
+  ctaHref,
+  ctaLabel,
+  children,
+}: {
+  title: string
+  ctaHref: string
+  ctaLabel: string
+  children: ReactNode
+}) {
+  return (
+    <AppCard>
+      <AppCardHeader>
+        <div className="flex items-start justify-between gap-3">
+          <div className="heading-md">{title}</div>
+          <AppButton asChild type="button" variant="secondary" size="sm">
+            <Link to={ctaHref}>{ctaLabel}</Link>
+          </AppButton>
+        </div>
+      </AppCardHeader>
+      <AppCardBody>{children}</AppCardBody>
+    </AppCard>
   )
 }

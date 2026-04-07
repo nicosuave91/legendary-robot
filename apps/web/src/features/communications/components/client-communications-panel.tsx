@@ -13,26 +13,26 @@ type FilterState = {
   status: 'all' | 'pending' | 'failed'
 }
 
+type ComposeTab = 'sms' | 'email' | 'call'
+
 type Props = {
   clientId: string
   fallbackEmail?: string | null
   fallbackPhone?: string | null
 }
 
-type ComposerTab = 'sms' | 'email' | 'call'
-
-function normalizeComposeTab(value: string | null): ComposerTab {
-  if (value === 'email') return 'email'
-  if (value === 'call') return 'call'
-  return 'sms'
-}
-
 export function ClientCommunicationsPanel({ clientId, fallbackEmail, fallbackPhone }: Props) {
   const queryClient = useQueryClient()
   const { notify } = useToast()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
+  const composeParam = searchParams.get('compose')
+  const initialComposeTab: ComposeTab =
+    composeParam === 'email' || composeParam === 'call' || composeParam === 'sms'
+      ? composeParam
+      : 'sms'
+
+  const [composeTab, setComposeTab] = useState<ComposeTab>(initialComposeTab)
   const [filters, setFilters] = useState<FilterState>({ channel: 'all', status: 'all' })
-  const [composerTab, setComposerTab] = useState<ComposerTab>(normalizeComposeTab(searchParams.get('compose')))
   const [smsBody, setSmsBody] = useState('')
   const [smsFiles, setSmsFiles] = useState<File[]>([])
   const [emailTo, setEmailTo] = useState(fallbackEmail ?? '')
@@ -45,8 +45,8 @@ export function ClientCommunicationsPanel({ clientId, fallbackEmail, fallbackPho
   const [retryingItemId, setRetryingItemId] = useState<string | null>(null)
 
   useEffect(() => {
-    setComposerTab(normalizeComposeTab(searchParams.get('compose')))
-  }, [searchParams])
+    setComposeTab(initialComposeTab)
+  }, [initialComposeTab])
 
   const timelineQuery = useInfiniteQuery({
     queryKey: queryKeys.communications.clientTimeline(clientId, filters),
@@ -123,14 +123,6 @@ export function ClientCommunicationsPanel({ clientId, fallbackEmail, fallbackPho
   const items = timelineQuery.data?.pages.flatMap((page) => page.data.items) ?? []
   const filterButtons = useMemo(() => ([{ key: 'all', label: 'All' }, { key: 'sms', label: 'SMS' }, { key: 'email', label: 'Email' }, { key: 'voice', label: 'Calls' }]) as const, [])
 
-  const handleComposerTabChange = (value: string) => {
-    const normalized = normalizeComposeTab(value)
-    setComposerTab(normalized)
-    const next = new URLSearchParams(searchParams)
-    next.set('compose', normalized)
-    setSearchParams(next, { replace: true })
-  }
-
   return (
     <div className="space-y-6">
       <AppCard>
@@ -139,7 +131,7 @@ export function ClientCommunicationsPanel({ clientId, fallbackEmail, fallbackPho
           <div className="body-sm text-text-muted">Outbound sends are persisted first, submitted asynchronously, and only move to terminal delivery states when callback evidence arrives.</div>
         </AppCardHeader>
         <AppCardBody>
-          <AppTabs value={composerTab} onValueChange={handleComposerTabChange} className="space-y-4">
+          <AppTabs value={composeTab} onValueChange={(value) => setComposeTab(value as ComposeTab)} className="space-y-4">
             <AppTabsList>
               <AppTabsTrigger value="sms">SMS / MMS</AppTabsTrigger>
               <AppTabsTrigger value="email">Email</AppTabsTrigger>
