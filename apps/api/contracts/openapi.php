@@ -10,8 +10,8 @@ $sprint9 = require __DIR__ . '/openapi.phase9.php';
 $sprint11 = require __DIR__ . '/openapi.calendar_tasks.php';
 $workflowClosure = require __DIR__ . '/openapi.workflow_closure.php';
 
-$base['info']['version'] = '15.1.0';
-$base['info']['description'] = 'Closure-phase contracts layered onto the verified Sprint 15 platform baseline.';
+$base['info']['version'] = '15.2.0';
+$base['info']['description'] = 'Contract alignment pass for client workspace overview, workflow draft validation, and closure-phase platform contracts.';
 $base['paths'] = array_replace_recursive(
     $base['paths'] ?? [],
     $communications['paths'] ?? [],

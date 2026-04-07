@@ -1,39 +1,34 @@
 import type {
   ApplicationRuleSummary,
   ApplicationStatusSummary,
-  ClientWorkspaceResponse,
+  DeliveryStatusProjection,
   EventTaskSummary,
+  WorkflowDetailEnvelope,
+  WorkflowDraftValidationSummary,
 } from '@/lib/api/generated/client'
-
-export type ClientWorkspaceActionTone = 'neutral' | 'info' | 'warning' | 'danger' | 'success'
 
 export type ClientWorkspaceRecommendedAction = {
   code: string
   title: string
   description: string
-  ctaLabel: string
-  ctaHref: string
-  tone: ClientWorkspaceActionTone
-}
-
-export type ClientWorkspaceCommunicationStatus = {
-  label: string
-  tone: ClientWorkspaceActionTone
+  tone: 'neutral' | 'info' | 'success' | 'warning' | 'danger'
+  ctaLabel: string | null
+  ctaHref: string | null
 }
 
 export type ClientWorkspaceLatestCommunication = {
   id: string
-  channel: string
-  direction: string
+  channel: 'sms' | 'mms' | 'email' | 'voice'
+  direction: 'inbound' | 'outbound' | 'system'
   occurredAt: string | null
   preview: string | null
-  status: ClientWorkspaceCommunicationStatus
+  status: DeliveryStatusProjection
 }
 
 export type ClientWorkspaceNextEvent = {
   id: string
   title: string
-  eventType: string
+  eventType: 'appointment' | 'follow_up' | 'document_review' | 'call' | 'deadline' | 'task_batch'
   startsAt: string | null
   endsAt: string | null
   taskSummary: EventTaskSummary
@@ -62,6 +57,8 @@ export type ClientWorkspaceOverview = {
   recentNote: ClientWorkspaceRecentNote | null
 }
 
-export type ClientWorkspaceResponseWithOverview = ClientWorkspaceResponse & {
-  overview?: ClientWorkspaceOverview | null
+export type WorkflowDetailEnvelopeAligned = WorkflowDetailEnvelope & {
+  data: WorkflowDetailEnvelope['data'] & {
+    draftValidation: WorkflowDraftValidationSummary
+  }
 }
