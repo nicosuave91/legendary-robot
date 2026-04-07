@@ -10,9 +10,10 @@ type EventCreateDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   selectedDate: string
+  initialClientId?: string
 }
 
-export function EventCreateDialog({ open, onOpenChange, selectedDate }: EventCreateDialogProps) {
+export function EventCreateDialog({ open, onOpenChange, selectedDate, initialClientId }: EventCreateDialogProps) {
   const queryClient = useQueryClient()
   const { notify } = useToast()
   const [title, setTitle] = useState('')
@@ -20,13 +21,19 @@ export function EventCreateDialog({ open, onOpenChange, selectedDate }: EventCre
   const [eventType, setEventType] = useState<'appointment' | 'follow_up' | 'document_review' | 'call' | 'deadline' | 'task_batch'>('appointment')
   const [startsAt, setStartsAt] = useState(toLocalDateTimeInputValue(new Date(`${selectedDate}T09:00:00`)))
   const [endsAt, setEndsAt] = useState(toLocalDateTimeInputValue(new Date(`${selectedDate}T09:30:00`)))
-  const [clientId, setClientId] = useState('')
+  const [clientId, setClientId] = useState(initialClientId ?? '')
   const [taskTitle, setTaskTitle] = useState('')
 
   useEffect(() => {
     setStartsAt(toLocalDateTimeInputValue(new Date(`${selectedDate}T09:00:00`)))
     setEndsAt(toLocalDateTimeInputValue(new Date(`${selectedDate}T09:30:00`)))
   }, [selectedDate])
+
+  useEffect(() => {
+    if (open) {
+      setClientId(initialClientId ?? '')
+    }
+  }, [initialClientId, open])
 
   const clientsQuery = useQuery({
     queryKey: queryKeys.clients.list({ perPage: 50 }),
@@ -51,7 +58,7 @@ export function EventCreateDialog({ open, onOpenChange, selectedDate }: EventCre
       notify({ title: 'Event created', description: 'The new governed event is now available from homepage, calendar, and linked client surfaces.', tone: 'success' })
       setTitle('')
       setDescription('')
-      setClientId('')
+      setClientId(initialClientId ?? '')
       setTaskTitle('')
       onOpenChange(false)
     },

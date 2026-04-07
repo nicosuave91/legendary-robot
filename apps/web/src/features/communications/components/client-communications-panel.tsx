@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AppBadge, AppButton, AppCard, AppCardBody, AppCardHeader, AppInput, AppTabs, AppTabsContent, AppTabsList, AppTabsTrigger, AppTextarea, EmptyState, LoadingSkeleton } from '@/components/ui'
 import { useToast } from '@/components/shell/toast-host'
@@ -16,12 +16,14 @@ type Props = {
   clientId: string
   fallbackEmail?: string | null
   fallbackPhone?: string | null
+  initialComposer?: 'sms' | 'email' | 'call'
 }
 
-export function ClientCommunicationsPanel({ clientId, fallbackEmail, fallbackPhone }: Props) {
+export function ClientCommunicationsPanel({ clientId, fallbackEmail, fallbackPhone, initialComposer = 'sms' }: Props) {
   const queryClient = useQueryClient()
   const { notify } = useToast()
   const [filters, setFilters] = useState<FilterState>({ channel: 'all', status: 'all' })
+  const [composerTab, setComposerTab] = useState<'sms' | 'email' | 'call'>(initialComposer)
   const [smsBody, setSmsBody] = useState('')
   const [smsFiles, setSmsFiles] = useState<File[]>([])
   const [emailTo, setEmailTo] = useState(fallbackEmail ?? '')
@@ -32,6 +34,10 @@ export function ClientCommunicationsPanel({ clientId, fallbackEmail, fallbackPho
   const [emailFiles, setEmailFiles] = useState<File[]>([])
   const [callPurpose, setCallPurpose] = useState('')
   const [retryingItemId, setRetryingItemId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setComposerTab(initialComposer)
+  }, [initialComposer])
 
   const timelineQuery = useInfiniteQuery({
     queryKey: queryKeys.communications.clientTimeline(clientId, filters),
@@ -116,7 +122,7 @@ export function ClientCommunicationsPanel({ clientId, fallbackEmail, fallbackPho
           <div className="body-sm text-text-muted">Outbound sends are persisted first, submitted asynchronously, and only move to terminal delivery states when callback evidence arrives.</div>
         </AppCardHeader>
         <AppCardBody>
-          <AppTabs defaultValue="sms" className="space-y-4">
+          <AppTabs value={composerTab} onValueChange={(value) => setComposerTab(value as typeof composerTab)} className="space-y-4">
             <AppTabsList>
               <AppTabsTrigger value="sms">SMS / MMS</AppTabsTrigger>
               <AppTabsTrigger value="email">Email</AppTabsTrigger>

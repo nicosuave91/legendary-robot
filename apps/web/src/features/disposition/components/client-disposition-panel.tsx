@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AppBadge, AppButton, AppCard, AppCardBody, AppCardHeader } from '@/components/ui'
 import { clientsApi } from '@/lib/api/client'
@@ -11,14 +11,21 @@ import { DispositionTransitionDialog } from '@/features/disposition/components/d
 type Props = {
   clientId: string
   payload: ClientWorkspaceResponse
+  openRequestKey?: number
 }
 
-export function ClientDispositionPanel({ clientId, payload }: Props) {
+export function ClientDispositionPanel({ clientId, payload, openRequestKey }: Props) {
   const queryClient = useQueryClient()
   const { notify } = useToast()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [warnings, setWarnings] = useState<TransitionIssue[]>([])
   const [blockingIssues, setBlockingIssues] = useState<TransitionIssue[]>([])
+
+  useEffect(() => {
+    if (openRequestKey !== undefined) {
+      setDialogOpen(true)
+    }
+  }, [openRequestKey])
 
   const transitionOptions = payload.availableDispositionTransitions.map((transition) => ({
     code: transition.code,
