@@ -11,10 +11,10 @@ import { DispositionTransitionDialog } from '@/features/disposition/components/d
 type Props = {
   clientId: string
   payload: ClientWorkspaceResponse
-  openRequestKey?: number
+  openSignal?: number
 }
 
-export function ClientDispositionPanel({ clientId, payload, openRequestKey }: Props) {
+export function ClientDispositionPanel({ clientId, payload, openSignal = 0 }: Props) {
   const queryClient = useQueryClient()
   const { notify } = useToast()
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -22,10 +22,10 @@ export function ClientDispositionPanel({ clientId, payload, openRequestKey }: Pr
   const [blockingIssues, setBlockingIssues] = useState<TransitionIssue[]>([])
 
   useEffect(() => {
-    if (openRequestKey !== undefined) {
+    if (openSignal > 0) {
       setDialogOpen(true)
     }
-  }, [openRequestKey])
+  }, [openSignal])
 
   const transitionOptions = payload.availableDispositionTransitions.map((transition) => ({
     code: transition.code,
@@ -86,7 +86,7 @@ export function ClientDispositionPanel({ clientId, payload, openRequestKey }: Pr
     <>
       <AppCard>
         <AppCardHeader>
-          <div className="heading-md">Disposition</div>
+          <div className="heading-md">Lifecycle status</div>
           <div className="body-sm text-text-muted">
             Current lifecycle state is projected from append-only history, not edited directly in the client profile form.
           </div>

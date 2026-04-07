@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace App\Modules\Clients\Services;
 
+use Carbon\CarbonImmutable;
 use App\Modules\Applications\Models\Application;
+use App\Modules\Applications\Services\ApplicationQueryService;
 use App\Modules\Audit\Models\AuditLog;
 use App\Modules\CalendarTasks\Models\CalendarEvent;
+use App\Modules\CalendarTasks\Services\EventQueryService;
 use App\Modules\Clients\Models\Client;
 use App\Modules\Clients\Models\ClientDocument;
 use App\Modules\Clients\Models\ClientNote;
+use App\Modules\Communications\Services\CommunicationTimelineService;
 use App\Modules\Disposition\Services\DispositionProjectionService;
 use App\Modules\IdentityAccess\Models\User;
 
@@ -18,6 +22,9 @@ final class ClientWorkspaceService
     public function __construct(
         private readonly ClientVisibilityService $clientVisibilityService,
         private readonly DispositionProjectionService $dispositionProjectionService,
+        private readonly CommunicationTimelineService $communicationTimelineService,
+        private readonly EventQueryService $eventQueryService,
+        private readonly ApplicationQueryService $applicationQueryService,
     ) {
     }
 
@@ -130,6 +137,21 @@ final class ClientWorkspaceService
             ->values()
             ->all();
 
+        $summary = [
+            'notesCount' => (int) $client->notes_count,
+            'documentsCount' => (int) $client->documents_count,
+            'eventsCount' => $eventsCount,
+            'applicationsCount' => $applicationsCount,
+            'lastActivityAt' => $client->last_activity_at?->toIso8601String(),
+        ];
+
+        $overview = $this->buildOverview(
+            actor: $actor,
+            client: $client,
+            summary: $summary,
+            recentNotes: $recentNotes,
+        );
+
         return [
             'client' => [
                 'id' => (string) $client->id,
@@ -157,13 +179,8 @@ final class ClientWorkspaceService
             'currentDisposition' => $currentDisposition,
             'availableDispositionTransitions' => $availableDispositionTransitions,
             'dispositionHistory' => $dispositionHistory,
-            'summary' => [
-                'notesCount' => (int) $client->notes_count,
-                'documentsCount' => (int) $client->documents_count,
-                'eventsCount' => $eventsCount,
-                'applicationsCount' => $applicationsCount,
-                'lastActivityAt' => $client->last_activity_at?->toIso8601String(),
-            ],
+            'summary' => $summary,
+            'overview' => $overview,
             'recentNotes' => $recentNotes,
             'recentDocuments' => $recentDocuments,
             'recentAudit' => $recentAudit,
@@ -176,6 +193,141 @@ final class ClientWorkspaceService
                 ['key' => 'documents', 'label' => 'Documents', 'href' => '/app/clients/' . $client->id . '/documents', 'available' => true],
                 ['key' => 'audit', 'label' => 'Audit', 'href' => '/app/clients/' . $client->id . '/audit', 'available' => true],
             ],
+        ];
+    }
+
+    /**
+     * @param array{notesCount:int,documentsCount:int,eventsCount:int,applicationsCount:int,lastActivityAt:?string} $summary
+     * @param list<array{id:string,sourceType:string,body:string,isEditable:bool,authorDisplayName:string,createdAt:?string}> $recentNotes
+     * @return array{
+     *   recommendedAction: array{code:string,title:string,description:string,ctaLabel:?string,ctaHref:?string,tone:string},
+     *   latestCommunication:?array<string,mixed>,
+     *   nextEvent:?array<string,mixed>,
+     *   leadApplication:?array<string,mixed>,
+     *   recentNote:?array<string,mixed>
+     * }
+     */
+    private function buildOverview(User $actor, Client $client, array $summary, array $recentNotes): array
+    {
+        $latestCommunication = $this->communicationTimelineService->collectItemsForClient($client, ['limit' => 1])[0] ?? null;
+
+        $nextEventModel = CalendarEvent::query()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $actor->tenant_id)
+            ->where('client_id', $client->id)
+            ->where('status', 'scheduled')
+            ->where('starts_at', '>=', now())
+            ->with(['client', 'owner', 'tasks'])
+            ->orderBy('starts_at')
+            ->first();
+
+        $nextEvent = $nextEventModel !== null ? $this->eventQueryService->summary($nextEventModel) : null;
+
+        /** @var \Illuminate\Database\Eloquent\Collection<int, Application> $applications */
+        $applications = Application::query()
+            ->where('tenant_id', $actor->tenant_id)
+            ->where('client_id', $client->id)
+            ->with(['owner', 'ruleApplications', 'statusHistory'])
+            ->get();
+
+        $leadApplicationModel = $applications
+            ->sort(function (Application $left, Application $right): int {
+                $leftBlocking = $left->ruleApplications->where('outcome', 'blocking')->count();
+                $rightBlocking = $right->ruleApplications->where('outcome', 'blocking')->count();
+
+                if ($leftBlocking !== $rightBlocking) {
+                    return $rightBlocking <=> $leftBlocking;
+                }
+
+                $leftWarning = $left->ruleApplications->where('outcome', 'warning')->count();
+                $rightWarning = $right->ruleApplications->where('outcome', 'warning')->count();
+
+                if ($leftWarning !== $rightWarning) {
+                    return $rightWarning <=> $leftWarning;
+                }
+
+                return strcmp(
+                    optional($right->updated_at)->toIso8601String() ?? '',
+                    optional($left->updated_at)->toIso8601String() ?? '',
+                );
+            })
+            ->first();
+
+        $leadApplication = $leadApplicationModel !== null ? $this->applicationQueryService->serializeSummary($leadApplicationModel) : null;
+        $recentNote = $recentNotes[0] ?? null;
+
+        return [
+            'recommendedAction' => $this->recommendedAction($client, $summary, $latestCommunication, $nextEvent, $leadApplication),
+            'latestCommunication' => $latestCommunication,
+            'nextEvent' => $nextEvent,
+            'leadApplication' => $leadApplication,
+            'recentNote' => $recentNote,
+        ];
+    }
+
+    /**
+     * @param array{notesCount:int,documentsCount:int,eventsCount:int,applicationsCount:int,lastActivityAt:?string} $summary
+     * @param array<string,mixed>|null $latestCommunication
+     * @param array<string,mixed>|null $nextEvent
+     * @param array<string,mixed>|null $leadApplication
+     * @return array{code:string,title:string,description:string,ctaLabel:?string,ctaHref:?string,tone:string}
+     */
+    private function recommendedAction(Client $client, array $summary, ?array $latestCommunication, ?array $nextEvent, ?array $leadApplication): array
+    {
+        $clientBaseHref = '/app/clients/' . $client->id;
+
+        if ((int) ($leadApplication['ruleSummary']['blockingCount'] ?? 0) > 0) {
+            return [
+                'code' => 'review_blocking_application',
+                'title' => 'Review blocked application',
+                'description' => 'This client has application rule evidence that needs review before work can continue.',
+                'ctaLabel' => 'Open application',
+                'ctaHref' => $clientBaseHref . '/applications',
+                'tone' => 'danger',
+            ];
+        }
+
+        if (($latestCommunication['status']['tone'] ?? null) === 'danger') {
+            return [
+                'code' => 'retry_failed_communication',
+                'title' => 'Review failed communication',
+                'description' => 'The latest outreach ended in a failed delivery or call outcome and may need follow-up.',
+                'ctaLabel' => 'Open communications',
+                'ctaHref' => $clientBaseHref . '/communications',
+                'tone' => 'warning',
+            ];
+        }
+
+        if ($nextEvent !== null && ((int) ($nextEvent['taskSummary']['open'] ?? 0) > 0 || (int) ($nextEvent['taskSummary']['blocked'] ?? 0) > 0)) {
+            return [
+                'code' => 'prepare_upcoming_event',
+                'title' => 'Prepare for the next event',
+                'description' => 'This client has an upcoming scheduled event with open or blocked tasks.',
+                'ctaLabel' => 'Open event',
+                'ctaHref' => $clientBaseHref . '/events',
+                'tone' => 'info',
+            ];
+        }
+
+        $lastActivityAt = $summary['lastActivityAt'] !== null ? CarbonImmutable::parse($summary['lastActivityAt']) : null;
+        if ($lastActivityAt === null || $lastActivityAt->lessThan(now()->subDays(7))) {
+            return [
+                'code' => 'follow_up_client',
+                'title' => 'Follow up with this client',
+                'description' => 'There has been no recent recorded activity, so an outreach or check-in may be appropriate.',
+                'ctaLabel' => 'Open communications',
+                'ctaHref' => $clientBaseHref . '/communications',
+                'tone' => 'neutral',
+            ];
+        }
+
+        return [
+            'code' => 'no_urgent_action',
+            'title' => 'No urgent action',
+            'description' => 'This client does not currently show a blocking application, failed outreach, or upcoming task pressure.',
+            'ctaLabel' => null,
+            'ctaHref' => null,
+            'tone' => 'success',
         ];
     }
 }

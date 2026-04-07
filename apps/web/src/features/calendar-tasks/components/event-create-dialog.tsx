@@ -51,11 +51,18 @@ export function EventCreateDialog({ open, onOpenChange, selectedDate, initialCli
       tasks: taskTitle ? [{ title: taskTitle, isRequired: true, sortOrder: 0 }] : undefined,
     }),
     onSuccess: async () => {
-      await Promise.all([
+      const invalidations = [
         queryClient.invalidateQueries({ queryKey: queryKeys.calendar.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.clients.all }),
-      ])
-      notify({ title: 'Event created', description: 'The new governed event is now available from homepage, calendar, and linked client surfaces.', tone: 'success' })
+      ]
+
+      if (clientId) {
+        invalidations.push(queryClient.invalidateQueries({ queryKey: queryKeys.clients.detail(clientId) }))
+        invalidations.push(queryClient.invalidateQueries({ queryKey: queryKeys.calendar.clientEvents(clientId) }))
+      }
+
+      await Promise.all(invalidations)
+      notify({ title: 'Event created', description: 'The new governed event is now available from calendar and linked client surfaces.', tone: 'success' })
       setTitle('')
       setDescription('')
       setClientId(initialClientId ?? '')
@@ -70,7 +77,7 @@ export function EventCreateDialog({ open, onOpenChange, selectedDate, initialCli
         <div className="space-y-4">
           <div>
             <div className="heading-md">Create event</div>
-            <div className="body-sm text-text-muted">Use the generated contract-backed API to add a governed event and optional initial task.</div>
+            <div className="body-sm text-text-muted">Add a governed event and optional first task without leaving the current workflow.</div>
           </div>
           <div className="space-y-2"><label className="label-sm text-text">Title</label><AppInput value={title} onChange={(event) => setTitle(event.currentTarget.value)} /></div>
           <div className="space-y-2"><label className="label-sm text-text">Description</label><AppTextarea value={description} onChange={(event) => setDescription(event.currentTarget.value)} /></div>
