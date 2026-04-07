@@ -31,7 +31,7 @@ final class WorkflowTriggerMatcher
                 return false;
             }
 
-            if (trim((string) ($trigger['subjectType'] ?? '')) !== $subjectType) {
+            if (($trigger['subjectType'] ?? null) !== $subjectType) {
                 return false;
             }
 

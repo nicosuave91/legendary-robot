@@ -32,12 +32,7 @@ final class WorkflowStepExecutor
         $stepIndex = (int) ($run->current_step_index ?? 0);
 
         if (!isset($steps[$stepIndex]) || !is_array($steps[$stepIndex])) {
-            $run->forceFill([
-                'status' => 'completed',
-                'current_step_index' => null,
-                'completed_at' => now(),
-            ])->save();
-            $this->runService->appendLog($run, null, 'run_completed', 'Workflow run completed with durable version-bound evidence.');
+            $this->completeRun($run, null, 'Workflow run completed with durable version-bound evidence.');
 
             return;
         }
@@ -53,27 +48,22 @@ final class WorkflowStepExecutor
         try {
             if ($type === 'condition') {
                 $matched = $this->evaluateCondition($context, $definition);
-                $this->runService->appendLog($run, $stepIndex, 'condition_evaluated', $matched ? 'Condition matched.' : 'Condition did not match.', ['matched' => $matched]);
 
-                if ($matched) {
-                    $this->continueRun($run, $stepIndex + 1);
+                if (!$matched) {
+                    $this->runService->appendLog(
+                        $run,
+                        $stepIndex,
+                        'condition_not_matched',
+                        'Condition did not match. Remaining workflow steps were skipped.',
+                        ['matched' => false]
+                    );
+                    $this->completeRun($run, $stepIndex, 'Workflow run completed because a condition step did not match.');
 
                     return;
                 }
 
-                $run->forceFill([
-                    'status' => 'completed',
-                    'current_step_index' => null,
-                    'completed_at' => now(),
-                ])->save();
-
-                $this->runService->appendLog(
-                    $run,
-                    $stepIndex,
-                    'run_completed',
-                    'Workflow run stopped because the condition step did not match. Later steps were not executed.',
-                    ['matched' => false],
-                );
+                $this->runService->appendLog($run, $stepIndex, 'condition_matched', 'Condition matched.', ['matched' => true]);
+                $this->continueRun($run, $stepIndex + 1);
 
                 return;
             }
@@ -288,6 +278,17 @@ final class WorkflowStepExecutor
     {
         $run->forceFill(['current_step_index' => $nextStepIndex, 'status' => 'running'])->save();
         dispatch(new ExecuteWorkflowRunStepJob((string) $run->tenant_id, $this->correlationIdForRun($run), (string) $run->id));
+    }
+
+    private function completeRun(WorkflowRun $run, ?int $stepIndex, string $message): void
+    {
+        $run->forceFill([
+            'status' => 'completed',
+            'completed_at' => now(),
+            'current_step_index' => $stepIndex,
+        ])->save();
+
+        $this->runService->appendLog($run, $stepIndex, 'run_completed', $message);
     }
 
     private function failRun(WorkflowRun $run, int $stepIndex, string $message, array $payload = []): void

@@ -33,50 +33,53 @@ final class WorkflowDefinitionValidator
             ];
         }
 
-        if (array_key_exists('filters', $triggerDefinition) && !is_array($triggerDefinition['filters'])) {
+        $filters = $triggerDefinition['filters'] ?? [];
+        if ($filters !== [] && !is_array($filters)) {
             $errors[] = [
-                'code' => 'invalid_trigger_filters',
+                'code' => 'invalid_trigger_filters_shape',
                 'path' => 'triggerDefinition.filters',
-                'message' => 'Workflow trigger filters must be an array.',
+                'message' => 'Workflow trigger filters must be an array when provided.',
             ];
         }
 
-        foreach (($triggerDefinition['filters'] ?? []) as $index => $filter) {
-            $filterPath = sprintf('triggerDefinition.filters.%d', $index);
+        if (is_array($filters)) {
+            foreach ($filters as $index => $filter) {
+                $filterPath = sprintf('triggerDefinition.filters.%d', $index);
 
-            if (!is_array($filter)) {
-                $errors[] = [
-                    'code' => 'invalid_trigger_filter_shape',
-                    'path' => $filterPath,
-                    'message' => 'Each trigger filter must be an object.',
-                ];
+                if (!is_array($filter)) {
+                    $errors[] = [
+                        'code' => 'invalid_trigger_filter_shape',
+                        'path' => $filterPath,
+                        'message' => 'Each trigger filter must be an object.',
+                    ];
 
-                continue;
-            }
+                    continue;
+                }
 
-            if (trim((string) ($filter['fact'] ?? '')) === '') {
-                $errors[] = [
-                    'code' => 'missing_trigger_filter_fact',
-                    'path' => $filterPath . '.fact',
-                    'message' => 'Trigger filters must define a fact to evaluate.',
-                ];
-            }
+                if (trim((string) ($filter['fact'] ?? '')) === '') {
+                    $errors[] = [
+                        'code' => 'missing_trigger_filter_fact',
+                        'path' => $filterPath . '.fact',
+                        'message' => 'Trigger filters must define a fact.',
+                    ];
+                }
 
-            $operator = (string) ($filter['operator'] ?? '');
-            if (!in_array($operator, ['eq', 'neq', 'gte', 'lte', 'contains', 'exists'], true)) {
-                $errors[] = [
-                    'code' => 'invalid_trigger_filter_operator',
-                    'path' => $filterPath . '.operator',
-                    'message' => 'Trigger filters must use a supported operator.',
-                ];
-            }
+                $operator = (string) ($filter['operator'] ?? '');
+                if (!in_array($operator, ['eq', 'neq', 'gte', 'lte', 'contains', 'exists'], true)) {
+                    $errors[] = [
+                        'code' => 'invalid_trigger_filter_operator',
+                        'path' => $filterPath . '.operator',
+                        'message' => 'Trigger filters must use a supported operator.',
+                    ];
+                }
 
-            if ($operator !== 'exists' && trim((string) ($filter['value'] ?? '')) === '') {
-                $errors[] = [
-                    'code' => 'missing_trigger_filter_value',
-                    'path' => $filterPath . '.value',
-                    'message' => 'Trigger filters must define a comparison value when the operator is not exists.',
-                ];
+                if ($operator !== 'exists' && trim((string) ($filter['value'] ?? '')) === '') {
+                    $errors[] = [
+                        'code' => 'missing_trigger_filter_value',
+                        'path' => $filterPath . '.value',
+                        'message' => 'Trigger filters must define a value unless the operator is exists.',
+                    ];
+                }
             }
         }
 
@@ -87,8 +90,6 @@ final class WorkflowDefinitionValidator
                 'message' => 'Workflow drafts must include at least one executable step.',
             ];
         }
-
-        $requiresClientResolution = false;
 
         foreach ($stepsDefinition as $index => $step) {
             $stepPath = sprintf('stepsDefinition.%d', $index);
@@ -126,10 +127,6 @@ final class WorkflowDefinitionValidator
                 continue;
             }
 
-            if (in_array($type, ['create_client_note', 'send_sms', 'send_email'], true)) {
-                $requiresClientResolution = true;
-            }
-
             if ($type === 'condition') {
                 if (trim((string) ($definition['fact'] ?? '')) === '') {
                     $errors[] = [
@@ -147,11 +144,11 @@ final class WorkflowDefinitionValidator
                     ];
                 }
 
-                if (($definition['operator'] ?? null) !== 'exists' && trim((string) ($definition['value'] ?? '')) === '') {
+                if ((string) ($definition['operator'] ?? '') !== 'exists' && trim((string) ($definition['value'] ?? '')) === '') {
                     $errors[] = [
                         'code' => 'missing_condition_value',
                         'path' => $stepPath . '.definition.value',
-                        'message' => 'Condition steps must define a comparison value when the operator is not exists.',
+                        'message' => 'Condition steps must define a value unless the operator is exists.',
                     ];
                 }
             }
@@ -161,6 +158,14 @@ final class WorkflowDefinitionValidator
                     'code' => 'invalid_wait_duration',
                     'path' => $stepPath . '.definition.durationMinutes',
                     'message' => 'Wait steps must define a durationMinutes value greater than zero.',
+                ];
+            }
+
+            if (in_array($type, ['create_client_note', 'send_sms', 'send_email'], true) && $subjectType !== '' && !in_array($subjectType, ['client', 'application'], true)) {
+                $errors[] = [
+                    'code' => 'unsupported_action_subject_type',
+                    'path' => $stepPath . '.definition',
+                    'message' => sprintf('Workflow step type [%s] currently supports only client or application subject types.', $type),
                 ];
             }
 
@@ -197,14 +202,6 @@ final class WorkflowDefinitionValidator
                     ];
                 }
             }
-        }
-
-        if ($requiresClientResolution && !in_array($subjectType, ['client', 'application'], true)) {
-            $errors[] = [
-                'code' => 'unsupported_subject_type_for_runtime_actions',
-                'path' => 'triggerDefinition.subjectType',
-                'message' => 'Client-note and communication steps currently require a client or application subject type.',
-            ];
         }
 
         return [
