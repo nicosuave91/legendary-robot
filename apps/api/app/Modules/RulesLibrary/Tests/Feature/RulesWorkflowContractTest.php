@@ -4,29 +4,92 @@ declare(strict_types=1);
 
 namespace App\Modules\RulesLibrary\Tests\Feature;
 
-use PHPUnit\Framework\TestCase;
+use Illuminate\Support\Str;
+use Tests\Support\SeededApiTestCase;
 
-final class RulesWorkflowContractTest extends TestCase
+final class RulesWorkflowContractTest extends SeededApiTestCase
 {
-    public function test_contract_and_generated_client_define_sprint_8_surfaces(): void
+    public function test_rule_create_and_publish_paths_execute_runtime_behavior(): void
     {
-        $contractPath = dirname(__DIR__, 7) . '/apps/api/contracts/openapi.php';
-        $contract = require $contractPath;
-        $clientPath = dirname(__DIR__, 7) . '/apps/web/src/lib/api/generated/client.ts';
-        $client = (string) file_get_contents($clientPath);
+        $this->sanctumActingAs('owner-user');
 
-        $this->assertArrayHasKey('/api/v1/rules', $contract['paths']);
-        $this->assertArrayHasKey('/api/v1/rules/{ruleId}', $contract['paths']);
-        $this->assertArrayHasKey('/api/v1/rules/{ruleId}/publish', $contract['paths']);
-        $this->assertArrayHasKey('/api/v1/workflows', $contract['paths']);
-        $this->assertArrayHasKey('/api/v1/workflows/{workflowId}', $contract['paths']);
-        $this->assertArrayHasKey('/api/v1/workflows/{workflowId}/publish', $contract['paths']);
+        $ruleKey = 'runtime-rule-' . Str::lower((string) Str::uuid());
+        $createResponse = $this
+            ->withHeader('X-Correlation-Id', 'corr-rules-runtime-create')
+            ->postJson('/api/v1/rules', [
+                'ruleKey' => $ruleKey,
+                'name' => 'Runtime rule verification',
+                'description' => 'Ensures rules move through the real draft lifecycle.',
+                'moduleScope' => 'applications',
+                'subjectType' => 'application',
+                'triggerEvent' => 'application.created',
+                'severity' => 'warning',
+                'industryScope' => ['Mortgage'],
+                'conditionDefinition' => [
+                    'fact' => 'amountRequested',
+                    'operator' => 'gte',
+                    'value' => 250000,
+                ],
+                'actionDefinition' => [
+                    'type' => 'create_view_note',
+                    'title' => 'Runtime rule note',
+                ],
+                'executionLabel' => 'Runtime rule execution',
+                'noteTemplate' => 'Runtime rule note body.',
+            ]);
 
-        $this->assertArrayHasKey('RuleListEnvelope', $contract['components']['schemas']);
-        $this->assertArrayHasKey('WorkflowListEnvelope', $contract['components']['schemas']);
-        $this->assertStringContainsString('getRules', $client);
-        $this->assertStringContainsString('postRulePublish', $client);
-        $this->assertStringContainsString('getWorkflows', $client);
-        $this->assertStringContainsString('postWorkflowPublish', $client);
+        $createResponse
+            ->assertCreated()
+            ->assertJsonPath('data.rule.ruleKey', $ruleKey)
+            ->assertJsonPath('data.rule.currentDraftVersionNumber', 1)
+            ->assertJsonPath('data.versions.0.lifecycleState', 'draft');
+
+        $ruleId = (string) $createResponse->json('data.rule.id');
+
+        $this->postJson('/api/v1/rules/' . $ruleId . '/publish', [])
+            ->assertCreated()
+            ->assertJsonPath('data.rule.latestPublishedVersionNumber', 1)
+            ->assertJsonPath('data.versions.0.lifecycleState', 'published');
+    }
+
+    public function test_workflow_create_exposes_draft_validation_and_valid_publish_is_runtime_backed(): void
+    {
+        $this->sanctumActingAs('owner-user');
+
+        $workflowKey = 'runtime-workflow-' . Str::lower((string) Str::uuid());
+        $createResponse = $this
+            ->withHeader('X-Correlation-Id', 'corr-workflows-runtime-create')
+            ->postJson('/api/v1/workflows', [
+                'workflowKey' => $workflowKey,
+                'name' => 'Runtime workflow verification',
+                'description' => 'Ensures workflow detail and publish use runtime validation.',
+                'triggerDefinition' => [
+                    'event' => 'application.created',
+                    'subjectType' => 'application',
+                    'filters' => [],
+                ],
+                'stepsDefinition' => [
+                    [
+                        'type' => 'create_client_note',
+                        'definition' => [
+                            'title' => 'Runtime workflow note',
+                            'bodyTemplate' => 'Created by runtime workflow test.',
+                        ],
+                    ],
+                ],
+            ]);
+
+        $createResponse
+            ->assertCreated()
+            ->assertJsonPath('data.workflow.workflowKey', $workflowKey)
+            ->assertJsonPath('data.draftValidation.hasDraft', true)
+            ->assertJsonPath('data.draftValidation.isValid', true);
+
+        $workflowId = (string) $createResponse->json('data.workflow.id');
+
+        $this->postJson('/api/v1/workflows/' . $workflowId . '/publish', [])
+            ->assertCreated()
+            ->assertJsonPath('data.workflow.latestPublishedVersionNumber', 1)
+            ->assertJsonPath('data.versions.0.lifecycleState', 'published');
     }
 }

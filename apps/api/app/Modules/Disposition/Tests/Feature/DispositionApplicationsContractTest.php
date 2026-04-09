@@ -4,27 +4,67 @@ declare(strict_types=1);
 
 namespace App\Modules\Disposition\Tests\Feature;
 
-use PHPUnit\Framework\TestCase;
+use App\Modules\Applications\Models\ApplicationStatusHistory;
+use App\Modules\Disposition\Models\ClientDispositionHistory;
+use Tests\Support\SeededApiTestCase;
 
-final class DispositionApplicationsContractTest extends TestCase
+final class DispositionApplicationsContractTest extends SeededApiTestCase
 {
-    public function test_contract_and_generated_client_define_sprint_7_surfaces(): void
+    public function test_disposition_transition_endpoint_executes_runtime_state_machine_logic(): void
     {
-        $contractPath = dirname(__DIR__, 7) . '/apps/api/contracts/openapi.php';
-        $contract = require $contractPath;
-        $clientPath = dirname(__DIR__, 7) . '/apps/web/src/lib/api/generated/client.ts';
-        $client = (string) file_get_contents($clientPath);
+        $this->sanctumActingAs('owner-user');
 
-        $this->assertArrayHasKey('/api/v1/clients/{clientId}/disposition-transitions', $contract['paths']);
-        $this->assertArrayHasKey('/api/v1/clients/{clientId}/applications', $contract['paths']);
-        $this->assertArrayHasKey('/api/v1/clients/{clientId}/applications/{applicationId}', $contract['paths']);
-        $this->assertArrayHasKey('/api/v1/clients/{clientId}/applications/{applicationId}/status-transitions', $contract['paths']);
+        $response = $this
+            ->withHeader('X-Correlation-Id', 'corr-disposition-transition-runtime')
+            ->postJson('/api/v1/clients/client-horizon-medical/disposition-transitions', [
+                'targetDispositionCode' => 'qualified',
+                'reason' => 'Runtime state-machine verification',
+            ]);
 
-        $this->assertArrayHasKey('DispositionTransitionEnvelope', $contract['components']['schemas']);
-        $this->assertArrayHasKey('ApplicationDetailEnvelope', $contract['components']['schemas']);
-        $this->assertStringContainsString('postClientDispositionTransitions', $client);
-        $this->assertStringContainsString('getClientApplications', $client);
-        $this->assertStringContainsString('getClientApplication', $client);
-        $this->assertStringContainsString('postClientApplicationStatusTransitions', $client);
+        $response
+            ->assertCreated()
+            ->assertJsonPath('data.result', 'transitioned')
+            ->assertJsonPath('data.currentDisposition.code', 'qualified')
+            ->assertJsonPath('data.historyEntry.toDispositionCode', 'qualified');
+
+        $history = ClientDispositionHistory::query()
+            ->withoutGlobalScopes()
+            ->where('client_id', 'client-horizon-medical')
+            ->latest('occurred_at')
+            ->first();
+
+        self::assertNotNull($history);
+        self::assertSame('qualified', $history->to_disposition_code);
+    }
+
+    public function test_application_detail_and_status_transition_are_runtime_backed(): void
+    {
+        $this->sanctumActingAs('owner-user');
+
+        $this->getJson('/api/v1/clients/client-jamie-foster/applications/application-jamie-foster-001')
+            ->assertOk()
+            ->assertJsonPath('data.application.applicationNumber', 'APP-SEED001')
+            ->assertJsonPath('data.application.currentStatus.code', 'in_review')
+            ->assertJsonPath('data.ruleNotes.0.ruleKey', 'application.high_value.review');
+
+        $response = $this
+            ->withHeader('X-Correlation-Id', 'corr-application-status-runtime')
+            ->postJson('/api/v1/clients/client-jamie-foster/applications/application-jamie-foster-001/status-transitions', [
+                'targetStatus' => 'approved',
+                'reason' => 'Runtime status transition verification',
+            ]);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('data.application.currentStatus.code', 'approved');
+
+        $history = ApplicationStatusHistory::query()
+            ->withoutGlobalScopes()
+            ->where('application_id', 'application-jamie-foster-001')
+            ->latest('occurred_at')
+            ->first();
+
+        self::assertNotNull($history);
+        self::assertSame('approved', $history->to_status);
     }
 }

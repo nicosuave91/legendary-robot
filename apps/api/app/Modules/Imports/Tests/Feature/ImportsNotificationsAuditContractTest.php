@@ -4,33 +4,85 @@ declare(strict_types=1);
 
 namespace App\Modules\Imports\Tests\Feature;
 
-use PHPUnit\Framework\TestCase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
+use App\Modules\Imports\Models\Import;
+use App\Modules\Imports\Services\ImportValidationService;
+use App\Modules\Notifications\Models\ToastDismissal;
+use Tests\Support\SeededApiTestCase;
 
-final class ImportsNotificationsAuditContractTest extends TestCase
+final class ImportsNotificationsAuditContractTest extends SeededApiTestCase
 {
-    public function test_contract_and_generated_client_define_sprint_9_surfaces(): void
+    public function test_import_upload_validate_and_commit_surfaces_are_runtime_backed(): void
     {
-        $contractPath = dirname(__DIR__, 7) . '/apps/api/contracts/openapi.php';
-        $contract = require $contractPath;
-        $clientPath = dirname(__DIR__, 7) . '/apps/web/src/lib/api/generated/client.ts';
-        $client = (string) file_get_contents($clientPath);
+        $actor = $this->sanctumActingAs('owner-user');
 
-        $this->assertArrayHasKey('/api/v1/imports', $contract['paths']);
-        $this->assertArrayHasKey('/api/v1/imports/{importId}', $contract['paths']);
-        $this->assertArrayHasKey('/api/v1/imports/{importId}/validate', $contract['paths']);
-        $this->assertArrayHasKey('/api/v1/imports/{importId}/commit', $contract['paths']);
-        $this->assertArrayHasKey('/api/v1/notifications', $contract['paths']);
-        $this->assertArrayHasKey('/api/v1/notifications/{notificationId}/dismiss', $contract['paths']);
-        $this->assertArrayHasKey('/api/v1/audit', $contract['paths']);
+        $file = UploadedFile::fake()->createWithContent(
+            'clients.csv',
+            implode("\n", [
+                'display_name,primary_email,primary_phone',
+                'Runtime Import Client,runtime.import@example.com,804-555-0199',
+            ]),
+        );
 
-        $this->assertArrayHasKey('ImportListEnvelope', $contract['components']['schemas']);
-        $this->assertArrayHasKey('NotificationListEnvelope', $contract['components']['schemas']);
-        $this->assertArrayHasKey('AuditListEnvelope', $contract['components']['schemas']);
+        $uploadResponse = $this
+            ->withHeader('X-Correlation-Id', 'corr-import-upload-runtime')
+            ->post('/api/v1/imports', [
+                'importType' => 'clients',
+                'file' => $file,
+            ]);
 
-        $this->assertStringContainsString('getImports', $client);
-        $this->assertStringContainsString('postImportCommit', $client);
-        $this->assertStringContainsString('getNotifications', $client);
-        $this->assertStringContainsString('postNotificationDismiss', $client);
-        $this->assertStringContainsString('getAudit', $client);
+        $uploadResponse
+            ->assertCreated()
+            ->assertJsonPath('data.import.status', 'uploaded')
+            ->assertJsonPath('data.import.importType', 'clients');
+
+        $importId = (string) $uploadResponse->json('data.import.id');
+        $import = Import::query()->withoutGlobalScopes()->findOrFail($importId);
+        $validatedImport = app(ImportValidationService::class)->validate($import, 'corr-import-validated-runtime');
+
+        self::assertSame('ready_to_commit', (string) $validatedImport->status);
+
+        $this
+            ->withHeader('X-Correlation-Id', 'corr-import-commit-runtime')
+            ->postJson('/api/v1/imports/' . $importId . '/commit', [])
+            ->assertOk()
+            ->assertJsonPath('data.import.status', 'commit_queued')
+            ->assertJsonPath('data.import.canCommit', false);
+    }
+
+    public function test_notifications_dismissal_and_audit_search_are_runtime_backed(): void
+    {
+        $this->sanctumActingAs('owner-user');
+
+        $this->getJson('/api/v1/notifications')
+            ->assertOk()
+            ->assertJsonFragment(['id' => 'seed-notification-import-ready'])
+            ->assertJsonFragment(['title' => 'Seeded import notification']);
+
+        $dismissResponse = $this
+            ->withHeader('X-Correlation-Id', 'corr-notifications-dismiss-runtime')
+            ->postJson('/api/v1/notifications/seed-notification-import-ready/dismiss', [
+                'surface' => 'header_center',
+            ]);
+
+        $dismissResponse
+            ->assertOk()
+            ->assertJsonPath('data.notificationId', 'seed-notification-import-ready')
+            ->assertJsonPath('data.dismissed', true)
+            ->assertJsonPath('data.surface', 'header_center');
+
+        $dismissal = ToastDismissal::query()
+            ->withoutGlobalScopes()
+            ->where('notification_id', 'seed-notification-import-ready')
+            ->where('surface', 'header_center')
+            ->first();
+
+        self::assertNotNull($dismissal);
+
+        $this->getJson('/api/v1/audit?action=notifications.dismissed&subjectId=seed-notification-import-ready')
+            ->assertOk()
+            ->assertJsonPath('data.items.0.action', 'notifications.dismissed')
+            ->assertJsonPath('data.items.0.subjectId', 'seed-notification-import-ready');
     }
 }
