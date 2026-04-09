@@ -45,6 +45,19 @@ At minimum:
 - frontend tests or page-level tests where needed
 - release-e2e coverage for critical journeys if the change affects signoff surfaces
 
+### Verification lanes
+The repo uses two complementary verification lanes, and they must not be conflated:
+
+1. **Runtime server proof**
+   - Seeded PHPUnit feature/integration tests are the authoritative proof for tenant scoping, audit durability, notification persistence, onboarding state, import lifecycle, and governed rule/workflow behavior.
+   - If a change affects persisted business state, release confidence comes from this lane first.
+
+2. **Mocked browser shell smoke**
+   - Playwright smoke coverage proves route wiring, protected-shell composition, generated-client consumption, and page-level interaction using deterministic mocked fixtures.
+   - This lane is intentionally useful, but it is **not** evidence of live API/runtime correctness.
+
+Both lanes matter. Mocked browser smoke can complement runtime proof, but it cannot replace it.
+
 ### 6. Update docs
 Update:
 - module docs
@@ -75,6 +88,7 @@ Update:
 - historical sprint docs belong in archive
 - README must describe the current system, not a previous sprint snapshot
 - release docs must reflect the actual checked-in state
+- mocked smoke suites must be labeled as mocked smoke, not implied live-stack proof
 
 ## Pull request checklist
 
@@ -101,6 +115,7 @@ Reviewers should verify:
 - permission alignment between route, shell, and service layers
 - audit evidence for important mutations
 - contract and frontend drift prevention
+- verification lane correctness, especially when browser smoke is mocked
 
 ## Release rule
 
@@ -108,5 +123,7 @@ No release is considered valid unless:
 
 - CI is green
 - release-critical journeys pass
+- runtime server proof exists for release-relevant state transitions
+- mocked browser shell smoke passes and is reported accurately as mocked smoke
 - docs and contracts are current
 - known issues and accepted risks are explicitly updated

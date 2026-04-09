@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { installAuthenticatedAppMocks } from './support/mock-api'
 
-test('homepage renders governed summary content', async ({ page }) => {
+test('mock-backed homepage smoke renders governed summary content', async ({ page }) => {
   await installAuthenticatedAppMocks(page)
   await page.goto('/app/dashboard')
 
@@ -9,7 +9,7 @@ test('homepage renders governed summary content', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'View clients' })).toBeVisible()
 })
 
-test('calendar page supports event drilldown and task status mutation', async ({ page }) => {
+test('mock-backed calendar smoke supports event drilldown and task status mutation', async ({ page }) => {
   await installAuthenticatedAppMocks(page)
   await page.goto('/app/calendar?date=2026-03-31&eventId=event-1')
 

@@ -25,5 +25,6 @@ npm run --workspace apps/web build
 echo "[web] installing Playwright browser"
 npx playwright install --with-deps chromium
 
-echo "[web] running browser smoke suite"
-npm run --workspace apps/web test:e2e
+echo "[web] running mocked browser shell smoke suite"
+echo "[web] note: live API/runtime proof is owned by seeded PHPUnit feature coverage"
+npm run --workspace apps/web test:e2e:mocked-shell
