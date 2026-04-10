@@ -1,6 +1,9 @@
+import { AppDrawer, AppDrawerContent } from '@/components/ui'
 import { NotificationFeedList } from '@/features/notifications/components/notification-feed-list'
 
 type NotificationCenterPanelProps = {
+  open: boolean
+  onOpenChange: (open: boolean) => void
   items: Array<{
     id: string
     title: string
@@ -15,14 +18,19 @@ type NotificationCenterPanelProps = {
   onDismiss: (notificationId: string, surface: string) => void
 }
 
-export function NotificationCenterPanel({ items, onRead, onDismiss }: NotificationCenterPanelProps) {
+export function NotificationCenterPanel({ open, onOpenChange, items, onRead, onDismiss }: NotificationCenterPanelProps) {
   return (
-    <div className="absolute right-0 top-12 z-20 w-[380px] max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-background p-4 shadow-lg">
-      <div className="mb-4">
-        <div className="heading-md">Notification center</div>
-        <div className="body-sm text-text-muted">Dismissal hides the current user surface but preserves the source event.</div>
-      </div>
-      <NotificationFeedList items={items} onRead={onRead} onDismiss={onDismiss} surface="header_center" />
-    </div>
+    <AppDrawer open={open} onOpenChange={onOpenChange}>
+      <AppDrawerContent className="max-w-[420px] p-0">
+        <div className="flex h-full flex-col bg-surface">
+          <div className="border-b border-border px-5 py-4">
+            <div className="heading-md">Notifications</div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-5">
+            <NotificationFeedList items={items} onRead={onRead} onDismiss={onDismiss} surface="header_center" />
+          </div>
+        </div>
+      </AppDrawerContent>
+    </AppDrawer>
   )
 }

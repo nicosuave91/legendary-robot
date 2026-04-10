@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { AppSidebar } from '@/components/shell/app-sidebar'
 import { AppHeader } from '@/components/shell/app-header'
-import { NotificationTray } from '@/components/shell/notification-tray'
 
 export function AppShellLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -19,7 +18,6 @@ export function AppShellLayout() {
           <main className="flex-1 p-6">
             <Outlet />
           </main>
-          <NotificationTray />
         </div>
       </div>
     </div>

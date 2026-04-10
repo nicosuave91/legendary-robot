@@ -34,19 +34,19 @@ export function NotificationBellButton() {
   const unread = feedQuery.data?.data.meta.unread ?? 0
 
   return (
-    <div className="relative">
-      <AppButton type="button" variant="secondary" aria-label="Notifications" onClick={() => setOpen((current) => !current)}>
+    <>
+      <AppButton type="button" variant="secondary" aria-label="Notifications" onClick={() => setOpen(true)}>
         <Bell size={16} />
         Notifications
         {unread ? <AppBadge variant="info">{unread}</AppBadge> : null}
       </AppButton>
-      {open ? (
-        <NotificationCenterPanel
-          items={items}
-          onRead={(notificationId) => readMutation.mutate(notificationId)}
-          onDismiss={(notificationId, surface) => dismissMutation.mutate({ notificationId, surface })}
-        />
-      ) : null}
-    </div>
+      <NotificationCenterPanel
+        open={open}
+        onOpenChange={setOpen}
+        items={items}
+        onRead={(notificationId) => readMutation.mutate(notificationId)}
+        onDismiss={(notificationId, surface) => dismissMutation.mutate({ notificationId, surface })}
+      />
+    </>
   )
 }

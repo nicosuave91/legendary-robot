@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { PageHeader, LoadingSkeleton, EmptyState } from '@/components/ui'
+import { LoadingSkeleton, EmptyState } from '@/components/ui'
 import { HomeHeroCard } from '@/features/homepage-analytics/components/home-hero-card'
 import { KpiCard } from '@/features/homepage-analytics/components/kpi-card'
 import { ProductionLineChart } from '@/features/homepage-analytics/components/production-line-chart'
@@ -32,27 +32,25 @@ export function HomepagePage() {
   const canCreateClient = hasPermission(auth?.permissions ?? [], 'clients.create')
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Homepage" description="Role-safe production metrics and direct paths into calendar, event, task, and client work now render through the shared shell and generated contracts." />
-
+    <div className="space-y-5">
       {summaryQuery.isLoading && !summary ? <LoadingSkeleton lines={5} /> : null}
       {summary ? <HomeHeroCard hero={summary.hero} canCreateClient={canCreateClient} /> : null}
 
       {summary?.kpis?.length ? (
-        <div className="grid gap-4 xl:grid-cols-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {summary.kpis.map((card) => <KpiCard key={card.key} card={card} />)}
         </div>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.95fr)]">
+      {productionQuery.isLoading && !production ? <LoadingSkeleton lines={4} /> : null}
+      {production ? <ProductionLineChart data={production} window={window} onWindowChange={setWindow} /> : null}
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.9fr)]">
         <MonthCalendar month={visibleMonth} selectedDate={selectedDate} today={dateKey(new Date())} events={monthQuery.data?.data.items ?? []} onMonthChange={setVisibleMonth} onSelectDate={setSelectedDate} onOpenEvent={(eventId) => { setSelectedEventId(eventId); setDetailOpen(true) }} />
         <SelectedDayPanel isLoading={dayQuery.isLoading} data={dayQuery.data?.data} onOpenEvent={(eventId) => { setSelectedEventId(eventId); setDetailOpen(true) }} />
       </div>
 
-      {productionQuery.isLoading && !production ? <LoadingSkeleton lines={6} /> : null}
-      {production ? <ProductionLineChart data={production} window={window} onWindowChange={setWindow} /> : null}
-
-      {(summaryQuery.isError || productionQuery.isError) && !summary && !production ? <EmptyState title="Homepage data could not load" description="The homepage only renders from typed dashboard and calendar APIs. Verify the contract publish step and generated client wiring before continuing." /> : null}
+      {(summaryQuery.isError || productionQuery.isError) && !summary && !production ? <EmptyState title="Homepage data could not load" description="Verify the dashboard and calendar APIs, then reload the page." /> : null}
       <EventDetailDrawer eventId={selectedEventId} open={detailOpen} onOpenChange={setDetailOpen} />
     </div>
   )

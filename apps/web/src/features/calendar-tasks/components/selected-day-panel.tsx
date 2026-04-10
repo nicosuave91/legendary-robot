@@ -1,4 +1,4 @@
-import { CalendarClock, FileText, FolderOpen } from 'lucide-react'
+import { CalendarClock, FileText, FolderOpen, Plus } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { AppBadge, AppButton, AppCard, AppCardBody, AppCardHeader, EmptyState, LoadingSkeleton } from '@/components/ui'
 import { dayLabel, formatTimeRange } from '@/features/calendar-tasks/calendar-utils'
@@ -24,10 +24,20 @@ export function SelectedDayPanel({ isLoading, data, onOpenEvent }: SelectedDayPa
       <AppCard>
         <AppCardHeader>
           <div className="heading-md">{dayLabel(data.selectedDate)}</div>
-          <div className="body-sm text-text-muted">No events are currently scheduled for the selected date.</div>
         </AppCardHeader>
         <AppCardBody>
-          <EmptyState title="No events scheduled" description="The selected day is clear. Use the full calendar surface to create a governed event if needed." />
+          <div className="rounded-lg border border-dashed border-border bg-muted/40 px-4 py-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="font-medium text-text">Nothing scheduled</div>
+                <div className="body-sm text-text-muted">Add an event for this day.</div>
+              </div>
+              <AppButton type="button" variant="secondary">
+                <Plus size={14} />
+                Create event
+              </AppButton>
+            </div>
+          </div>
         </AppCardBody>
       </AppCard>
     )
@@ -39,7 +49,6 @@ export function SelectedDayPanel({ isLoading, data, onOpenEvent }: SelectedDayPa
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="heading-md">{dayLabel(data.selectedDate)}</div>
-            <div className="body-sm text-text-muted">Selected-day workflow with canonical event and task summaries.</div>
           </div>
           <div className="flex flex-wrap gap-2">
             <AppBadge variant="neutral">{data.summary.eventCount} events</AppBadge>

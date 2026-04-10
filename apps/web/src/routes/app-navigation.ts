@@ -30,12 +30,15 @@ type AppNavigationRouteKey =
   | 'workflows'
   | 'audit'
 
+type AppNavigationGroupKey = 'operations' | 'administration'
+
 type AppNavigationItem = {
   routeKey: AppNavigationRouteKey
   to: string
   label: string
   icon: LucideIcon
   permissions: readonly PermissionCode[]
+  group: AppNavigationGroupKey
 }
 
 export const appNavigationItems = [
@@ -45,34 +48,7 @@ export const appNavigationItems = [
     label: 'Homepage',
     icon: LayoutGrid,
     permissions: routeMeta.dashboard.permissions ?? [],
-  },
-  {
-    routeKey: 'settingsProfile',
-    to: '/app/settings/profile',
-    label: 'My Profile',
-    icon: UserRound,
-    permissions: routeMeta.settingsProfile.permissions ?? [],
-  },
-  {
-    routeKey: 'settingsAccounts',
-    to: '/app/settings/accounts',
-    label: 'Accounts',
-    icon: Settings,
-    permissions: routeMeta.settingsAccounts.permissions ?? [],
-  },
-  {
-    routeKey: 'settingsTheme',
-    to: '/app/settings/theme',
-    label: 'Branding',
-    icon: Palette,
-    permissions: routeMeta.settingsTheme.permissions ?? [],
-  },
-  {
-    routeKey: 'settingsIndustryConfigurations',
-    to: '/app/settings/industry-configurations',
-    label: 'Industry Config',
-    icon: Network,
-    permissions: routeMeta.settingsIndustryConfigurations.permissions ?? [],
+    group: 'operations',
   },
   {
     routeKey: 'clients',
@@ -80,13 +56,7 @@ export const appNavigationItems = [
     label: 'Clients',
     icon: Users,
     permissions: routeMeta.clients.permissions ?? [],
-  },
-  {
-    routeKey: 'imports',
-    to: '/app/imports',
-    label: 'Imports',
-    icon: Upload,
-    permissions: routeMeta.imports.permissions ?? [],
+    group: 'operations',
   },
   {
     routeKey: 'calendar',
@@ -94,6 +64,7 @@ export const appNavigationItems = [
     label: 'Calendar',
     icon: CalendarDays,
     permissions: routeMeta.calendar.permissions ?? [],
+    group: 'operations',
   },
   {
     routeKey: 'communications',
@@ -101,6 +72,39 @@ export const appNavigationItems = [
     label: 'Communications',
     icon: MessageSquare,
     permissions: routeMeta.communications.permissions ?? [],
+    group: 'operations',
+  },
+  {
+    routeKey: 'imports',
+    to: '/app/imports',
+    label: 'Imports',
+    icon: Upload,
+    permissions: routeMeta.imports.permissions ?? [],
+    group: 'operations',
+  },
+  {
+    routeKey: 'settingsAccounts',
+    to: '/app/settings/accounts',
+    label: 'Accounts',
+    icon: Settings,
+    permissions: routeMeta.settingsAccounts.permissions ?? [],
+    group: 'administration',
+  },
+  {
+    routeKey: 'settingsTheme',
+    to: '/app/settings/theme',
+    label: 'Branding',
+    icon: Palette,
+    permissions: routeMeta.settingsTheme.permissions ?? [],
+    group: 'administration',
+  },
+  {
+    routeKey: 'settingsIndustryConfigurations',
+    to: '/app/settings/industry-configurations',
+    label: 'Industry Config',
+    icon: Network,
+    permissions: routeMeta.settingsIndustryConfigurations.permissions ?? [],
+    group: 'administration',
   },
   {
     routeKey: 'rules',
@@ -108,6 +112,7 @@ export const appNavigationItems = [
     label: 'Rules Library',
     icon: Library,
     permissions: routeMeta.rules.permissions ?? [],
+    group: 'administration',
   },
   {
     routeKey: 'workflows',
@@ -115,6 +120,7 @@ export const appNavigationItems = [
     label: 'Workflow Builder',
     icon: Workflow,
     permissions: routeMeta.workflows.permissions ?? [],
+    group: 'administration',
   },
   {
     routeKey: 'audit',
@@ -122,6 +128,15 @@ export const appNavigationItems = [
     label: 'Audit',
     icon: Shield,
     permissions: routeMeta.audit.permissions ?? [],
+    group: 'administration',
+  },
+  {
+    routeKey: 'settingsProfile',
+    to: '/app/settings/profile',
+    label: 'My Profile',
+    icon: UserRound,
+    permissions: routeMeta.settingsProfile.permissions ?? [],
+    group: 'administration',
   },
 ] satisfies readonly AppNavigationItem[]
 

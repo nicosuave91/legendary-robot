@@ -27,64 +27,60 @@ export function ProductionLineChart({ data, window, onWindowChange }: Production
   return (
     <AppCard>
       <AppCardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="heading-md">Production trend</div>
-            <div className="body-sm text-text-muted">Chart-ready daily buckets sourced from client creation, note activity, and document uploads.</div>
-          </div>
-          <div className="flex gap-2">
-            {(['7d', '30d', '90d'] as const).map((nextWindow) => (
-              <AppButton
-                key={nextWindow}
-                type="button"
-                size="sm"
-                variant={window === nextWindow ? 'primary' : 'secondary'}
-                onClick={() => onWindowChange(nextWindow)}
-              >
-                {nextWindow}
-              </AppButton>
-            ))}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="heading-md">Production trend</div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex gap-2">
+              {(['7d', '30d', '90d'] as const).map((nextWindow) => (
+                <AppButton
+                  key={nextWindow}
+                  type="button"
+                  size="sm"
+                  variant={window === nextWindow ? 'primary' : 'secondary'}
+                  onClick={() => onWindowChange(nextWindow)}
+                >
+                  {nextWindow}
+                </AppButton>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {data.series.map((series, index) => (
+                <div key={series.key} className="inline-flex items-center gap-2 text-xs text-text-muted">
+                  <span className="inline-block h-[2px] w-4 rounded-full" style={{ backgroundColor: chartColors[index] }} />
+                  <span>{series.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </AppCardHeader>
       <AppCardBody>
         {!hasData ? (
           <EmptyState
-            title="No production movement yet"
-            description="Once client, note, or document activity begins, the homepage trend line will render from those canonical records."
+            title="No activity yet"
+            description="Activity over the selected window will appear here."
           />
         ) : (
-          <div className="space-y-4">
-            <svg viewBox="0 0 640 240" className="h-64 w-full overflow-visible rounded-lg border border-border bg-muted/40 p-3" role="img" aria-label="Production trend chart">
-              {Array.from({ length: 5 }).map((_, index) => {
-                const y = 20 + index * 50
-                return <line key={index} x1="0" y1={y} x2="640" y2={y} stroke="var(--color-border)" strokeDasharray="4 4" />
-              })}
-              {data.series.map((series, index) => {
-                const values = series.points.map((point) => point.value)
-                return (
-                  <path
-                    key={series.key}
-                    d={pointsToPath(values, 620, 200)}
-                    transform="translate(10 20)"
-                    fill="none"
-                    stroke={chartColors[index]}
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                  />
-                )
-              })}
-            </svg>
-
-            <div className="flex flex-wrap gap-4">
-              {data.series.map((series, index) => (
-                <div key={series.key} className="inline-flex items-center gap-2 text-sm text-text-muted">
-                  <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: chartColors[index] }} />
-                  <span>{series.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <svg viewBox="0 0 640 180" className="h-44 w-full overflow-visible rounded-lg border border-border bg-muted/30 p-3" role="img" aria-label="Production trend chart">
+            {Array.from({ length: 4 }).map((_, index) => {
+              const y = 20 + index * 40
+              return <line key={index} x1="0" y1={y} x2="640" y2={y} stroke="var(--color-border)" strokeDasharray="4 4" />
+            })}
+            {data.series.map((series, index) => {
+              const values = series.points.map((point) => point.value)
+              return (
+                <path
+                  key={series.key}
+                  d={pointsToPath(values, 620, 140)}
+                  transform="translate(10 20)"
+                  fill="none"
+                  stroke={chartColors[index]}
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                />
+              )
+            })}
+          </svg>
         )}
       </AppCardBody>
     </AppCard>
