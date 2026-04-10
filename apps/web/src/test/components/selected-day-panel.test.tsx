@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { SelectedDayPanel } from '@/features/calendar-tasks/components/selected-day-panel'
 
 describe('selected day panel', () => {
-  it('renders empty guidance when there are no events for the selected day', () => {
+  it('renders compact empty guidance when there are no events for the selected day', () => {
     render(
       <MemoryRouter>
         <SelectedDayPanel
@@ -19,6 +19,7 @@ describe('selected day panel', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('No events scheduled')).toBeInTheDocument()
+    expect(screen.getByText('Nothing scheduled — add an event.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /create event/i })).toHaveAttribute('href', '/app/calendar')
   })
 })

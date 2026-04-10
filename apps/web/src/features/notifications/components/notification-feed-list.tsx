@@ -1,4 +1,4 @@
-import { AppButton, AppCard, AppCardBody, AppCardHeader, EmptyState } from '@/components/ui'
+import { AppButton, AppCard, AppCardBody, EmptyState } from '@/components/ui'
 
 type NotificationItem = {
   id: string
@@ -17,13 +17,13 @@ type NotificationFeedListProps = {
   emptyDescription?: string
   onRead?: (notificationId: string) => void
   onDismiss?: (notificationId: string, surface: string) => void
-  surface: 'header_center' | 'tray'
+  surface: 'header_center' | 'tray' | 'drawer'
 }
 
 export function NotificationFeedList({
   items,
-  emptyTitle = 'No notifications yet',
-  emptyDescription = 'Persistent notifications will appear here when workflow, import, or operational events need attention.',
+  emptyTitle = 'No notifications',
+  emptyDescription = 'You are all caught up.',
   onRead,
   onDismiss,
   surface,
@@ -36,17 +36,19 @@ export function NotificationFeedList({
     <div className="space-y-3">
       {items.map((item) => (
         <AppCard key={item.id}>
-          <AppCardHeader>
+          <AppCardBody>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="heading-md">{item.title}</div>
-                <div className="body-sm text-text-muted">{item.emittedAt ? new Date(item.emittedAt).toLocaleString() : '—'}</div>
+                <div className="font-semibold text-text">{item.title}</div>
+                <div className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-text-muted">
+                  {item.emittedAt ? new Date(item.emittedAt).toLocaleString() : 'Recent update'}
+                </div>
               </div>
-              <div className="label-sm uppercase tracking-[0.12em] text-text-muted">{item.tone}</div>
+              <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-text-muted">{item.tone}</div>
             </div>
-          </AppCardHeader>
-          <AppCardBody>
-            <div className="body-sm text-text-muted">{item.body ?? 'No additional detail supplied.'}</div>
+
+            {item.body ? <div className="body-sm mt-3 text-text-muted">{item.body}</div> : null}
+
             <div className="mt-4 flex flex-wrap gap-2">
               {!item.isRead ? (
                 <AppButton type="button" size="sm" variant="secondary" onClick={() => onRead?.(item.id)}>

@@ -30,15 +30,13 @@ type AppNavigationRouteKey =
   | 'workflows'
   | 'audit'
 
-type AppNavigationGroupKey = 'operations' | 'administration'
-
 type AppNavigationItem = {
   routeKey: AppNavigationRouteKey
   to: string
   label: string
   icon: LucideIcon
   permissions: readonly PermissionCode[]
-  group: AppNavigationGroupKey
+  group: 'operations' | 'administration'
 }
 
 export const appNavigationItems = [
@@ -51,36 +49,12 @@ export const appNavigationItems = [
     group: 'operations',
   },
   {
-    routeKey: 'clients',
-    to: '/app/clients',
-    label: 'Clients',
-    icon: Users,
-    permissions: routeMeta.clients.permissions ?? [],
-    group: 'operations',
-  },
-  {
-    routeKey: 'calendar',
-    to: '/app/calendar',
-    label: 'Calendar',
-    icon: CalendarDays,
-    permissions: routeMeta.calendar.permissions ?? [],
-    group: 'operations',
-  },
-  {
-    routeKey: 'communications',
-    to: '/app/communications',
-    label: 'Communications',
-    icon: MessageSquare,
-    permissions: routeMeta.communications.permissions ?? [],
-    group: 'operations',
-  },
-  {
-    routeKey: 'imports',
-    to: '/app/imports',
-    label: 'Imports',
-    icon: Upload,
-    permissions: routeMeta.imports.permissions ?? [],
-    group: 'operations',
+    routeKey: 'settingsProfile',
+    to: '/app/settings/profile',
+    label: 'My Profile',
+    icon: UserRound,
+    permissions: routeMeta.settingsProfile.permissions ?? [],
+    group: 'administration',
   },
   {
     routeKey: 'settingsAccounts',
@@ -107,6 +81,38 @@ export const appNavigationItems = [
     group: 'administration',
   },
   {
+    routeKey: 'clients',
+    to: '/app/clients',
+    label: 'Clients',
+    icon: Users,
+    permissions: routeMeta.clients.permissions ?? [],
+    group: 'operations',
+  },
+  {
+    routeKey: 'imports',
+    to: '/app/imports',
+    label: 'Imports',
+    icon: Upload,
+    permissions: routeMeta.imports.permissions ?? [],
+    group: 'operations',
+  },
+  {
+    routeKey: 'calendar',
+    to: '/app/calendar',
+    label: 'Calendar',
+    icon: CalendarDays,
+    permissions: routeMeta.calendar.permissions ?? [],
+    group: 'operations',
+  },
+  {
+    routeKey: 'communications',
+    to: '/app/communications',
+    label: 'Communications',
+    icon: MessageSquare,
+    permissions: routeMeta.communications.permissions ?? [],
+    group: 'operations',
+  },
+  {
     routeKey: 'rules',
     to: '/app/rules',
     label: 'Rules Library',
@@ -128,14 +134,6 @@ export const appNavigationItems = [
     label: 'Audit',
     icon: Shield,
     permissions: routeMeta.audit.permissions ?? [],
-    group: 'administration',
-  },
-  {
-    routeKey: 'settingsProfile',
-    to: '/app/settings/profile',
-    label: 'My Profile',
-    icon: UserRound,
-    permissions: routeMeta.settingsProfile.permissions ?? [],
     group: 'administration',
   },
 ] satisfies readonly AppNavigationItem[]

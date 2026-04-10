@@ -18,8 +18,8 @@ export function AppHeader({ onToggleSidebar }: AppHeaderProps) {
     await signOut()
     notify({
       title: 'Signed out',
-      description: 'Your session has ended.',
-      tone: 'success'
+      description: 'Your server-backed session has been cleared.',
+      tone: 'success',
     })
     navigate('/sign-in', { replace: true })
   }
@@ -32,8 +32,8 @@ export function AppHeader({ onToggleSidebar }: AppHeaderProps) {
             <PanelLeft size={16} />
           </AppButton>
 
-          <div className="min-w-0">
-            <div className="body-sm truncate text-text-muted">{data?.tenant.name ?? 'Workspace'}</div>
+          <div className="min-w-0 text-sm font-medium text-text-muted">
+            <span className="truncate">{data?.tenant.name ?? 'Workspace'}</span>
           </div>
         </div>
 

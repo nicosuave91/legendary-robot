@@ -8,6 +8,7 @@ use App\Modules\Clients\Models\ClientDocument;
 use App\Modules\Clients\Models\ClientNote;
 use App\Modules\Clients\Services\ClientVisibilityService;
 use App\Modules\IdentityAccess\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 
 final class DashboardSummaryService
 {
@@ -21,33 +22,58 @@ final class DashboardSummaryService
      */
     public function forActor(User $actor): array
     {
-        $visibleClientIds = $this->clientVisibilityService
-            ->queryForActor($actor)
+        $visibleClientQuery = $this->clientVisibilityService->queryForActor($actor);
+        $visibleClientIds = $visibleClientQuery
             ->pluck('clients.id')
             ->all();
 
         $totalClients = count($visibleClientIds);
-        $newClientsLastSevenDays = $this->clientVisibilityService
-            ->queryForActor($actor)
-            ->where('clients.created_at', '>=', now()->subDays(7))
-            ->count();
-
-        $recentNotes = empty($visibleClientIds)
-            ? 0
-            : ClientNote::query()
-                ->whereIn('client_id', $visibleClientIds)
-                ->where('created_at', '>=', now()->subDays(7))
-                ->count();
-
-        $recentDocuments = empty($visibleClientIds)
-            ? 0
-            : ClientDocument::query()
-                ->whereIn('client_id', $visibleClientIds)
-                ->where('created_at', '>=', now()->subDays(7))
-                ->count();
-
         $industry = $actor->industryAssignment?->industry;
         $industryVersion = $actor->industryAssignment?->config_version;
+
+        $currentWindowStart = now()->subDays(7);
+        $priorWindowStart = now()->subDays(14);
+        $priorWindowEnd = now()->subDays(7);
+
+        $newClientsCurrent = $this->countClientsWithinWindow(
+            $this->clientVisibilityService->queryForActor($actor),
+            $currentWindowStart,
+            null,
+        );
+
+        $newClientsPrior = $this->countClientsWithinWindow(
+            $this->clientVisibilityService->queryForActor($actor),
+            $priorWindowStart,
+            $priorWindowEnd,
+        );
+
+        $recentNotes = $this->countRecordsForWindow(
+            ClientNote::query(),
+            $visibleClientIds,
+            $currentWindowStart,
+            null,
+        );
+
+        $priorNotes = $this->countRecordsForWindow(
+            ClientNote::query(),
+            $visibleClientIds,
+            $priorWindowStart,
+            $priorWindowEnd,
+        );
+
+        $recentDocuments = $this->countRecordsForWindow(
+            ClientDocument::query(),
+            $visibleClientIds,
+            $currentWindowStart,
+            null,
+        );
+
+        $priorDocuments = $this->countRecordsForWindow(
+            ClientDocument::query(),
+            $visibleClientIds,
+            $priorWindowStart,
+            $priorWindowEnd,
+        );
 
         return [
             'hero' => [
@@ -65,35 +91,35 @@ final class DashboardSummaryService
                     value: $totalClients,
                     description: 'All client records currently visible to this actor.',
                     href: '/app/clients',
-                    deltaValue: 0,
-                    deltaLabel: 'No comparison window',
+                    delta: [
+                        'direction' => 'flat',
+                        'value' => $totalClients,
+                        'label' => 'Current scope',
+                    ],
                 ),
                 $this->kpiCard(
                     key: 'clients_new_7d',
-                    label: 'New clients · 7 days',
-                    value: $newClientsLastSevenDays,
+                    label: 'New clients',
+                    value: $newClientsCurrent,
                     description: 'Recently created client records in your current scope.',
                     href: '/app/clients?sort=created_at&direction=desc',
-                    deltaValue: $newClientsLastSevenDays,
-                    deltaLabel: 'Created in the last 7 days',
+                    delta: $this->periodDelta($newClientsCurrent, $newClientsPrior, '7d'),
                 ),
                 $this->kpiCard(
                     key: 'notes_7d',
-                    label: 'Notes · 7 days',
+                    label: 'Notes',
                     value: $recentNotes,
                     description: 'User-authored note activity across visible client records.',
                     href: '/app/clients?sort=last_activity_at&direction=desc',
-                    deltaValue: $recentNotes,
-                    deltaLabel: 'Note entries in the last 7 days',
+                    delta: $this->periodDelta($recentNotes, $priorNotes, '7d'),
                 ),
                 $this->kpiCard(
                     key: 'documents_7d',
-                    label: 'Documents · 7 days',
+                    label: 'Documents',
                     value: $recentDocuments,
                     description: 'Governed document uploads attached to visible client records.',
                     href: '/app/clients?sort=last_activity_at&direction=desc',
-                    deltaValue: $recentDocuments,
-                    deltaLabel: 'Uploads in the last 7 days',
+                    delta: $this->periodDelta($recentDocuments, $priorDocuments, '7d'),
                 ),
             ],
             'activitySummary' => [
@@ -114,8 +140,7 @@ final class DashboardSummaryService
         int $value,
         string $description,
         string $href,
-        int $deltaValue,
-        string $deltaLabel,
+        array $delta,
     ): array {
         return [
             'key' => $key,
@@ -123,11 +148,63 @@ final class DashboardSummaryService
             'value' => $value,
             'description' => $description,
             'href' => $href,
-            'delta' => [
-                'direction' => $deltaValue > 0 ? 'up' : 'flat',
-                'value' => $deltaValue,
-                'label' => $deltaLabel,
-            ],
+            'delta' => $delta,
+        ];
+    }
+
+    private function countClientsWithinWindow(Builder $query, \DateTimeInterface $start, ?\DateTimeInterface $end): int
+    {
+        $query->where('clients.created_at', '>=', $start);
+
+        if ($end !== null) {
+            $query->where('clients.created_at', '<', $end);
+        }
+
+        return $query->count();
+    }
+
+    /**
+     * @param Builder<\Illuminate\Database\Eloquent\Model> $query
+     * @param array<int, mixed> $visibleClientIds
+     */
+    private function countRecordsForWindow(Builder $query, array $visibleClientIds, \DateTimeInterface $start, ?\DateTimeInterface $end): int
+    {
+        if (empty($visibleClientIds)) {
+            return 0;
+        }
+
+        $query
+            ->whereIn('client_id', $visibleClientIds)
+            ->where('created_at', '>=', $start);
+
+        if ($end !== null) {
+            $query->where('created_at', '<', $end);
+        }
+
+        return $query->count();
+    }
+
+    /**
+     * @return array{direction: string, value: int, label: string}
+     */
+    private function periodDelta(int $current, int $previous, string $windowLabel): array
+    {
+        $difference = $current - $previous;
+        $direction = $difference > 0 ? 'up' : ($difference < 0 ? 'down' : 'flat');
+        $absoluteDifference = abs($difference);
+
+        if ($direction === 'flat') {
+            return [
+                'direction' => $direction,
+                'value' => 0,
+                'label' => sprintf('No change vs prior %s', $windowLabel),
+            ];
+        }
+
+        return [
+            'direction' => $direction,
+            'value' => $absoluteDifference,
+            'label' => sprintf('%s %d vs prior %s', $direction === 'up' ? '↑' : '↓', $absoluteDifference, $windowLabel),
         ];
     }
 }

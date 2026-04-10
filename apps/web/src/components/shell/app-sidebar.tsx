@@ -11,6 +11,43 @@ type AppSidebarProps = {
   onToggle: () => void
 }
 
+function NavigationGroup({
+  collapsed,
+  items,
+  subdued = false,
+}: {
+  collapsed: boolean
+  items: typeof appNavigationItems
+  subdued?: boolean
+}) {
+  return (
+    <div className="space-y-1">
+      {items.map((item) => {
+        const Icon = item.icon
+
+        return (
+          <NavLink
+            key={item.routeKey}
+            to={item.to}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-text-muted transition motion-base hover:bg-muted hover:text-text',
+                collapsed && 'justify-center px-2',
+                subdued && !isActive && 'opacity-85',
+                isActive && 'bg-muted text-text opacity-100',
+              )
+            }
+            title={collapsed ? item.label : undefined}
+          >
+            <Icon size={16} />
+            {!collapsed ? item.label : null}
+          </NavLink>
+        )
+      })}
+    </div>
+  )
+}
+
 export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const { data } = useAuth()
   const visibleItems = appNavigationItems.filter((item) =>
@@ -19,30 +56,6 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
 
   const operationalItems = visibleItems.filter((item) => item.group === 'operations')
   const administrativeItems = visibleItems.filter((item) => item.group === 'administration')
-  const workspaceContext = [data?.tenant.name, data?.selectedIndustry].filter(Boolean).join(' · ')
-
-  const renderNavItem = (item: (typeof visibleItems)[number], subdued = false) => {
-    const Icon = item.icon
-
-    return (
-      <NavLink
-        key={item.routeKey}
-        to={item.to}
-        className={({ isActive }) =>
-          cn(
-            'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-text-muted transition motion-base hover:bg-muted hover:text-text',
-            collapsed && 'justify-center px-2',
-            subdued && !isActive && 'opacity-85',
-            isActive && 'bg-muted text-text opacity-100',
-          )
-        }
-        title={collapsed ? item.label : undefined}
-      >
-        <Icon size={16} />
-        {!collapsed ? item.label : null}
-      </NavLink>
-    )
-  }
 
   return (
     <aside
@@ -61,19 +74,21 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         </AppButton>
       </div>
 
-      <nav className="space-y-2" aria-label="Primary">
-        {operationalItems.map((item) => renderNavItem(item))}
+      <nav className="space-y-4" aria-label="Primary">
+        <NavigationGroup collapsed={collapsed} items={operationalItems} />
 
-        {!collapsed && administrativeItems.length ? (
-          <div className="my-3 border-t border-border pt-4" />
+        {operationalItems.length && administrativeItems.length ? (
+          <div className="border-t border-border/80 pt-4" aria-hidden="true" />
         ) : null}
 
-        {administrativeItems.map((item) => renderNavItem(item, true))}
+        <NavigationGroup collapsed={collapsed} items={administrativeItems} subdued />
       </nav>
 
       {!collapsed ? (
         <div className="mt-8 border-t border-border pt-4">
-          <div className="body-sm truncate text-text-muted">{workspaceContext || 'Workspace'}</div>
+          <div className="truncate text-xs font-medium text-text-muted">
+            {data?.tenant.name ?? 'Workspace'}
+          </div>
         </div>
       ) : null}
     </aside>

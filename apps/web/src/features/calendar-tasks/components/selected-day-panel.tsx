@@ -1,6 +1,6 @@
 import { CalendarClock, FileText, FolderOpen, Plus } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { AppBadge, AppButton, AppCard, AppCardBody, AppCardHeader, EmptyState, LoadingSkeleton } from '@/components/ui'
+import { AppBadge, AppButton, AppCard, AppCardBody, AppCardHeader, LoadingSkeleton } from '@/components/ui'
 import { dayLabel, formatTimeRange } from '@/features/calendar-tasks/calendar-utils'
 import type { CalendarDayResponse } from '@/lib/api/generated/client'
 
@@ -16,7 +16,7 @@ export function SelectedDayPanel({ isLoading, data, onOpenEvent }: SelectedDayPa
   }
 
   if (!data) {
-    return <EmptyState title="Select a date" description="Choose a calendar date to review scheduled work and required tasks." />
+    return <EmptyState title="Select a date" description="Choose a date to review scheduled work." />
   }
 
   if (!data.events.length) {
@@ -26,17 +26,11 @@ export function SelectedDayPanel({ isLoading, data, onOpenEvent }: SelectedDayPa
           <div className="heading-md">{dayLabel(data.selectedDate)}</div>
         </AppCardHeader>
         <AppCardBody>
-          <div className="rounded-lg border border-dashed border-border bg-muted/40 px-4 py-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="font-medium text-text">Nothing scheduled</div>
-                <div className="body-sm text-text-muted">Add an event for this day.</div>
-              </div>
-              <AppButton type="button" variant="secondary">
-                <Plus size={14} />
-                Create event
-              </AppButton>
-            </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-border bg-muted/35 px-4 py-3">
+            <div className="body-sm text-text-muted">Nothing scheduled — add an event.</div>
+            <AppButton asChild size="sm">
+              <Link to="/app/calendar"><Plus size={14} />Create event</Link>
+            </AppButton>
           </div>
         </AppCardBody>
       </AppCard>

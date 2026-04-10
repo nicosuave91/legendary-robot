@@ -45,12 +45,14 @@ export function HomepagePage() {
       {productionQuery.isLoading && !production ? <LoadingSkeleton lines={4} /> : null}
       {production ? <ProductionLineChart data={production} window={window} onWindowChange={setWindow} /> : null}
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.9fr)]">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(300px,0.95fr)]">
         <MonthCalendar month={visibleMonth} selectedDate={selectedDate} today={dateKey(new Date())} events={monthQuery.data?.data.items ?? []} onMonthChange={setVisibleMonth} onSelectDate={setSelectedDate} onOpenEvent={(eventId) => { setSelectedEventId(eventId); setDetailOpen(true) }} />
         <SelectedDayPanel isLoading={dayQuery.isLoading} data={dayQuery.data?.data} onOpenEvent={(eventId) => { setSelectedEventId(eventId); setDetailOpen(true) }} />
       </div>
 
-      {(summaryQuery.isError || productionQuery.isError) && !summary && !production ? <EmptyState title="Homepage data could not load" description="Verify the dashboard and calendar APIs, then reload the page." /> : null}
+      {(summaryQuery.isError || productionQuery.isError) && !summary && !production ? (
+        <EmptyState title="Homepage data could not load" description="Refresh the page or verify the dashboard and calendar APIs are available." />
+      ) : null}
       <EventDetailDrawer eventId={selectedEventId} open={detailOpen} onOpenChange={setDetailOpen} />
     </div>
   )

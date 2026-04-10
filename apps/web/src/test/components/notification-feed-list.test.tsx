@@ -6,8 +6,8 @@ describe('notification feed list', () => {
   it('renders empty state when there are no notifications', () => {
     render(<NotificationFeedList items={[]} surface="tray" />)
 
-    expect(screen.getByText('No notifications yet')).toBeInTheDocument()
-    expect(screen.getByText(/Persistent notifications will appear here/i)).toBeInTheDocument()
+    expect(screen.getByText('No notifications')).toBeInTheDocument()
+    expect(screen.getByText('You are all caught up.')).toBeInTheDocument()
   })
 
   it('supports mark read and dismiss actions when the notification is actionable', () => {
