@@ -1,0 +1,38 @@
+{
+    "name": "snowball/crm-api",
+    "type": "project",
+    "require": {
+        "php": "^8.4",
+        "laravel/framework": "^12.0",
+        "laravel/sanctum": "^4.0",
+        "twilio/sdk": "^8.0"
+    },
+    "require-dev": {
+        "mockery/mockery": "^1.6",
+        "nunomaduro/larastan": "^3.7",
+        "pestphp/pest": "^3.8"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/",
+            "Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "scripts": {
+        "contracts:publish": "php scripts/publish-openapi.php",
+        "test": "phpunit",
+        "test:contracts": "phpunit tests/Contract"
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        },
+        "sort-packages": true,
+        "preferred-install": "dist"
+    }
+}

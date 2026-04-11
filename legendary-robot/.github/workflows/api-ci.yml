@@ -1,0 +1,41 @@
+name: api-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+
+      - name: Validate PHP syntax
+        run: find app tests bootstrap config database routes -name "*.php" -print0 | xargs -0 -n1 php -l
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Prepare sqlite database
+        run: |
+          mkdir -p database
+          touch database/database.sqlite
+
+      - name: Publish contracts
+        run: php scripts/publish-openapi.php
+
+      - name: Run PHPUnit
+        run: vendor/bin/phpunit
+
+      - name: Run Larastan
+        run: vendor/bin/phpstan analyse --memory-limit=1G
