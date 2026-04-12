@@ -17,7 +17,7 @@ test.describe('release critical journeys (mocked shell smoke)', () => {
     await openMockedProtectedShell(page)
 
     await expect(page.getByRole('heading', { name: 'Homepage' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'View clients' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'View all clients' })).toBeVisible()
   })
 
   test('mock-backed client workspace surfaces are reachable', async ({ page }) => {

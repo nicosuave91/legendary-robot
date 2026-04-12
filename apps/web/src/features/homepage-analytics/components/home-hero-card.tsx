@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { AppButton, AppCard, AppCardBody } from '@/components/ui'
+import { useAuth } from '@/lib/auth/auth-hooks'
 import type { DashboardSummaryResponse } from '@/lib/api/generated/client'
 
 type HomeHeroCardProps = {
@@ -7,28 +8,43 @@ type HomeHeroCardProps = {
   canCreateClient: boolean
 }
 
+function formatToday() {
+  return new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  }).format(new Date())
+}
+
 export function HomeHeroCard({ hero, canCreateClient }: HomeHeroCardProps) {
-  const meta = [hero.tenantName, hero.selectedIndustry].filter(Boolean).join(' · ')
+  const { data } = useAuth()
+
+  const greeting = hero.greeting?.trim() || 'Good morning'
+  const displayName = data?.user.displayName ?? hero.userDisplayName
+  const workspaceName = data?.tenant.name ?? hero.tenantName
+  const meta = [formatToday(), workspaceName].filter(Boolean).join(' · ')
 
   return (
     <AppCard>
-      <AppCardBody>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <AppCardBody className="py-2">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <div className="text-base font-medium text-text">
-              {hero.greeting}, {hero.userDisplayName}
+            <div className="truncate text-[18px] font-semibold leading-5 text-text">
+              {greeting}, {displayName}
             </div>
-            <div className="mt-1 truncate text-sm text-text-muted">{meta || hero.tenantName}</div>
+            <div className="mt-0.5 truncate text-xs leading-4 text-text-muted">
+              {meta}
+            </div>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2 lg:justify-end">
             {canCreateClient ? (
-              <AppButton asChild>
-                <Link to="/app/clients/new">Create client</Link>
+              <AppButton asChild size="sm">
+                <Link to="/app/clients/new">New client</Link>
               </AppButton>
             ) : null}
-            <AppButton asChild variant="secondary">
-              <Link to="/app/clients">View clients</Link>
+            <AppButton asChild variant="secondary" size="sm">
+              <Link to="/app/clients">View all clients</Link>
             </AppButton>
           </div>
         </div>

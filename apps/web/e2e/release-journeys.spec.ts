@@ -6,7 +6,7 @@ test('mock-backed homepage smoke renders governed summary content', async ({ pag
   await page.goto('/app/dashboard')
 
   await expect(page.getByRole('heading', { name: 'Homepage' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'View clients' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'View all clients' })).toBeVisible()
 })
 
 test('mock-backed calendar smoke supports event drilldown and task status mutation', async ({ page }) => {

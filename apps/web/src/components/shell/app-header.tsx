@@ -1,15 +1,11 @@
-import { LogOut, PanelLeft } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { AppButton } from '@/components/ui'
 import { useAuth } from '@/lib/auth/auth-hooks'
 import { useToast } from '@/components/shell/toast-host'
 import { NotificationBellButton } from '@/features/notifications/components/notification-bell-button'
 
-type AppHeaderProps = {
-  onToggleSidebar: () => void
-}
-
-export function AppHeader({ onToggleSidebar }: AppHeaderProps) {
+export function AppHeader() {
   const navigate = useNavigate()
   const { data, signOut } = useAuth()
   const { notify } = useToast()
@@ -26,14 +22,10 @@ export function AppHeader({ onToggleSidebar }: AppHeaderProps) {
 
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-background/95 px-6 py-3 backdrop-blur">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <AppButton type="button" variant="secondary" onClick={onToggleSidebar} aria-label="Collapse navigation">
-            <PanelLeft size={16} />
-          </AppButton>
-
-          <div className="min-w-0 text-sm font-medium text-text-muted">
-            <span className="truncate">{data?.tenant.name ?? 'Workspace'}</span>
+      <div className="flex min-h-10 items-center justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-medium text-text-muted">
+            {data?.tenant.name ?? 'Workspace'}
           </div>
         </div>
 
