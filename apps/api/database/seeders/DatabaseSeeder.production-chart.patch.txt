@@ -1,0 +1,5 @@
+Add this line near the end of DatabaseSeeder::run(), after the baseline tenant/users/clients seed work has completed:
+
+$this->call(HomepageAnalyticsSeeder::class);
+
+This invokes the new 90-day production-history seeder without changing the rest of the seeding flow.

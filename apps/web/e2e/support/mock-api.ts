@@ -65,28 +65,84 @@ const dashboardSummary = {
       subtitle: 'Proof-ready dashboard surface',
     },
     kpis: [
-      { key: 'clients_total', label: 'Clients', value: 12, description: 'Visible client records across the workspace.', href: '/app/clients', delta: { direction: 'up', value: 2, label: 'vs prior window' } },
+      { key: 'clients_total', label: 'Clients', value: 18, description: 'Visible client records across the workspace.', href: '/app/clients', delta: { direction: 'up', value: 4, label: 'vs prior window' } },
       { key: 'clients_new_7d', label: 'New in 7 days', value: 3, description: 'Recently created client records.', href: '/app/clients', delta: { direction: 'up', value: 1, label: 'vs prior window' } },
-      { key: 'notes_7d', label: 'Notes in 7 days', value: 8, description: 'Recent activity notes.', href: '/app/clients', delta: { direction: 'flat', value: 0, label: 'stable' } },
-      { key: 'documents_7d', label: 'Documents in 7 days', value: 4, description: 'Recent uploaded evidence.', href: '/app/clients', delta: { direction: 'up', value: 2, label: 'vs prior window' } },
+      { key: 'notes_7d', label: 'Notes in 7 days', value: 9, description: 'Recent activity notes.', href: '/app/clients', delta: { direction: 'up', value: 2, label: 'vs prior window' } },
+      { key: 'documents_7d', label: 'Documents in 7 days', value: 5, description: 'Recent uploaded evidence.', href: '/app/clients', delta: { direction: 'up', value: 1, label: 'vs prior window' } },
     ],
-    activitySummary: { visibleClientCount: 12, recentNoteCount: 8, recentDocumentCount: 4 },
+    activitySummary: { visibleClientCount: 18, recentNoteCount: 9, recentDocumentCount: 5 },
     calendarPanelEnabled: true,
   },
   meta: { apiVersion: 'v1', correlationId: 'corr-dashboard' },
 }
 
-const dashboardProduction = {
-  data: {
-    range: { window: '30d', startDate: '2026-03-01', endDate: '2026-03-31', granularity: 'day' },
-    series: [
-      { key: 'clientsCreated', label: 'Clients created', points: [{ bucketDate: '2026-03-08', value: 2 }, { bucketDate: '2026-03-15', value: 3 }] },
-      { key: 'notesCreated', label: 'Notes created', points: [{ bucketDate: '2026-03-08', value: 4 }, { bucketDate: '2026-03-15', value: 5 }] },
-      { key: 'documentsUploaded', label: 'Documents uploaded', points: [{ bucketDate: '2026-03-08', value: 1 }, { bucketDate: '2026-03-15', value: 2 }] },
-    ],
-    totals: { clientsCreated: 12, notesCreated: 22, documentsUploaded: 8 },
-  },
-  meta: { apiVersion: 'v1', correlationId: 'corr-production' },
+function toIsoDate(value: Date) {
+  return value.toISOString().slice(0, 10)
+}
+
+function buildProductionPayload(window: '7d' | '30d' | '90d') {
+  const totalDays = window === '7d' ? 7 : window === '90d' ? 90 : 30
+  const endDate = new Date('2026-03-31T00:00:00Z')
+  const startDate = new Date(endDate)
+  startDate.setUTCDate(endDate.getUTCDate() - (totalDays - 1))
+
+  const points = Array.from({ length: totalDays }, (_, index) => {
+    const currentDate = new Date(startDate)
+    currentDate.setUTCDate(startDate.getUTCDate() + index)
+
+    return {
+      bucketDate: toIsoDate(currentDate),
+      clientsCreated: Math.max(
+        0,
+        Math.round(1.3 + Math.sin(index / 5) * 0.7 + (index % 17 === 0 ? 1 : 0) - (index % 11 === 0 ? 1 : 0)),
+      ),
+      notesCreated: Math.max(
+        0,
+        Math.round(2.4 + Math.sin(index / 4) * 1.3 + Math.cos(index / 9) * 0.6 + (index % 13 === 0 ? 1 : 0)),
+      ),
+      documentsUploaded: Math.max(
+        0,
+        Math.round(1 + Math.cos(index / 6) * 0.9 + (index % 19 === 0 ? 1 : 0) - (index % 8 === 0 ? 1 : 0)),
+      ),
+    }
+  })
+
+  const clientsSeries = points.map((point) => ({
+    bucketDate: point.bucketDate,
+    value: point.clientsCreated,
+  }))
+
+  const notesSeries = points.map((point) => ({
+    bucketDate: point.bucketDate,
+    value: point.notesCreated,
+  }))
+
+  const documentsSeries = points.map((point) => ({
+    bucketDate: point.bucketDate,
+    value: point.documentsUploaded,
+  }))
+
+  return {
+    data: {
+      range: {
+        window,
+        startDate: points[0]?.bucketDate ?? toIsoDate(startDate),
+        endDate: points[points.length - 1]?.bucketDate ?? toIsoDate(endDate),
+        granularity: 'day',
+      },
+      series: [
+        { key: 'clientsCreated', label: 'Clients created', points: clientsSeries },
+        { key: 'notesCreated', label: 'Notes created', points: notesSeries },
+        { key: 'documentsUploaded', label: 'Documents uploaded', points: documentsSeries },
+      ],
+      totals: {
+        clientsCreated: clientsSeries.reduce((total, point) => total + point.value, 0),
+        notesCreated: notesSeries.reduce((total, point) => total + point.value, 0),
+        documentsUploaded: documentsSeries.reduce((total, point) => total + point.value, 0),
+      },
+    },
+    meta: { apiVersion: 'v1', correlationId: `corr-production-${window}` },
+  }
 }
 
 const calendarEvent = {
@@ -251,7 +307,22 @@ export async function installAuthenticatedAppMocks(page: Page) {
   await fulfillJson(page, pathIs('/api/v1/auth/me'), authContext)
   await fulfillJson(page, /\/api\/v1\/notifications(?:\?.*)?$/, notifications)
   await fulfillJson(page, pathIs('/api/v1/dashboard/summary'), dashboardSummary)
-  await fulfillJson(page, /\/api\/v1\/dashboard\/production(?:\?.*)?$/, dashboardProduction)
+
+  await page.route(/\/api\/v1\/dashboard\/production(?:\?.*)?$/, async (route) => {
+    const url = new URL(route.request().url())
+    const requestedWindow = url.searchParams.get('window')
+    const window =
+      requestedWindow === '7d' || requestedWindow === '30d' || requestedWindow === '90d'
+        ? requestedWindow
+        : '30d'
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(buildProductionPayload(window)),
+    })
+  })
+
   await fulfillJson(page, pathIs('/api/v1/events/event-1'), eventDetail)
   await fulfillJson(page, pathIs('/api/v1/events'), calendarRange)
   await fulfillJson(page, pathIs('/api/v1/calendar/day'), calendarDay)
