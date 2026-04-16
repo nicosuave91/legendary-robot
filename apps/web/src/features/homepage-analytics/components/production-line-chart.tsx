@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { AppButton, AppCard, AppCardBody, AppCardHeader } from '@/components/ui'
+import { AppBadge, AppButton, AppCard, AppCardBody, AppCardHeader } from '@/components/ui'
 import type { DashboardProductionResponse } from '@/lib/api/generated/client'
 
 type ProductionLineChartProps = {
@@ -8,8 +8,6 @@ type ProductionLineChartProps = {
   onWindowChange: (window: '7d' | '30d' | '90d') => void
 }
 
-type SeriesPoint = DashboardProductionResponse['series'][number]['points'][number]
-
 const chartColors = [
   'var(--color-primary)',
   'var(--color-secondary)',
@@ -17,13 +15,13 @@ const chartColors = [
 ]
 
 const svgWidth = 960
-const svgHeight = 360
+const svgHeight = 300
 
 const chartMargin = {
-  top: 28,
-  right: 24,
-  bottom: 52,
-  left: 60,
+  top: 22,
+  right: 22,
+  bottom: 44,
+  left: 46,
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -38,18 +36,9 @@ function niceAxisMax(rawMax: number) {
   const magnitude = 10 ** Math.floor(Math.log10(rawMax))
   const residual = rawMax / magnitude
 
-  if (residual <= 1) {
-    return magnitude
-  }
-
-  if (residual <= 2) {
-    return 2 * magnitude
-  }
-
-  if (residual <= 5) {
-    return 5 * magnitude
-  }
-
+  if (residual <= 1) return magnitude
+  if (residual <= 2) return 2 * magnitude
+  if (residual <= 5) return 5 * magnitude
   return 10 * magnitude
 }
 
@@ -78,10 +67,10 @@ function buildTickIndexes(length: number, desiredCount: number) {
   return Array.from(indexes).sort((left, right) => left - right)
 }
 
-function formatTickDate(date: string, window: '7d' | '30d' | '90d') {
+function formatTickDate(date: string) {
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
-    day: window === '90d' ? 'numeric' : 'numeric',
+    day: 'numeric',
   }).format(new Date(`${date}T12:00:00Z`))
 }
 
@@ -148,10 +137,7 @@ export function ProductionLineChart({
     const axisMax = niceAxisMax(rawMax || 1)
     const plotWidth = svgWidth - chartMargin.left - chartMargin.right
     const plotHeight = svgHeight - chartMargin.top - chartMargin.bottom
-    const tickIndexes = buildTickIndexes(
-      referencePoints.length,
-      window === '7d' ? 7 : window === '30d' ? 6 : 7,
-    )
+    const tickIndexes = buildTickIndexes(referencePoints.length, window === '7d' ? 7 : 6)
 
     const series = data.series.map((series, index) => {
       const coordinates = series.points.map((point, pointIndex) => {
@@ -182,10 +168,10 @@ export function ProductionLineChart({
     const hoverPoints = referencePoints.map((point, index) => ({
       bucketDate: point.bucketDate,
       x: series[0]?.coordinates[index]?.x ?? chartMargin.left,
-      values: series.map((series) => ({
-        label: series.label,
-        color: series.color,
-        value: series.points[index]?.value ?? 0,
+      values: series.map((entry) => ({
+        label: entry.label,
+        color: entry.color,
+        value: entry.points[index]?.value ?? 0,
       })),
     }))
 
@@ -204,14 +190,14 @@ export function ProductionLineChart({
     hoveredIndex === null ? null : chartModel.hoverPoints[hoveredIndex] ?? null
 
   return (
-    <AppCard>
-      <AppCardHeader>
-        <div className="flex flex-col gap-4">
+    <AppCard tone="secondary">
+      <AppCardHeader density="compact">
+        <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="heading-md">Production</div>
               <div className="mt-1 body-sm text-text-muted">
-                Daily client, note, and document activity across the selected range.
+                Daily activity across the selected range.
               </div>
             </div>
 
@@ -230,62 +216,51 @@ export function ProductionLineChart({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             {data.series.map((series, index) => (
-              <div
-                key={series.key}
-                className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-xs"
-              >
+              <AppBadge key={series.key} className="gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs text-text">
                 <span
                   className="inline-block h-2.5 w-2.5 rounded-full"
                   style={{ backgroundColor: chartColors[index % chartColors.length] }}
                 />
-                <span className="text-text">{series.label}</span>
+                <span>{series.label}</span>
                 <span className="text-text-muted">
                   {series.points.reduce((total, point) => total + point.value, 0)} total
                 </span>
-              </div>
+              </AppBadge>
             ))}
           </div>
         </div>
       </AppCardHeader>
 
-      <AppCardBody>
+      <AppCardBody density="compact">
         {!hasData ? (
-          <div className="rounded-xl border border-dashed border-border bg-muted/20 px-6 py-10 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted text-text-muted">
+          <div className="rounded-xl border border-dashed border-border bg-muted/15 px-5 py-7 text-center">
+            <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted text-text-muted">
               ∅
             </div>
             <div className="text-lg font-semibold text-text">No production data yet</div>
-            <p className="mx-auto mt-2 max-w-2xl text-sm text-text-muted">
+            <p className="mx-auto mt-1.5 max-w-2xl text-sm text-text-muted">
               This chart begins plotting activity after clients are created, notes are added,
-              or documents are uploaded. Once the selected range contains production activity,
-              you can use hover to inspect each day and compare the trend lines.
+              or documents are uploaded.
             </p>
           </div>
         ) : !hasTrendData ? (
-          <div className="rounded-xl border border-dashed border-border bg-muted/20 px-6 py-10 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted text-text-muted">
+          <div className="rounded-xl border border-dashed border-border bg-muted/15 px-5 py-7 text-center">
+            <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted text-text-muted">
               ↗
             </div>
             <div className="text-lg font-semibold text-text">Trend data is still building</div>
-            <p className="mx-auto mt-2 max-w-2xl text-sm text-text-muted">
+            <p className="mx-auto mt-1.5 max-w-2xl text-sm text-text-muted">
               We need activity on at least three different days before this surface renders a
-              reliable trend. That prevents a single-day spike from appearing as a misleading
-              triangle. Continue working in the workspace or load the seeded records to populate
-              the production history.
+              reliable trend.
             </p>
           </div>
         ) : (
-          <div className="relative rounded-xl border border-border bg-muted/20 p-4">
-            <div className="mb-2 flex items-center justify-between text-xs text-text-muted">
-              <span>Y-axis · Daily activity</span>
-              <span>X-axis · Date</span>
-            </div>
-
+          <div className="relative rounded-xl border border-border bg-surface p-3">
             <svg
               viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-              className="h-[320px] w-full"
+              className="h-[260px] w-full"
               role="img"
               aria-label="Production chart with daily activity values over time"
             >
@@ -321,7 +296,7 @@ export function ProductionLineChart({
                       strokeDasharray="4 4"
                     />
                     <text
-                      x={chartMargin.left - 12}
+                      x={chartMargin.left - 10}
                       y={y + 4}
                       textAnchor="end"
                       fontSize="11"
@@ -356,12 +331,12 @@ export function ProductionLineChart({
                     />
                     <text
                       x={x}
-                      y={svgHeight - chartMargin.bottom + 20}
+                      y={svgHeight - chartMargin.bottom + 18}
                       textAnchor="middle"
                       fontSize="11"
                       fill="var(--color-text-muted)"
                     >
-                      {formatTickDate(point.bucketDate, window)}
+                      {formatTickDate(point.bucketDate)}
                     </text>
                   </g>
                 )
@@ -424,7 +399,7 @@ export function ProductionLineChart({
 
             {hoveredPoint ? (
               <div
-                className="pointer-events-none absolute top-4 z-10 w-52 rounded-lg border border-border bg-surface px-3 py-2 shadow-lg"
+                className="pointer-events-none absolute top-3 z-10 w-52 rounded-lg border border-border bg-surface px-3 py-2 shadow-lg"
                 style={{
                   left: `${(hoveredPoint.x / svgWidth) * 100}%`,
                   transform:

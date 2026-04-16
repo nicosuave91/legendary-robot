@@ -1,33 +1,50 @@
 import type { HTMLAttributes } from 'react'
 import { cn } from '@/lib/utils/cn'
 
-export function PageCanvas({
-  className,
-  ...props
-}: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('space-y-5', className)} {...props} />
+type PageCanvasProps = HTMLAttributes<HTMLDivElement> & {
+  density?: 'standard' | 'compact'
 }
 
-export function PageGrid({
-  className,
-  layout = 'workspace',
-  ...props
-}: HTMLAttributes<HTMLDivElement> & {
-  layout?: 'cockpit' | 'workspace' | 'settings' | 'governance' | 'audit'
-}) {
-  const layoutClasses = {
-    cockpit:
-      'grid gap-5 xl:grid-cols-[minmax(0,1.32fr)_minmax(320px,0.92fr)]',
-    workspace:
-      'grid gap-5 xl:grid-cols-[minmax(0,1.22fr)_minmax(320px,0.78fr)]',
-    settings:
-      'grid gap-5 xl:grid-cols-[minmax(0,1.24fr)_minmax(320px,0.76fr)]',
-    governance:
-      'grid gap-5 xl:grid-cols-[minmax(0,1.26fr)_minmax(360px,0.84fr)]',
-    audit: 'grid gap-5',
-  } as const
+type PageSplitProps = HTMLAttributes<HTMLDivElement> & {
+  variant?: 'cockpit' | 'workspace' | 'governance' | 'audit'
+}
 
+export function PageCanvas({
+  className,
+  density = 'standard',
+  ...props
+}: PageCanvasProps) {
   return (
-    <div className={cn(layoutClasses[layout], className)} {...props} />
+    <div
+      className={cn(
+        'mx-auto flex w-full max-w-[1600px] flex-col',
+        density === 'compact' ? 'gap-4' : 'gap-5',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+export function PageSplit({
+  className,
+  variant = 'workspace',
+  ...props
+}: PageSplitProps) {
+  return (
+    <div
+      className={cn(
+        'grid gap-5',
+        variant === 'cockpit' &&
+          'xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.95fr)]',
+        variant === 'workspace' &&
+          'xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,0.85fr)]',
+        variant === 'governance' &&
+          'xl:grid-cols-[minmax(0,1.25fr)_420px]',
+        variant === 'audit' && 'grid-cols-1',
+        className,
+      )}
+      {...props}
+    />
   )
 }

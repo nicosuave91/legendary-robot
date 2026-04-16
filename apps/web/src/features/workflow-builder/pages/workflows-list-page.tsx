@@ -12,18 +12,18 @@ import {
   EmptyState,
   LoadingSkeleton,
   PageCanvas,
-  PageGrid,
   PageHeader,
+  PageSplit,
 } from '@/components/ui'
-import { workflowsApi } from '@/lib/api/client'
-import { queryKeys } from '@/lib/api/query-keys'
 import { WorkflowStatusBadge } from '@/features/workflow-builder/components/workflow-status-badge'
 import { WorkflowTemplatePicker } from '@/features/workflow-builder/components/workflow-template-picker'
 import {
-  WORKFLOW_TEMPLATE_PRESETS,
   compileWorkflowBuilderToContract,
   getWorkflowTemplatePreset,
+  WORKFLOW_TEMPLATE_PRESETS,
 } from '@/features/workflow-builder/workflow-builder-utils'
+import { workflowsApi } from '@/lib/api/client'
+import { queryKeys } from '@/lib/api/query-keys'
 import { useToast } from '@/components/shell/toast-host'
 
 export function WorkflowsListPage() {
@@ -87,37 +87,41 @@ export function WorkflowsListPage() {
   const selectedTemplate = getWorkflowTemplatePreset(selectedTemplateKey)
 
   return (
-    <PageCanvas>
+    <PageCanvas density="compact">
       <PageHeader
         variant="governance"
-        eyebrow="Rules & workflow governance"
+        eyebrow="Governance"
         title="Workflow Builder"
-        description="Create an operational sequence from a guided starter, refine it in draft, and publish an immutable runtime version."
-        status={
-          <AppBadge variant="neutral">Status {statusFilter || 'all'}</AppBadge>
-        }
-        filters={
-          <AppInput
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.currentTarget.value)}
-            placeholder="Filter by status"
-          />
+        description="Create a safe editable draft, refine trigger and ordered steps, then publish an immutable runtime version."
+        statusSummary={
+          <>
+            <AppBadge variant="neutral">{items.length} workflows</AppBadge>
+            {statusFilter ? <AppBadge variant="info">Status: {statusFilter}</AppBadge> : null}
+          </>
         }
       />
 
-      <PageGrid layout="governance">
+      <PageSplit variant="governance">
         <AppCard>
-          <AppCardHeader>
-            <div className="heading-md">Workflow catalog</div>
-            <div className="body-sm text-text-muted">
-              Monitor draft and published workflows before drilling into version history and run evidence.
+          <AppCardHeader density="compact">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="heading-md">Workflow catalog</div>
+                <div className="body-sm text-text-muted">
+                  Primary governance surface for draft and published workflow monitoring.
+                </div>
+              </div>
+              <AppInput
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.currentTarget.value)}
+                placeholder="Filter by status"
+              />
             </div>
           </AppCardHeader>
-          <AppCardBody>
+          <AppCardBody density="compact">
             {listQuery.isLoading ? <LoadingSkeleton lines={8} /> : null}
             {!listQuery.isLoading && items.length === 0 ? (
               <EmptyState
-                compact
                 title="No workflows created yet"
                 description="Start with a blank workflow or choose a guided starter."
               />
@@ -127,7 +131,7 @@ export function WorkflowsListPage() {
                 <Link
                   key={item.id}
                   to={`/app/workflows/${item.id}`}
-                  className="block rounded-xl border border-border bg-muted/35 p-4 transition hover:border-primary/40 hover:bg-surface"
+                  className="block rounded-xl border border-border bg-muted/20 px-4 py-3 transition hover:border-primary/40 hover:bg-surface"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -146,9 +150,7 @@ export function WorkflowsListPage() {
                     <div>Published version: v{item.latestPublishedVersionNumber ?? '—'}</div>
                     <div>
                       Updated:{' '}
-                      {item.updatedAt
-                        ? new Date(item.updatedAt).toLocaleString()
-                        : '—'}
+                      {item.updatedAt ? new Date(item.updatedAt).toLocaleString() : '—'}
                     </div>
                   </div>
                 </Link>
@@ -157,29 +159,25 @@ export function WorkflowsListPage() {
           </AppCardBody>
         </AppCard>
 
-        <AppCard>
-          <AppCardHeader>
+        <AppCard tone="secondary">
+          <AppCardHeader density="compact">
             <div className="heading-md">Create workflow draft</div>
             <div className="body-sm text-text-muted">
-              Use a guided starter so the first draft is valid and readable without editing raw runtime structures.
+              Secondary authoring surface for a guided workflow starter.
             </div>
           </AppCardHeader>
-          <AppCardBody className="space-y-5">
+          <AppCardBody density="compact" className="space-y-4">
             <WorkflowTemplatePicker
               presets={WORKFLOW_TEMPLATE_PRESETS}
               selectedKey={selectedTemplateKey}
               onSelect={setSelectedTemplateKey}
             />
 
-            <div className="rounded-xl border border-border bg-muted/35 p-4">
-              <div className="label-sm uppercase tracking-[0.12em] text-text-muted">
-                Selected starter
-              </div>
-              <div className="mt-2 font-medium text-text">{selectedTemplate.name}</div>
+            <div className="rounded-xl border border-border bg-surface px-4 py-3">
+              <div className="font-medium text-text">Selected starter</div>
               <div className="body-sm mt-1 text-text-muted">
-                {selectedTemplate.builderState.steps.length} step
-                {selectedTemplate.builderState.steps.length === 1 ? '' : 's'} •{' '}
-                {selectedTemplate.workflowKeyHint}
+                {selectedTemplate.name} • {selectedTemplate.builderState.steps.length} step
+                {selectedTemplate.builderState.steps.length === 1 ? '' : 's'}
               </div>
             </div>
 
@@ -188,38 +186,29 @@ export function WorkflowsListPage() {
               <AppInput
                 value={form.workflowKey}
                 onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    workflowKey: event.currentTarget.value,
-                  }))
+                  setForm((current) => ({ ...current, workflowKey: event.currentTarget.value }))
                 }
                 placeholder={selectedTemplate.workflowKeyHint}
               />
             </div>
 
             <div className="space-y-2">
-              <label className="label-sm text-text">Workflow name</label>
+              <label className="label-sm text-text">Name</label>
               <AppInput
                 value={form.name}
                 onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    name: event.currentTarget.value,
-                  }))
+                  setForm((current) => ({ ...current, name: event.currentTarget.value }))
                 }
                 placeholder="Submitted application follow-up"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="label-sm text-text">What does this workflow do?</label>
+              <label className="label-sm text-text">Description</label>
               <AppTextarea
                 value={form.description}
                 onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    description: event.currentTarget.value,
-                  }))
+                  setForm((current) => ({ ...current, description: event.currentTarget.value }))
                 }
                 placeholder="Describe when this workflow should run and what it does."
               />
@@ -228,17 +217,13 @@ export function WorkflowsListPage() {
             <AppButton
               type="button"
               onClick={() => createMutation.mutate()}
-              disabled={
-                createMutation.isPending ||
-                !form.workflowKey.trim() ||
-                !form.name.trim()
-              }
+              disabled={createMutation.isPending || !form.workflowKey.trim() || !form.name.trim()}
             >
               {createMutation.isPending ? 'Creating…' : 'Create workflow draft'}
             </AppButton>
           </AppCardBody>
         </AppCard>
-      </PageGrid>
+      </PageSplit>
     </PageCanvas>
   )
 }

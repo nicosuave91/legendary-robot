@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
+  AppBadge,
   AppCard,
   AppCardBody,
-  AppCardHeader,
-  AppBadge,
   EmptyState,
   LoadingSkeleton,
   PageCanvas,
@@ -31,34 +30,21 @@ export function AuditListPage() {
   const items = query.data?.data.items ?? []
 
   return (
-    <PageCanvas>
+    <PageCanvas density="compact">
       <PageHeader
         variant="audit"
-        eyebrow="Evidence & investigation"
+        eyebrow="Investigation"
         title="Audit"
-        description="Search immutable, tenant-scoped evidence for workflows, imports, communications, and other sensitive actions."
-        status={
-          <>
-            <AppBadge variant="neutral">Action {filters.action || 'all'}</AppBadge>
-            <AppBadge variant="neutral">Subject {filters.subjectType || 'all'}</AppBadge>
-            <AppBadge variant="info">{items.length} visible results</AppBadge>
-          </>
-        }
-        filters={<AuditFilterBar filters={filters} onChange={setFilters} />}
+        description="Search append-only tenant-scoped evidence for imports, notifications, workflows, communications, and other sensitive actions."
+        statusSummary={<AppBadge variant="neutral">{items.length} results</AppBadge>}
+        filterRegion={<AuditFilterBar filters={filters} onChange={setFilters} />}
       />
 
       <AppCard>
-        <AppCardHeader>
-          <div className="heading-md">Evidence results</div>
-          <div className="body-sm text-text-muted">
-            Audit remains append-only. Searching narrows the current tenant view without mutating evidence.
-          </div>
-        </AppCardHeader>
-        <AppCardBody className="space-y-4">
+        <AppCardBody density="compact" className="space-y-4">
           {query.isLoading ? <LoadingSkeleton lines={8} /> : null}
           {!query.isLoading && items.length === 0 ? (
             <EmptyState
-              compact
               title="No audit entries match the current filters"
               description="Try searching by action, subject type, or correlation ID."
             />

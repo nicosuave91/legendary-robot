@@ -44,15 +44,13 @@ export function ClientListPage() {
 
     return {
       search: searchParams.get('search') ?? undefined,
-      status: validStatuses.includes((status ?? '') as typeof validStatuses[number])
+      status: validStatuses.includes((status ?? '') as (typeof validStatuses)[number])
         ? (status as ClientListFilters['status'])
         : undefined,
-      sort: validSorts.includes((sort ?? '') as typeof validSorts[number])
+      sort: validSorts.includes((sort ?? '') as (typeof validSorts)[number])
         ? (sort as ClientListFilters['sort'])
         : 'updated_at',
-      direction: validDirections.includes(
-        (direction ?? '') as typeof validDirections[number],
-      )
+      direction: validDirections.includes((direction ?? '') as (typeof validDirections)[number])
         ? (direction as ClientListFilters['direction'])
         : 'desc',
       page: Number(searchParams.get('page') ?? '1'),
@@ -86,12 +84,15 @@ export function ClientListPage() {
         variant="workspace"
         eyebrow="Client workspace"
         title="Clients"
-        description="Search, sort, and move into the governed client record without leaving the primary working surface."
-        status={
+        description="Search, filter, and route users into the governed client record workspace."
+        statusSummary={
           <>
-            <AppBadge variant="neutral">Sort {filters.sort ?? 'updated_at'}</AppBadge>
-            <AppBadge variant="neutral">Direction {filters.direction ?? 'desc'}</AppBadge>
-            {payload ? <AppBadge variant="info">{payload.pagination.total} total records</AppBadge> : null}
+            <AppBadge variant="neutral">
+              {payload?.pagination.total ?? 0} records
+            </AppBadge>
+            {filters.status ? (
+              <AppBadge variant="info">Status: {filters.status}</AppBadge>
+            ) : null}
           </>
         }
         actions={
@@ -101,95 +102,95 @@ export function ClientListPage() {
             </AppButton>
           ) : null
         }
-        filters={
+      />
+
+      <AppCard>
+        <AppCardHeader density="compact" className="space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="heading-md">Client directory</div>
+              <div className="body-sm text-text-muted">
+                Primary listing surface for governed client search and selection.
+              </div>
+            </div>
+            {payload ? (
+              <div className="body-sm text-text-muted">
+                Page {payload.pagination.page} of {payload.pagination.totalPages}
+              </div>
+            ) : null}
+          </div>
+
           <ClientFilters
             defaultSearch={searchParams.get('search') ?? ''}
             defaultStatus={searchParams.get('status') ?? ''}
-            onApply={({ search, status }) =>
-              updateParams({ search, status, page: 1 })
-            }
+            onApply={({ search, status }) => updateParams({ search, status, page: 1 })}
             onReset={() => setSearchParams(new URLSearchParams())}
           />
-        }
-      />
+        </AppCardHeader>
 
-      {clientsQuery.isLoading && !payload ? <LoadingSkeleton lines={6} /> : null}
+        <AppCardBody density="compact" className="space-y-4">
+          {clientsQuery.isLoading && !payload ? <LoadingSkeleton lines={6} /> : null}
 
-      {payload?.items?.length ? (
-        <AppCard>
-          <AppCardHeader>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="heading-md">Active results</div>
+          {payload?.items?.length ? (
+            <>
+              <ClientTable
+                items={payload.items}
+                sort={
+                  payload.appliedFilters
+                    .sort as 'display_name' | 'created_at' | 'updated_at' | 'last_activity_at'
+                }
+                direction={payload.appliedFilters.direction}
+                onSort={(sort) => {
+                  const nextDirection =
+                    payload.appliedFilters.sort === sort &&
+                    payload.appliedFilters.direction === 'asc'
+                      ? 'desc'
+                      : 'asc'
+                  updateParams({ sort, direction: nextDirection })
+                }}
+                onSelectClient={(clientId) => navigate(`/app/clients/${clientId}/overview`)}
+              />
+
+              <div className="flex items-center justify-between gap-3">
                 <div className="body-sm text-text-muted">
-                  Governed client records for the active tenant scope.
+                  Showing page {payload.pagination.page} of {payload.pagination.totalPages}
+                </div>
+                <div className="flex gap-2">
+                  <AppButton
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={payload.pagination.page <= 1}
+                    onClick={() => updateParams({ page: payload.pagination.page - 1 })}
+                  >
+                    Previous
+                  </AppButton>
+                  <AppButton
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={payload.pagination.page >= payload.pagination.totalPages}
+                    onClick={() => updateParams({ page: payload.pagination.page + 1 })}
+                  >
+                    Next
+                  </AppButton>
                 </div>
               </div>
-              <div className="text-xs text-text-muted">
-                Page {payload.pagination.page} of {payload.pagination.totalPages}
-              </div>
-            </div>
-          </AppCardHeader>
-          <AppCardBody className="space-y-4 px-0 py-0 sm:px-0">
-            <ClientTable
-              items={payload.items}
-              sort={
-                payload.appliedFilters.sort as
-                  | 'display_name'
-                  | 'created_at'
-                  | 'updated_at'
-                  | 'last_activity_at'
+            </>
+          ) : null}
+
+          {!clientsQuery.isLoading && !payload?.items?.length ? (
+            <EmptyState
+              title="No clients found"
+              description={
+                filters.search || filters.status
+                  ? 'Try adjusting the current search or status filter.'
+                  : 'Create the first client record to establish the client workspace baseline.'
               }
-              direction={payload.appliedFilters.direction}
-              onSort={(sort) => {
-                const nextDirection =
-                  payload.appliedFilters.sort === sort &&
-                  payload.appliedFilters.direction === 'asc'
-                    ? 'desc'
-                    : 'asc'
-                updateParams({ sort, direction: nextDirection })
-              }}
-              onSelectClient={(clientId) => navigate(`/app/clients/${clientId}/overview`)}
             />
-
-            <div className="flex items-center justify-between gap-3 px-4 pb-4 sm:px-5">
-              <div className="body-sm text-text-muted">
-                Showing page {payload.pagination.page} of {payload.pagination.totalPages}
-              </div>
-              <div className="flex gap-2">
-                <AppButton
-                  type="button"
-                  variant="secondary"
-                  disabled={payload.pagination.page <= 1}
-                  onClick={() => updateParams({ page: payload.pagination.page - 1 })}
-                >
-                  Previous
-                </AppButton>
-                <AppButton
-                  type="button"
-                  variant="secondary"
-                  disabled={payload.pagination.page >= payload.pagination.totalPages}
-                  onClick={() => updateParams({ page: payload.pagination.page + 1 })}
-                >
-                  Next
-                </AppButton>
-              </div>
-            </div>
-          </AppCardBody>
-        </AppCard>
-      ) : null}
-
-      {!clientsQuery.isLoading && !payload?.items?.length ? (
-        <EmptyState
-          compact
-          title="No clients found"
-          description={
-            filters.search || filters.status
-              ? 'Try adjusting the current search or status filter.'
-              : 'Create the first client record to establish the client workspace baseline.'
-          }
-        />
-      ) : null}
+          ) : null}
+        </AppCardBody>
+      </AppCard>
     </PageCanvas>
   )
 }

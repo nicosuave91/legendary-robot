@@ -4,11 +4,31 @@ import { AppButton } from '@/components/ui'
 import { cn } from '@/lib/utils/cn'
 import { useAuth } from '@/lib/auth/auth-hooks'
 import { hasAllPermissions } from '@/lib/auth/permission-map'
-import { appNavigationItems, type AppNavigationGroup } from '@/routes/app-navigation'
+import { appNavigationItems } from '@/routes/app-navigation'
 
 type AppSidebarProps = {
   collapsed: boolean
   onToggle: () => void
+}
+
+type NavigationSectionKey = 'operations' | 'administration' | 'governance'
+
+const sectionCopy: Record<
+  NavigationSectionKey,
+  { title: string; description: string }
+> = {
+  operations: {
+    title: 'Daily operations',
+    description: 'Cockpit and production work',
+  },
+  administration: {
+    title: 'Administration',
+    description: 'Accounts, profile, and tenant settings',
+  },
+  governance: {
+    title: 'Governance',
+    description: 'Rules, workflows, and investigations',
+  },
 }
 
 function getInitials(name?: string) {
@@ -27,36 +47,14 @@ function getInitials(name?: string) {
   return initials || 'U'
 }
 
-const navigationSections: Array<{
-  key: AppNavigationGroup
-  label: string
-  description: string
-}> = [
-  {
-    key: 'operations',
-    label: 'Daily operations',
-    description: 'Cockpit and production work',
-  },
-  {
-    key: 'settings',
-    label: 'Administration',
-    description: 'Accounts, profile, and tenant settings',
-  },
-  {
-    key: 'governance',
-    label: 'Governance',
-    description: 'Rules, workflows, and investigations',
-  },
-]
-
-function NavigationSection({
+function NavigationGroup({
   collapsed,
-  label,
+  title,
   description,
   items,
 }: {
   collapsed: boolean
-  label: string
+  title: string
   description: string
   items: typeof appNavigationItems
 }) {
@@ -67,11 +65,11 @@ function NavigationSection({
   return (
     <section className="space-y-2">
       {!collapsed ? (
-        <div className="px-2">
-          <div className="label-sm uppercase tracking-[0.16em] text-text-muted">
-            {label}
+        <div className="space-y-0.5 px-2">
+          <div className="label-sm uppercase tracking-[0.18em] text-text-muted">
+            {title}
           </div>
-          <div className="mt-1 text-[11px] leading-4 text-text-muted">
+          <div className="text-[12px] leading-4 text-text-muted">
             {description}
           </div>
         </div>
@@ -87,16 +85,30 @@ function NavigationSection({
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  'flex min-h-11 items-center gap-3 rounded-xl border border-transparent text-sm font-medium text-text-muted transition motion-base hover:border-border hover:bg-background hover:text-text',
-                  collapsed ? 'justify-center px-0' : 'px-3',
-                  isActive &&
-                    'border-primary/20 bg-background text-text shadow-xs',
+                  'group flex items-center gap-3 rounded-xl border border-transparent text-sm transition motion-base',
+                  collapsed ? 'h-10 justify-center px-0' : 'h-11 px-3',
+                  isActive
+                    ? 'border-border bg-background text-text shadow-xs'
+                    : 'text-text-muted hover:border-border/60 hover:bg-background/80 hover:text-text',
                 )
               }
               title={collapsed ? item.label : undefined}
             >
-              <Icon size={16} />
-              {!collapsed ? <span className="truncate">{item.label}</span> : null}
+              {({ isActive }) => (
+                <>
+                  <div
+                    className={cn(
+                      'flex size-7 shrink-0 items-center justify-center rounded-lg',
+                      isActive ? 'bg-muted text-text' : 'text-current',
+                    )}
+                  >
+                    <Icon size={16} />
+                  </div>
+                  {!collapsed ? (
+                    <span className="truncate font-medium">{item.label}</span>
+                  ) : null}
+                </>
+              )}
             </NavLink>
           )
         })}
@@ -112,6 +124,12 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     hasAllPermissions(data?.permissions ?? [], item.permissions),
   )
 
+  const operationalItems = visibleItems.filter((item) => item.group === 'operations')
+  const administrativeItems = visibleItems.filter(
+    (item) => item.group === 'administration',
+  )
+  const governanceItems = visibleItems.filter((item) => item.group === 'governance')
+
   const displayName = data?.user.displayName ?? 'User'
   const workspaceName = data?.tenant.name ?? 'Workspace'
   const initials = getInitials(displayName)
@@ -119,13 +137,13 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   return (
     <aside
       className={cn(
-        'sticky top-0 hidden h-screen shrink-0 border-r border-border bg-surface px-4 py-5 transition-all duration-200 lg:flex lg:flex-col',
-        collapsed ? 'w-[92px]' : 'w-[272px]',
+        'sticky top-0 hidden h-screen shrink-0 border-r border-border bg-surface px-4 py-4 transition-all duration-200 lg:flex lg:flex-col',
+        collapsed ? 'w-[92px]' : 'w-[246px]',
       )}
     >
       <div
         className={cn(
-          'mb-6 flex items-start gap-3',
+          'mb-5 flex items-start gap-3',
           collapsed ? 'justify-center' : 'justify-between',
         )}
       >
@@ -133,8 +151,8 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           <div className="label-sm uppercase tracking-[0.18em] text-text-muted">
             Snowball
           </div>
-          <div className="heading-lg text-text">CRM Platform</div>
-          <div className="mt-1 text-xs text-text-muted">
+          <div className="display-sm text-text">CRM Platform</div>
+          <div className="mt-1 text-[12px] leading-4 text-text-muted">
             Governed operations and controls
           </div>
         </div>
@@ -146,28 +164,40 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           onClick={onToggle}
           aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
         >
-          {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          {collapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
         </AppButton>
       </div>
 
       <nav className="flex flex-1 flex-col gap-5" aria-label="Primary">
-        {navigationSections.map((section) => (
-          <NavigationSection
-            key={section.key}
-            collapsed={collapsed}
-            label={section.label}
-            description={section.description}
-            items={visibleItems.filter((item) => item.group === section.key)}
-          />
-        ))}
+        <NavigationGroup
+          collapsed={collapsed}
+          title={sectionCopy.operations.title}
+          description={sectionCopy.operations.description}
+          items={operationalItems}
+        />
+        <NavigationGroup
+          collapsed={collapsed}
+          title={sectionCopy.administration.title}
+          description={sectionCopy.administration.description}
+          items={administrativeItems}
+        />
+        <NavigationGroup
+          collapsed={collapsed}
+          title={sectionCopy.governance.title}
+          description={sectionCopy.governance.description}
+          items={governanceItems}
+        />
       </nav>
 
-      <div className="mt-6 rounded-xl border border-border bg-background/80 p-3">
+      <div className="mt-5 border-t border-border/80 pt-4">
         <div
-          className={cn('flex items-center gap-3', collapsed && 'justify-center')}
+          className={cn(
+            'rounded-2xl border border-border bg-background/80 px-3 py-3',
+            collapsed ? 'flex justify-center px-2' : 'flex items-center gap-3',
+          )}
           title={collapsed ? `${displayName} · ${workspaceName}` : undefined}
         >
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold uppercase tracking-[0.08em] text-text">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold uppercase tracking-[0.08em] text-text">
             {initials}
           </div>
 

@@ -8,7 +8,7 @@ export function AppShellLayout() {
 
   return (
     <div
-      className="flex min-h-screen overflow-x-hidden bg-muted/30 text-text"
+      className="flex min-h-screen bg-background text-text"
       data-testid="app-shell"
     >
       <AppSidebar
@@ -17,10 +17,8 @@ export function AppShellLayout() {
       />
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <AppHeader />
-        <main className="flex-1 px-5 pb-8 pt-5 sm:px-6 xl:px-8">
-          <div className="mx-auto w-full max-w-[1600px]">
-            <Outlet />
-          </div>
+        <main className="flex-1 overflow-y-auto bg-muted/20 px-5 py-5 xl:px-6">
+          <Outlet />
         </main>
       </div>
     </div>

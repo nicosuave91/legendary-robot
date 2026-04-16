@@ -30,15 +30,13 @@ type AppNavigationRouteKey =
   | 'workflows'
   | 'audit'
 
-export type AppNavigationGroup = 'operations' | 'settings' | 'governance'
-
 type AppNavigationItem = {
   routeKey: AppNavigationRouteKey
   to: string
   label: string
   icon: LucideIcon
   permissions: readonly PermissionCode[]
-  group: AppNavigationGroup
+  group: 'operations' | 'administration' | 'governance'
 }
 
 export const appNavigationItems = [
@@ -88,7 +86,7 @@ export const appNavigationItems = [
     label: 'My Profile',
     icon: UserRound,
     permissions: routeMeta.settingsProfile.permissions ?? [],
-    group: 'settings',
+    group: 'administration',
   },
   {
     routeKey: 'settingsAccounts',
@@ -96,7 +94,7 @@ export const appNavigationItems = [
     label: 'Accounts',
     icon: Settings,
     permissions: routeMeta.settingsAccounts.permissions ?? [],
-    group: 'settings',
+    group: 'administration',
   },
   {
     routeKey: 'settingsTheme',
@@ -104,7 +102,7 @@ export const appNavigationItems = [
     label: 'Branding',
     icon: Palette,
     permissions: routeMeta.settingsTheme.permissions ?? [],
-    group: 'settings',
+    group: 'administration',
   },
   {
     routeKey: 'settingsIndustryConfigurations',
@@ -112,7 +110,7 @@ export const appNavigationItems = [
     label: 'Industry Config',
     icon: Network,
     permissions: routeMeta.settingsIndustryConfigurations.permissions ?? [],
-    group: 'settings',
+    group: 'administration',
   },
   {
     routeKey: 'rules',

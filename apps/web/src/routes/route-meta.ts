@@ -1,7 +1,13 @@
 import type { PermissionCode } from '@/lib/auth/permission-map'
 
-export type PageArchetype = 'cockpit' | 'workspace' | 'settings' | 'governance' | 'audit'
-export type NavigationSection = 'operations' | 'settings' | 'governance'
+export type PageArchetype =
+  | 'cockpit'
+  | 'workspace'
+  | 'settings'
+  | 'governance'
+  | 'audit'
+
+export type ShellSection = 'operations' | 'administration' | 'governance'
 
 export type RouteMeta = {
   title: string
@@ -11,8 +17,9 @@ export type RouteMeta = {
   permissions?: readonly PermissionCode[]
   navVisible?: boolean
   pageArchetype?: PageArchetype
-  shellSection?: NavigationSection
-  shellDescription?: string
+  shellSection?: ShellSection
+  shellSectionLabel?: string
+  shellSectionDescription?: string
 }
 
 export const routeMeta = {
@@ -31,7 +38,8 @@ export const routeMeta = {
     navVisible: true,
     pageArchetype: 'cockpit',
     shellSection: 'operations',
-    shellDescription: 'Operational cockpit',
+    shellSectionLabel: 'Daily operations',
+    shellSectionDescription: 'Cockpit and production work',
   },
   settingsProfile: {
     title: 'My Profile',
@@ -40,8 +48,9 @@ export const routeMeta = {
     permissions: ['settings.profile.read'],
     navVisible: true,
     pageArchetype: 'settings',
-    shellSection: 'settings',
-    shellDescription: 'Administration & configuration',
+    shellSection: 'administration',
+    shellSectionLabel: 'Administration',
+    shellSectionDescription: 'Accounts, profile, and tenant settings',
   },
   settingsAccounts: {
     title: 'Accounts',
@@ -50,18 +59,20 @@ export const routeMeta = {
     permissions: ['settings.accounts.read'],
     navVisible: true,
     pageArchetype: 'settings',
-    shellSection: 'settings',
-    shellDescription: 'Administration & configuration',
+    shellSection: 'administration',
+    shellSectionLabel: 'Administration',
+    shellSectionDescription: 'Accounts, profile, and tenant settings',
   },
   settingsTheme: {
-    title: 'Branding',
+    title: 'Branding tokens',
     requiresAuth: true,
     requiresOnboardingComplete: true,
     permissions: ['settings.theme.read'],
     navVisible: true,
     pageArchetype: 'settings',
-    shellSection: 'settings',
-    shellDescription: 'Administration & configuration',
+    shellSection: 'administration',
+    shellSectionLabel: 'Administration',
+    shellSectionDescription: 'Accounts, profile, and tenant settings',
   },
   settingsIndustryConfigurations: {
     title: 'Industry configurations',
@@ -70,8 +81,9 @@ export const routeMeta = {
     permissions: ['settings.industry-configurations.read'],
     navVisible: true,
     pageArchetype: 'settings',
-    shellSection: 'settings',
-    shellDescription: 'Administration & configuration',
+    shellSection: 'administration',
+    shellSectionLabel: 'Administration',
+    shellSectionDescription: 'Accounts, profile, and tenant settings',
   },
   clients: {
     title: 'Clients',
@@ -81,7 +93,8 @@ export const routeMeta = {
     navVisible: true,
     pageArchetype: 'workspace',
     shellSection: 'operations',
-    shellDescription: 'Client workspace',
+    shellSectionLabel: 'Daily operations',
+    shellSectionDescription: 'Cockpit and production work',
   },
   imports: {
     title: 'Imports',
@@ -91,17 +104,19 @@ export const routeMeta = {
     navVisible: true,
     pageArchetype: 'workspace',
     shellSection: 'operations',
-    shellDescription: 'Operational workspace',
+    shellSectionLabel: 'Daily operations',
+    shellSectionDescription: 'Cockpit and production work',
   },
   calendar: {
-    title: 'Calendar & tasks',
+    title: 'Calendar & Tasks',
     requiresAuth: true,
     requiresOnboardingComplete: true,
     permissions: ['calendar.read'],
     navVisible: true,
     pageArchetype: 'workspace',
     shellSection: 'operations',
-    shellDescription: 'Operational workspace',
+    shellSectionLabel: 'Daily operations',
+    shellSectionDescription: 'Cockpit and production work',
   },
   communications: {
     title: 'Communications',
@@ -111,7 +126,8 @@ export const routeMeta = {
     navVisible: true,
     pageArchetype: 'workspace',
     shellSection: 'operations',
-    shellDescription: 'Client workspace',
+    shellSectionLabel: 'Daily operations',
+    shellSectionDescription: 'Cockpit and production work',
   },
   rules: {
     title: 'Rules Library',
@@ -121,7 +137,8 @@ export const routeMeta = {
     navVisible: true,
     pageArchetype: 'governance',
     shellSection: 'governance',
-    shellDescription: 'Rules & workflow governance',
+    shellSectionLabel: 'Governance',
+    shellSectionDescription: 'Rules, workflows, and investigations',
   },
   workflows: {
     title: 'Workflow Builder',
@@ -131,7 +148,8 @@ export const routeMeta = {
     navVisible: true,
     pageArchetype: 'governance',
     shellSection: 'governance',
-    shellDescription: 'Rules & workflow governance',
+    shellSectionLabel: 'Governance',
+    shellSectionDescription: 'Rules, workflows, and investigations',
   },
   audit: {
     title: 'Audit',
@@ -141,6 +159,7 @@ export const routeMeta = {
     navVisible: true,
     pageArchetype: 'audit',
     shellSection: 'governance',
-    shellDescription: 'Evidence & investigation',
+    shellSectionLabel: 'Governance',
+    shellSectionDescription: 'Rules, workflows, and investigations',
   },
 } as const

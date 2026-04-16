@@ -13,12 +13,12 @@ import {
   EmptyState,
   LoadingSkeleton,
   PageCanvas,
-  PageGrid,
   PageHeader,
+  PageSplit,
 } from '@/components/ui'
+import { RuleStatusBadge } from '@/features/rules-library/components/rule-status-badge'
 import { rulesApi } from '@/lib/api/client'
 import { queryKeys } from '@/lib/api/query-keys'
-import { RuleStatusBadge } from '@/features/rules-library/components/rule-status-badge'
 import { useToast } from '@/components/shell/toast-host'
 
 const defaultConditionDefinition = JSON.stringify(
@@ -37,37 +37,6 @@ const defaultActionDefinition = JSON.stringify(
   null,
   2,
 )
-
-function summarizeConditionDefinition(value: string) {
-  try {
-    const parsed = JSON.parse(value) as {
-      all?: Array<{ fact?: string; operator?: string; value?: unknown }>
-    }
-
-    const first = parsed.all?.[0]
-    if (!first) {
-      return 'No condition summary available yet.'
-    }
-
-    return `${first.fact ?? 'fact'} ${first.operator ?? 'operator'} ${String(first.value ?? 'value')}`
-  } catch {
-    return 'Condition JSON needs review before publish.'
-  }
-}
-
-function summarizeActionDefinition(value: string) {
-  try {
-    const parsed = JSON.parse(value) as {
-      type?: string
-      outcome?: string
-      title?: string
-    }
-
-    return `${parsed.type ?? 'action'} · ${parsed.outcome ?? 'outcome'}${parsed.title ? ` · ${parsed.title}` : ''}`
-  } catch {
-    return 'Action JSON needs review before publish.'
-  }
-}
 
 export function RulesListPage() {
   const queryClient = useQueryClient()
@@ -122,7 +91,8 @@ export function RulesListPage() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.rules.all })
       notify({
         title: 'Draft rule created',
-        description: 'The rule catalog now includes a governed editable draft.',
+        description:
+          'The rule catalog now includes an editable draft version.',
         tone: 'success',
       })
       navigate(`/app/rules/${ruleId}`)
@@ -131,9 +101,7 @@ export function RulesListPage() {
       notify({
         title: 'Rule draft failed',
         description:
-          error instanceof Error
-            ? error.message
-            : 'The draft could not be created.',
+          error instanceof Error ? error.message : 'The draft could not be created.',
         tone: 'danger',
       })
     },
@@ -142,69 +110,51 @@ export function RulesListPage() {
   const items = listQuery.data?.data.items ?? []
 
   return (
-    <PageCanvas>
+    <PageCanvas density="compact">
       <PageHeader
         variant="governance"
-        eyebrow="Rules & workflow governance"
+        eyebrow="Governance"
         title="Rules Library"
-        description="Draft a business-readable rule, validate the advanced logic, and publish an immutable version when it is ready."
-        status={
+        description="Catalog, author, and publish immutable rule behavior for applications and other governed domains."
+        statusSummary={
           <>
-            <AppBadge variant="neutral">Lifecycle {statusFilter || 'all'}</AppBadge>
-            <AppBadge variant="neutral">Module {moduleScopeFilter || 'all'}</AppBadge>
+            <AppBadge variant="neutral">{items.length} rules</AppBadge>
+            {statusFilter ? <AppBadge variant="info">Status: {statusFilter}</AppBadge> : null}
           </>
-        }
-        actions={
-          <AppButton
-            type="button"
-            variant="secondary"
-            onClick={() =>
-              document
-                .getElementById('create-rule-draft')
-                ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-            }
-          >
-            Create draft
-          </AppButton>
-        }
-        filters={
-          <div className="grid gap-3 md:grid-cols-2">
-            <AppSelect
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.currentTarget.value)}
-            >
-              <option value="">All statuses</option>
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-              <option value="retired">Retired</option>
-            </AppSelect>
-            <AppSelect
-              value={moduleScopeFilter}
-              onChange={(event) => setModuleScopeFilter(event.currentTarget.value)}
-            >
-              <option value="">All modules</option>
-              <option value="applications">Applications</option>
-              <option value="disposition">Disposition</option>
-              <option value="communications">Communications</option>
-              <option value="client">Client</option>
-            </AppSelect>
-          </div>
         }
       />
 
-      <PageGrid layout="governance">
+      <PageSplit variant="governance">
         <AppCard>
-          <AppCardHeader>
-            <div className="heading-md">Rule catalog</div>
-            <div className="body-sm text-text-muted">
-              Open a rule to inspect version history, runtime posture, and append-only execution evidence.
+          <AppCardHeader density="compact">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="heading-md">Rule catalog</div>
+                <div className="body-sm text-text-muted">
+                  Primary governance surface for reviewing lifecycle, scope, and publication state.
+                </div>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <AppSelect value={statusFilter} onChange={(event) => setStatusFilter(event.currentTarget.value)}>
+                  <option value="">All statuses</option>
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                  <option value="retired">Retired</option>
+                </AppSelect>
+                <AppSelect value={moduleScopeFilter} onChange={(event) => setModuleScopeFilter(event.currentTarget.value)}>
+                  <option value="">All modules</option>
+                  <option value="applications">Applications</option>
+                  <option value="disposition">Disposition</option>
+                  <option value="communications">Communications</option>
+                  <option value="client">Client</option>
+                </AppSelect>
+              </div>
             </div>
           </AppCardHeader>
-          <AppCardBody>
+          <AppCardBody density="compact">
             {listQuery.isLoading ? <LoadingSkeleton lines={8} /> : null}
             {!listQuery.isLoading && items.length === 0 ? (
               <EmptyState
-                compact
                 title="No rules yet"
                 description="Create the first governed draft rule to establish an immutable publication history."
               />
@@ -214,7 +164,7 @@ export function RulesListPage() {
                 <Link
                   key={item.id}
                   to={`/app/rules/${item.id}`}
-                  className="block rounded-xl border border-border bg-muted/35 p-4 transition hover:border-primary/40 hover:bg-surface"
+                  className="block rounded-xl border border-border bg-muted/20 px-4 py-3 transition hover:border-primary/40 hover:bg-surface"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -239,9 +189,7 @@ export function RulesListPage() {
                     </div>
                     <div>
                       Updated:{' '}
-                      {item.updatedAt
-                        ? new Date(item.updatedAt).toLocaleString()
-                        : '—'}
+                      {item.updatedAt ? new Date(item.updatedAt).toLocaleString() : '—'}
                     </div>
                   </div>
                 </Link>
@@ -250,212 +198,149 @@ export function RulesListPage() {
           </AppCardBody>
         </AppCard>
 
-        <div id="create-rule-draft" className="space-y-5">
-          <AppCard>
-            <AppCardHeader>
-              <div className="heading-md">Create draft rule</div>
-              <div className="body-sm text-text-muted">
-                Start with the business intent first. Keep the advanced condition and action JSON as a controlled detail instead of the primary entry point.
-              </div>
-            </AppCardHeader>
-            <AppCardBody className="space-y-4">
+        <AppCard tone="secondary">
+          <AppCardHeader density="compact">
+            <div className="heading-md">Create draft rule</div>
+            <div className="body-sm text-text-muted">
+              Secondary authoring surface for creating a governed draft before publish.
+            </div>
+          </AppCardHeader>
+          <AppCardBody density="compact" className="space-y-4">
+            <div className="space-y-2">
+              <label className="label-sm text-text">Rule key</label>
+              <AppInput
+                value={form.ruleKey}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, ruleKey: event.currentTarget.value }))
+                }
+                placeholder="app-high-value-review"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="label-sm text-text">Name</label>
+              <AppInput
+                value={form.name}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, name: event.currentTarget.value }))
+                }
+                placeholder="High-value application review"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="label-sm text-text">Description</label>
+              <AppTextarea
+                value={form.description}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, description: event.currentTarget.value }))
+                }
+                placeholder="Explain where this rule applies in the funnel."
+              />
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
-                <label className="label-sm text-text">Rule key</label>
-                <AppInput
-                  value={form.ruleKey}
+                <label className="label-sm text-text">Module scope</label>
+                <AppSelect
+                  value={form.moduleScope}
                   onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      ruleKey: event.currentTarget.value,
-                    }))
+                    setForm((current) => ({ ...current, moduleScope: event.currentTarget.value }))
                   }
-                  placeholder="app-high-value-review"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="label-sm text-text">Business name</label>
-                <AppInput
-                  value={form.name}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      name: event.currentTarget.value,
-                    }))
-                  }
-                  placeholder="High-value application review"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="label-sm text-text">What is this rule for?</label>
-                <AppTextarea
-                  value={form.description}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      description: event.currentTarget.value,
-                    }))
-                  }
-                  placeholder="Explain where this rule applies and why it matters."
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="label-sm text-text">Module</label>
-                  <AppSelect
-                    value={form.moduleScope}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        moduleScope: event.currentTarget.value,
-                      }))
-                    }
-                  >
-                    <option value="applications">Applications</option>
-                    <option value="disposition">Disposition</option>
-                    <option value="communications">Communications</option>
-                    <option value="client">Client</option>
-                  </AppSelect>
-                </div>
-                <div className="space-y-2">
-                  <label className="label-sm text-text">Subject type</label>
-                  <AppSelect
-                    value={form.subjectType}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        subjectType: event.currentTarget.value,
-                      }))
-                    }
-                  >
-                    <option value="application">Application</option>
-                    <option value="client">Client</option>
-                    <option value="communication">Communication</option>
-                  </AppSelect>
-                </div>
-                <div className="space-y-2">
-                  <label className="label-sm text-text">Trigger event</label>
-                  <AppInput
-                    value={form.triggerEvent}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        triggerEvent: event.currentTarget.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="label-sm text-text">Severity</label>
-                  <AppSelect
-                    value={form.severity}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        severity: event.currentTarget.value,
-                      }))
-                    }
-                  >
-                    <option value="info">Info</option>
-                    <option value="warning">Warning</option>
-                    <option value="blocking">Blocking</option>
-                  </AppSelect>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="label-sm text-text">Execution label</label>
-                <AppInput
-                  value={form.executionLabel}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      executionLabel: event.currentTarget.value,
-                    }))
-                  }
-                />
+                >
+                  <option value="applications">Applications</option>
+                  <option value="disposition">Disposition</option>
+                  <option value="communications">Communications</option>
+                  <option value="client">Client</option>
+                </AppSelect>
               </div>
               <div className="space-y-2">
-                <label className="label-sm text-text">Visible note template</label>
-                <AppTextarea
-                  value={form.noteTemplate}
+                <label className="label-sm text-text">Subject type</label>
+                <AppSelect
+                  value={form.subjectType}
                   onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      noteTemplate: event.currentTarget.value,
-                    }))
+                    setForm((current) => ({ ...current, subjectType: event.currentTarget.value }))
                   }
-                />
+                >
+                  <option value="application">Application</option>
+                  <option value="client">Client</option>
+                  <option value="communication">Communication</option>
+                </AppSelect>
               </div>
-
-              <div className="grid gap-3">
-                <div className="rounded-xl border border-border bg-muted/35 p-4">
-                  <div className="label-sm uppercase tracking-[0.12em] text-text-muted">
-                    Runs when
-                  </div>
-                  <div className="mt-2 body-sm text-text">
-                    {summarizeConditionDefinition(form.conditionDefinition)}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-border bg-muted/35 p-4">
-                  <div className="label-sm uppercase tracking-[0.12em] text-text-muted">
-                    Then it does
-                  </div>
-                  <div className="mt-2 body-sm text-text">
-                    {summarizeActionDefinition(form.actionDefinition)}
-                  </div>
-                </div>
-              </div>
-
-              <details className="rounded-xl border border-border bg-surface">
-                <summary className="cursor-pointer list-none px-4 py-3 font-medium text-text">
-                  Advanced conditions and actions
-                </summary>
-                <div className="space-y-4 border-t border-border px-4 py-4">
-                  <div className="space-y-2">
-                    <label className="label-sm text-text">Condition definition JSON</label>
-                    <AppTextarea
-                      className="min-h-[160px] font-mono text-xs"
-                      value={form.conditionDefinition}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          conditionDefinition: event.currentTarget.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="label-sm text-text">Action definition JSON</label>
-                    <AppTextarea
-                      className="min-h-[160px] font-mono text-xs"
-                      value={form.actionDefinition}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          actionDefinition: event.currentTarget.value,
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-              </details>
-
-              <AppButton
-                type="button"
-                onClick={() => createMutation.mutate()}
-                disabled={
-                  createMutation.isPending ||
-                  !form.ruleKey.trim() ||
-                  !form.name.trim()
+            </div>
+            <div className="space-y-2">
+              <label className="label-sm text-text">Trigger event</label>
+              <AppInput
+                value={form.triggerEvent}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, triggerEvent: event.currentTarget.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="label-sm text-text">Severity</label>
+              <AppSelect
+                value={form.severity}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, severity: event.currentTarget.value }))
                 }
               >
-                {createMutation.isPending ? 'Creating…' : 'Create governed draft'}
-              </AppButton>
-            </AppCardBody>
-          </AppCard>
-        </div>
-      </PageGrid>
+                <option value="info">Info</option>
+                <option value="warning">Warning</option>
+                <option value="blocking">Blocking</option>
+              </AppSelect>
+            </div>
+            <div className="space-y-2">
+              <label className="label-sm text-text">Execution label</label>
+              <AppInput
+                value={form.executionLabel}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, executionLabel: event.currentTarget.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="label-sm text-text">Note template</label>
+              <AppTextarea
+                value={form.noteTemplate}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, noteTemplate: event.currentTarget.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="label-sm text-text">Condition definition JSON</label>
+              <AppTextarea
+                className="min-h-[132px] font-mono text-xs"
+                value={form.conditionDefinition}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    conditionDefinition: event.currentTarget.value,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="label-sm text-text">Action definition JSON</label>
+              <AppTextarea
+                className="min-h-[132px] font-mono text-xs"
+                value={form.actionDefinition}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    actionDefinition: event.currentTarget.value,
+                  }))
+                }
+              />
+            </div>
+            <AppButton
+              type="button"
+              onClick={() => createMutation.mutate()}
+              disabled={createMutation.isPending || !form.ruleKey.trim() || !form.name.trim()}
+            >
+              {createMutation.isPending ? 'Creating…' : 'Create governed draft'}
+            </AppButton>
+          </AppCardBody>
+        </AppCard>
+      </PageSplit>
     </PageCanvas>
   )
 }

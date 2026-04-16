@@ -13,47 +13,16 @@ import {
   EmptyState,
   LoadingSkeleton,
   PageCanvas,
-  PageGrid,
   PageHeader,
+  PageSplit,
 } from '@/components/ui'
+import { RuleStatusBadge } from '@/features/rules-library/components/rule-status-badge'
 import { rulesApi } from '@/lib/api/client'
 import { queryKeys } from '@/lib/api/query-keys'
-import { RuleStatusBadge } from '@/features/rules-library/components/rule-status-badge'
 import { useToast } from '@/components/shell/toast-host'
 
 function pretty(value: unknown) {
   return JSON.stringify(value ?? {}, null, 2)
-}
-
-function summarizeConditionDefinition(value: string) {
-  try {
-    const parsed = JSON.parse(value) as {
-      all?: Array<{ fact?: string; operator?: string; value?: unknown }>
-    }
-
-    const first = parsed.all?.[0]
-    if (!first) {
-      return 'No condition summary available yet.'
-    }
-
-    return `${first.fact ?? 'fact'} ${first.operator ?? 'operator'} ${String(first.value ?? 'value')}`
-  } catch {
-    return 'Condition JSON needs review before publish.'
-  }
-}
-
-function summarizeActionDefinition(value: string) {
-  try {
-    const parsed = JSON.parse(value) as {
-      type?: string
-      outcome?: string
-      title?: string
-    }
-
-    return `${parsed.type ?? 'action'} · ${parsed.outcome ?? 'outcome'}${parsed.title ? ` · ${parsed.title}` : ''}`
-  } catch {
-    return 'Action JSON needs review before publish.'
-  }
 }
 
 export function RuleDetailPage() {
@@ -136,8 +105,7 @@ export function RuleDetailPage() {
     onError: (error) =>
       notify({
         title: 'Draft save failed',
-        description:
-          error instanceof Error ? error.message : 'Unable to save the rule draft.',
+        description: error instanceof Error ? error.message : 'Unable to save the rule draft.',
         tone: 'danger',
       }),
   })
@@ -147,9 +115,7 @@ export function RuleDetailPage() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.rules.detail(ruleId) }),
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.rules.executionLogs(ruleId),
-        }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.rules.executionLogs(ruleId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.rules.all }),
       ])
       notify({
@@ -161,21 +127,20 @@ export function RuleDetailPage() {
     onError: (error) =>
       notify({
         title: 'Publish failed',
-        description:
-          error instanceof Error ? error.message : 'The rule could not be published.',
+        description: error instanceof Error ? error.message : 'The rule could not be published.',
         tone: 'danger',
       }),
   })
 
   if (detailQuery.isLoading) return <LoadingSkeleton lines={10} />
-  if (!payload)
+  if (!payload) {
     return (
       <EmptyState
-        compact
         title="Rule not found"
         description="The requested rule could not be resolved for the active tenant."
       />
     )
+  }
 
   const executionLogs = logsQuery.data?.data.items ?? payload.executionLogs ?? []
   const latestPublished = payload.versions.find(
@@ -183,14 +148,13 @@ export function RuleDetailPage() {
   )
 
   return (
-    <PageCanvas>
+    <PageCanvas density="compact">
       <PageHeader
         variant="governance"
-        eyebrow="Rules & workflow governance"
-        breadcrumb="Rules Library"
+        eyebrow="Governance"
         title={payload.rule.name}
-        description="Edit the business definition in a draft, inspect the advanced logic when needed, and publish an immutable rule version when it is ready."
-        status={
+        description="Governed rule detail with mutable draft editing, immutable published history, and execution evidence."
+        statusSummary={
           <>
             <RuleStatusBadge status={payload.rule.status} />
             {draftVersion?.lifecycleState === 'draft' ? (
@@ -200,237 +164,207 @@ export function RuleDetailPage() {
             )}
           </>
         }
-        actions={
-          <>
-            <Link to="/app/rules">
-              <AppButton type="button" variant="secondary">
-                Back to rules
-              </AppButton>
-            </Link>
-            <AppButton
-              type="button"
-              onClick={() => publishMutation.mutate()}
-              disabled={publishMutation.isPending}
-            >
-              {publishMutation.isPending ? 'Publishing…' : 'Publish latest draft'}
+        secondaryActions={
+          <Link to="/app/rules">
+            <AppButton type="button" variant="secondary">
+              Back to rules
             </AppButton>
-          </>
+          </Link>
+        }
+        actions={
+          <AppButton
+            type="button"
+            onClick={() => publishMutation.mutate()}
+            disabled={publishMutation.isPending}
+          >
+            {publishMutation.isPending ? 'Publishing…' : 'Publish latest draft'}
+          </AppButton>
         }
       />
 
-      <PageGrid layout="governance">
-        <div className="space-y-5">
+      <PageSplit variant="governance">
+        <div className="space-y-4">
           <AppCard>
-            <AppCardHeader>
-              <div className="heading-md">Business definition</div>
+            <AppCardHeader density="compact">
+              <div className="heading-md">Draft editor</div>
               <div className="body-sm text-text-muted">
-                Keep the language business readable first. The advanced condition and action JSON remain available as a controlled detail below.
+                Primary authoring surface for the current draft definition.
               </div>
             </AppCardHeader>
-            <AppCardBody className="space-y-4">
-              <div className="space-y-2">
-                <label className="label-sm text-text">Business name</label>
-                <AppInput
-                  value={form.name}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      name: event.currentTarget.value,
-                    }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="label-sm text-text">What is this rule for?</label>
-                <AppTextarea
-                  value={form.description}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      description: event.currentTarget.value,
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
+            <AppCardBody density="compact">
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="label-sm text-text">Module</label>
-                  <AppSelect
-                    value={form.moduleScope}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        moduleScope: event.currentTarget.value,
-                      }))
-                    }
-                  >
-                    <option value="applications">Applications</option>
-                    <option value="disposition">Disposition</option>
-                    <option value="communications">Communications</option>
-                    <option value="client">Client</option>
-                  </AppSelect>
-                </div>
-                <div className="space-y-2">
-                  <label className="label-sm text-text">Subject type</label>
-                  <AppSelect
-                    value={form.subjectType}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        subjectType: event.currentTarget.value,
-                      }))
-                    }
-                  >
-                    <option value="application">Application</option>
-                    <option value="client">Client</option>
-                    <option value="communication">Communication</option>
-                  </AppSelect>
-                </div>
-                <div className="space-y-2">
-                  <label className="label-sm text-text">Trigger event</label>
+                  <label className="label-sm text-text">Name</label>
                   <AppInput
-                    value={form.triggerEvent}
+                    value={form.name}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, name: event.currentTarget.value }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="label-sm text-text">Description</label>
+                  <AppTextarea
+                    value={form.description}
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        triggerEvent: event.currentTarget.value,
+                        description: event.currentTarget.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="label-sm text-text">Module scope</label>
+                    <AppSelect
+                      value={form.moduleScope}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          moduleScope: event.currentTarget.value,
+                        }))
+                      }
+                    >
+                      <option value="applications">Applications</option>
+                      <option value="disposition">Disposition</option>
+                      <option value="communications">Communications</option>
+                      <option value="client">Client</option>
+                    </AppSelect>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="label-sm text-text">Subject type</label>
+                    <AppSelect
+                      value={form.subjectType}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          subjectType: event.currentTarget.value,
+                        }))
+                      }
+                    >
+                      <option value="application">Application</option>
+                      <option value="client">Client</option>
+                      <option value="communication">Communication</option>
+                    </AppSelect>
+                  </div>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="label-sm text-text">Trigger event</label>
+                    <AppInput
+                      value={form.triggerEvent}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          triggerEvent: event.currentTarget.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="label-sm text-text">Severity</label>
+                    <AppSelect
+                      value={form.severity}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          severity: event.currentTarget.value,
+                        }))
+                      }
+                    >
+                      <option value="info">Info</option>
+                      <option value="warning">Warning</option>
+                      <option value="blocking">Blocking</option>
+                    </AppSelect>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="label-sm text-text">Execution label</label>
+                  <AppInput
+                    value={form.executionLabel}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        executionLabel: event.currentTarget.value,
                       }))
                     }
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="label-sm text-text">Severity</label>
-                  <AppSelect
-                    value={form.severity}
+                  <label className="label-sm text-text">Note template</label>
+                  <AppTextarea
+                    value={form.noteTemplate}
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        severity: event.currentTarget.value,
+                        noteTemplate: event.currentTarget.value,
                       }))
                     }
-                  >
-                    <option value="info">Info</option>
-                    <option value="warning">Warning</option>
-                    <option value="blocking">Blocking</option>
-                  </AppSelect>
+                  />
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="label-sm text-text">Execution label</label>
-                <AppInput
-                  value={form.executionLabel}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      executionLabel: event.currentTarget.value,
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="label-sm text-text">Visible note template</label>
-                <AppTextarea
-                  value={form.noteTemplate}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      noteTemplate: event.currentTarget.value,
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="grid gap-3 lg:grid-cols-2">
-                <div className="rounded-xl border border-border bg-muted/35 p-4">
-                  <div className="label-sm uppercase tracking-[0.12em] text-text-muted">
-                    Runs when
-                  </div>
-                  <div className="mt-2 body-sm text-text">
-                    {summarizeConditionDefinition(form.conditionDefinition)}
-                  </div>
+                <div className="space-y-2">
+                  <label className="label-sm text-text">Condition definition JSON</label>
+                  <AppTextarea
+                    className="min-h-[150px] font-mono text-xs"
+                    value={form.conditionDefinition}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        conditionDefinition: event.currentTarget.value,
+                      }))
+                    }
+                  />
                 </div>
-                <div className="rounded-xl border border-border bg-muted/35 p-4">
-                  <div className="label-sm uppercase tracking-[0.12em] text-text-muted">
-                    Then it does
-                  </div>
-                  <div className="mt-2 body-sm text-text">
-                    {summarizeActionDefinition(form.actionDefinition)}
-                  </div>
+                <div className="space-y-2">
+                  <label className="label-sm text-text">Action definition JSON</label>
+                  <AppTextarea
+                    className="min-h-[150px] font-mono text-xs"
+                    value={form.actionDefinition}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        actionDefinition: event.currentTarget.value,
+                      }))
+                    }
+                  />
                 </div>
+                <AppButton
+                  type="button"
+                  onClick={() => saveMutation.mutate()}
+                  disabled={saveMutation.isPending}
+                >
+                  {saveMutation.isPending
+                    ? 'Saving…'
+                    : latestPublished && draftVersion?.lifecycleState !== 'draft'
+                      ? 'Create draft revision'
+                      : 'Save draft changes'}
+                </AppButton>
               </div>
-
-              <details className="rounded-xl border border-border bg-surface">
-                <summary className="cursor-pointer list-none px-4 py-3 font-medium text-text">
-                  Advanced conditions and actions
-                </summary>
-                <div className="space-y-4 border-t border-border px-4 py-4">
-                  <div className="space-y-2">
-                    <label className="label-sm text-text">
-                      Condition definition JSON
-                    </label>
-                    <AppTextarea
-                      className="min-h-[160px] font-mono text-xs"
-                      value={form.conditionDefinition}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          conditionDefinition: event.currentTarget.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="label-sm text-text">Action definition JSON</label>
-                    <AppTextarea
-                      className="min-h-[160px] font-mono text-xs"
-                      value={form.actionDefinition}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          actionDefinition: event.currentTarget.value,
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-              </details>
-
-              <AppButton
-                type="button"
-                onClick={() => saveMutation.mutate()}
-                disabled={saveMutation.isPending}
-              >
-                {saveMutation.isPending
-                  ? 'Saving…'
-                  : latestPublished && draftVersion?.lifecycleState !== 'draft'
-                    ? 'Create draft revision'
-                    : 'Save draft changes'}
-              </AppButton>
             </AppCardBody>
           </AppCard>
 
-          <AppCard>
-            <AppCardHeader>
+          <AppCard tone="secondary">
+            <AppCardHeader density="compact">
               <div className="heading-md">Execution evidence</div>
               <div className="body-sm text-text-muted">
-                Rule evaluations are append-only and bind to the immutable version that executed.
+                Append-only evaluation evidence bound to immutable versions.
               </div>
             </AppCardHeader>
-            <AppCardBody>
+            <AppCardBody density="compact">
               {logsQuery.isLoading ? <LoadingSkeleton lines={5} /> : null}
               {!logsQuery.isLoading && executionLogs.length === 0 ? (
                 <EmptyState
-                  compact
                   title="No execution evidence yet"
                   description="Execution logs appear here after the rule evaluates against governed events."
                 />
               ) : null}
               <div className="space-y-3">
                 {executionLogs.map((log) => (
-                  <div key={log.id} className="rounded-xl border border-border bg-muted/35 p-4">
+                  <div
+                    key={log.id}
+                    className="rounded-xl border border-border bg-surface px-4 py-3"
+                  >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <div className="font-medium text-text">{log.triggerEvent}</div>
@@ -451,10 +385,10 @@ export function RuleDetailPage() {
                       </AppBadge>
                     </div>
                     <div className="mt-2 text-xs text-text-muted">
-                      {log.executedAt ? new Date(log.executedAt).toLocaleString() : '—'} • correlation{' '}
-                      {log.correlationId || 'none'}
+                      {log.executedAt ? new Date(log.executedAt).toLocaleString() : '—'} •
+                      correlation {log.correlationId || 'none'}
                     </div>
-                    <pre className="mt-3 overflow-x-auto rounded-md bg-surface p-3 text-xs text-text-muted">
+                    <pre className="mt-3 overflow-x-auto rounded-lg bg-muted/20 p-3 text-xs text-text-muted">
                       {pretty(log.contextSnapshot)}
                     </pre>
                   </div>
@@ -464,12 +398,56 @@ export function RuleDetailPage() {
           </AppCard>
         </div>
 
-        <div className="space-y-5">
-          <AppCard>
-            <AppCardHeader>
+        <div className="space-y-4">
+          <AppCard tone="secondary">
+            <AppCardHeader density="compact">
+              <div className="heading-md">Version history</div>
+              <div className="body-sm text-text-muted">
+                Published versions remain locked and reviewable.
+              </div>
+            </AppCardHeader>
+            <AppCardBody density="compact">
+              <div className="space-y-3">
+                {payload.versions.map((version) => (
+                  <div
+                    key={version.id}
+                    className="rounded-xl border border-border bg-surface px-4 py-3"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div className="font-medium text-text">
+                          Version {version.versionNumber}
+                        </div>
+                        <div className="text-xs text-text-muted">
+                          {version.triggerEvent} • checksum {version.checksum.slice(0, 12)}…
+                        </div>
+                      </div>
+                      <RuleStatusBadge status={version.lifecycleState} />
+                    </div>
+                    <div className="mt-2 text-xs text-text-muted">
+                      Published:{' '}
+                      {version.publishedAt
+                        ? new Date(version.publishedAt).toLocaleString()
+                        : 'Not published'}{' '}
+                      • by {version.publishedBy ?? '—'}
+                    </div>
+                    <pre className="mt-3 overflow-x-auto rounded-lg bg-muted/20 p-3 text-xs text-text-muted">
+                      {pretty({
+                        conditionDefinition: version.conditionDefinition,
+                        actionDefinition: version.actionDefinition,
+                      })}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            </AppCardBody>
+          </AppCard>
+
+          <AppCard tone="inset">
+            <AppCardHeader density="compact">
               <div className="heading-md">Runtime posture</div>
             </AppCardHeader>
-            <AppCardBody className="space-y-3 body-sm text-text-muted">
+            <AppCardBody density="compact" className="space-y-2 body-sm text-text-muted">
               <p>
                 Rule key: <span className="font-medium text-text">{payload.rule.ruleKey}</span>
               </p>
@@ -491,47 +469,8 @@ export function RuleDetailPage() {
               </p>
             </AppCardBody>
           </AppCard>
-
-          <AppCard>
-            <AppCardHeader>
-              <div className="heading-md">Version history</div>
-              <div className="body-sm text-text-muted">
-                Published versions are locked. Future edits create new draft rows and preserve the immutable publication trail.
-              </div>
-            </AppCardHeader>
-            <AppCardBody>
-              <div className="space-y-3">
-                {payload.versions.map((version) => (
-                  <div key={version.id} className="rounded-xl border border-border bg-muted/35 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <div className="font-medium text-text">Version {version.versionNumber}</div>
-                        <div className="text-xs text-text-muted">
-                          {version.triggerEvent} • checksum {version.checksum.slice(0, 12)}…
-                        </div>
-                      </div>
-                      <RuleStatusBadge status={version.lifecycleState} />
-                    </div>
-                    <div className="mt-2 text-xs text-text-muted">
-                      Published:{' '}
-                      {version.publishedAt
-                        ? new Date(version.publishedAt).toLocaleString()
-                        : 'Not published'}{' '}
-                      • by {version.publishedBy ?? '—'}
-                    </div>
-                    <pre className="mt-3 overflow-x-auto rounded-md bg-surface p-3 text-xs text-text-muted">
-                      {pretty({
-                        conditionDefinition: version.conditionDefinition,
-                        actionDefinition: version.actionDefinition,
-                      })}
-                    </pre>
-                  </div>
-                ))}
-              </div>
-            </AppCardBody>
-          </AppCard>
         </div>
-      </PageGrid>
+      </PageSplit>
     </PageCanvas>
   )
 }
