@@ -43,16 +43,18 @@ export function AppHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-20 border-b border-border bg-surface/95 backdrop-blur">
-      <div className="flex min-h-[72px] items-center gap-4 px-5 xl:px-6">
-        <div className="min-w-0 flex-1">
-          <div className="label-sm uppercase tracking-[0.18em] text-text-muted">
+    <header className="sticky top-0 z-20 border-b border-border bg-surface/96 backdrop-blur">
+      <div className="flex min-h-[68px] items-center gap-4 px-5 xl:px-6">
+        <div className="min-w-0 shrink-0 xl:w-[260px]">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted">
             {activeMeta?.shellSectionLabel ?? 'Workspace'}
           </div>
-          <div className="truncate text-sm text-text-muted">{workspaceName}</div>
+          <div className="mt-1 truncate text-[15px] font-medium leading-5 text-text">
+            {workspaceName}
+          </div>
         </div>
 
-        <div className="hidden min-w-0 max-w-[570px] flex-1 xl:block">
+        <div className="hidden min-w-0 max-w-[560px] flex-1 xl:block">
           <div className="relative">
             <Search
               size={16}
@@ -60,16 +62,17 @@ export function AppHeader() {
             />
             <AppInput
               aria-label="Global search"
-              className="pl-9"
-              placeholder="Search clients, workflows, or audit evidence"
+              className="bg-background pl-9"
+              placeholder="Search clients, workflows, or audit"
             />
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
           <NotificationBellButton />
           <AppButton
             type="button"
+            size="sm"
             variant="ghost"
             onClick={() => void handleSignOut()}
           >
