@@ -13,9 +13,14 @@ import {
   AppTextarea,
   EmptyState,
   LoadingSkeleton,
-  PageHeader
+  PageCanvas,
+  PageGrid,
+  PageHeader,
 } from '@/components/ui'
-import { workflowsApi, type WorkflowDetailEnvelopeWithDraftValidation } from '@/lib/api/client'
+import {
+  workflowsApi,
+  type WorkflowDetailEnvelopeWithDraftValidation,
+} from '@/lib/api/client'
 import { queryKeys } from '@/lib/api/query-keys'
 import { WorkflowStatusBadge } from '@/features/workflow-builder/components/workflow-status-badge'
 import { WorkflowTriggerBuilder } from '@/features/workflow-builder/components/workflow-trigger-builder'
@@ -24,7 +29,7 @@ import { WorkflowUnsavedChangesBar } from '@/features/workflow-builder/component
 import {
   compileWorkflowBuilderToContract,
   parseWorkflowContractToBuilderState,
-  validateBuilderStateBeforeSave
+  validateBuilderStateBeforeSave,
 } from '@/features/workflow-builder/workflow-builder-utils'
 import type { WorkflowBuilderState } from '@/features/workflow-builder/workflow-builder-types'
 import { useToast } from '@/components/shell/toast-host'
@@ -33,14 +38,18 @@ function pretty(value: unknown) {
   return JSON.stringify(value ?? {}, null, 2)
 }
 
-function buildSnapshot(args: { name: string; description: string; builderState: WorkflowBuilderState }) {
+function buildSnapshot(args: {
+  name: string
+  description: string
+  builderState: WorkflowBuilderState
+}) {
   const compiled = compileWorkflowBuilderToContract(args.builderState)
 
   return JSON.stringify({
     name: args.name,
     description: args.description,
     triggerDefinition: compiled.triggerDefinition,
-    stepsDefinition: compiled.stepsDefinition
+    stepsDefinition: compiled.stepsDefinition,
   })
 }
 
@@ -54,32 +63,36 @@ export function WorkflowDetailPage() {
   const detailQuery = useQuery({
     enabled: Boolean(workflowId),
     queryKey: queryKeys.workflows.detail(workflowId),
-    queryFn: () => workflowsApi.get(workflowId)
+    queryFn: () => workflowsApi.get(workflowId),
   })
 
   const runsQuery = useQuery({
     enabled: Boolean(workflowId),
     queryKey: queryKeys.workflows.runs(workflowId),
-    queryFn: () => workflowsApi.runs(workflowId)
+    queryFn: () => workflowsApi.runs(workflowId),
   })
 
   const runDetailQuery = useQuery({
     enabled: Boolean(workflowId && selectedRunId),
     queryKey: queryKeys.workflows.runDetail(workflowId, selectedRunId ?? ''),
-    queryFn: () => workflowsApi.run(workflowId, selectedRunId ?? '')
+    queryFn: () => workflowsApi.run(workflowId, selectedRunId ?? ''),
   })
 
-  const payload = detailQuery.data?.data as WorkflowDetailEnvelopeWithDraftValidation['data'] | undefined
+  const payload = detailQuery.data?.data as
+    | WorkflowDetailEnvelopeWithDraftValidation['data']
+    | undefined
   const draftVersion = useMemo(
-    () => payload?.versions.find((version) => version.lifecycleState === 'draft') ?? payload?.versions[0],
-    [payload]
+    () =>
+      payload?.versions.find((version) => version.lifecycleState === 'draft') ??
+      payload?.versions[0],
+    [payload],
   )
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [builderState, setBuilderState] = useState<WorkflowBuilderState>({
     trigger: { event: '', subjectType: '', filters: [] },
-    steps: []
+    steps: [],
   })
   const [initialSnapshot, setInitialSnapshot] = useState('')
 
@@ -88,17 +101,19 @@ export function WorkflowDetailPage() {
 
     const nextBuilderState = parseWorkflowContractToBuilderState(
       (draftVersion.triggerDefinition ?? {}) as Record<string, unknown>,
-      (draftVersion.stepsDefinition ?? []) as Array<Record<string, unknown>>
+      (draftVersion.stepsDefinition ?? []) as Array<Record<string, unknown>>,
     )
 
     setName(payload.workflow.name)
     setDescription(payload.workflow.description ?? '')
     setBuilderState(nextBuilderState)
-    setInitialSnapshot(buildSnapshot({
-      name: payload.workflow.name,
-      description: payload.workflow.description ?? '',
-      builderState: nextBuilderState
-    }))
+    setInitialSnapshot(
+      buildSnapshot({
+        name: payload.workflow.name,
+        description: payload.workflow.description ?? '',
+        builderState: nextBuilderState,
+      }),
+    )
   }, [draftVersion, payload])
 
   useEffect(() => {
@@ -106,8 +121,14 @@ export function WorkflowDetailPage() {
     if (!selectedRunId && firstRunId) setSelectedRunId(firstRunId)
   }, [runsQuery.data, selectedRunId])
 
-  const clientSideErrors = useMemo(() => validateBuilderStateBeforeSave(builderState), [builderState])
-  const currentSnapshot = useMemo(() => buildSnapshot({ name, description, builderState }), [builderState, description, name])
+  const clientSideErrors = useMemo(
+    () => validateBuilderStateBeforeSave(builderState),
+    [builderState],
+  )
+  const currentSnapshot = useMemo(
+    () => buildSnapshot({ name, description, builderState }),
+    [builderState, description, name],
+  )
   const hasUnsavedChanges = Boolean(initialSnapshot) && currentSnapshot !== initialSnapshot
 
   const saveMutation = useMutation({
@@ -117,25 +138,30 @@ export function WorkflowDetailPage() {
         name,
         description: description || null,
         triggerDefinition: compiled.triggerDefinition,
-        stepsDefinition: compiled.stepsDefinition
+        stepsDefinition: compiled.stepsDefinition,
       })
     },
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.workflows.detail(workflowId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.workflows.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.workflows.all }),
       ])
       notify({
         title: 'Draft saved',
-        description: 'Your changes were saved to the editable draft. Published versions stay unchanged.',
-        tone: 'success'
+        description:
+          'Your changes were saved to the editable draft. Published versions stay unchanged.',
+        tone: 'success',
       })
     },
-    onError: (error) => notify({
-      title: 'Could not save draft',
-      description: error instanceof Error ? error.message : 'Check required workflow fields and try again.',
-      tone: 'danger'
-    })
+    onError: (error) =>
+      notify({
+        title: 'Could not save draft',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Check required workflow fields and try again.',
+        tone: 'danger',
+      }),
   })
 
   const publishMutation = useMutation({
@@ -145,67 +171,119 @@ export function WorkflowDetailPage() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.workflows.detail(workflowId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.workflows.runs(workflowId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.workflows.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.workflows.all }),
       ])
       notify({
         title: 'Workflow published',
         description: 'Future executions now bind to the new immutable workflow version.',
-        tone: 'success'
+        tone: 'success',
       })
     },
-    onError: (error) => notify({
-      title: 'Workflow publish failed',
-      description: error instanceof Error ? error.message : 'The workflow could not be published.',
-      tone: 'danger'
-    })
+    onError: (error) =>
+      notify({
+        title: 'Workflow publish failed',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'The workflow could not be published.',
+        tone: 'danger',
+      }),
   })
 
   if (detailQuery.isLoading) return <LoadingSkeleton lines={10} />
-  if (!payload) return <EmptyState title="Workflow not found" description="The requested workflow could not be resolved for the active tenant." />
+  if (!payload)
+    return (
+      <EmptyState
+        compact
+        title="Workflow not found"
+        description="The requested workflow could not be resolved for the active tenant."
+      />
+    )
 
   const runs = runsQuery.data?.data.items ?? []
   const runDetail = runDetailQuery.data?.data
   const draftValidation = payload.draftValidation
-  const publishBlocked = publishMutation.isPending || draftValidation?.hasDraft && !draftValidation.isValid || clientSideErrors.length > 0
+  const publishBlocked =
+    publishMutation.isPending ||
+    (!!draftValidation?.hasDraft && !draftValidation.isValid) ||
+    clientSideErrors.length > 0
 
   return (
-    <div className="space-y-6">
+    <PageCanvas>
       <PageHeader
+        variant="governance"
+        eyebrow="Rules & workflow governance"
+        breadcrumb="Workflow Builder"
         title={payload.workflow.name}
-        description="Build and publish an automated sequence using a safe draft before it becomes live."
+        description="Define when the workflow runs, shape the sequence of steps, and publish a locked version when the draft is ready."
+        status={
+          <>
+            <WorkflowStatusBadge status={payload.workflow.status} />
+            {draftVersion?.lifecycleState === 'draft' ? (
+              <AppBadge variant="info">Editable draft</AppBadge>
+            ) : (
+              <AppBadge variant="warning">Revision will be cloned</AppBadge>
+            )}
+          </>
+        }
         actions={
           <>
-            <Link to="/app/workflows"><AppButton type="button" variant="secondary">Back to workflows</AppButton></Link>
-            <AppButton type="button" onClick={() => setPublishDialogOpen(true)} disabled={publishBlocked}>
+            <Link to="/app/workflows">
+              <AppButton type="button" variant="secondary">
+                Back to workflows
+              </AppButton>
+            </Link>
+            <AppButton
+              type="button"
+              onClick={() => setPublishDialogOpen(true)}
+              disabled={publishBlocked}
+            >
               {publishMutation.isPending ? 'Publishing…' : 'Publish version'}
             </AppButton>
           </>
         }
       />
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_420px]">
-        <div className="space-y-6">
+      <PageGrid layout="governance">
+        <div className="space-y-5">
           <AppCard>
             <AppCardHeader>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="heading-md">Workflow draft</div>
-                  <div className="body-sm text-text-muted">Draft changes stay editable until you publish a new version.</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <WorkflowStatusBadge status={payload.workflow.status} />
-                  {draftVersion?.lifecycleState === 'draft' ? <AppBadge variant="info">Editable draft</AppBadge> : <AppBadge variant="warning">Revision will be cloned</AppBadge>}
-                </div>
+              <div className="heading-md">Business summary</div>
+              <div className="body-sm text-text-muted">
+                Keep the workflow readable for operators before moving into trigger and step configuration.
               </div>
             </AppCardHeader>
             <AppCardBody className="space-y-4">
               <div className="space-y-2">
-                <label className="label-sm text-text">Name</label>
+                <label className="label-sm text-text">Workflow name</label>
                 <AppInput value={name} onChange={(event) => setName(event.currentTarget.value)} />
               </div>
               <div className="space-y-2">
-                <label className="label-sm text-text">Description</label>
-                <AppTextarea value={description} onChange={(event) => setDescription(event.currentTarget.value)} />
+                <label className="label-sm text-text">What does this workflow do?</label>
+                <AppTextarea
+                  value={description}
+                  onChange={(event) => setDescription(event.currentTarget.value)}
+                />
+              </div>
+
+              <div className="grid gap-3 lg:grid-cols-2">
+                <div className="rounded-xl border border-border bg-muted/35 p-4">
+                  <div className="label-sm uppercase tracking-[0.12em] text-text-muted">
+                    Runs when
+                  </div>
+                  <div className="mt-2 body-sm text-text">
+                    {builderState.trigger.event || 'Choose the event that should start this workflow.'}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border bg-muted/35 p-4">
+                  <div className="label-sm uppercase tracking-[0.12em] text-text-muted">
+                    Sequence size
+                  </div>
+                  <div className="mt-2 body-sm text-text">
+                    {builderState.steps.length} configured step
+                    {builderState.steps.length === 1 ? '' : 's'}
+                  </div>
+                </div>
               </div>
             </AppCardBody>
           </AppCard>
@@ -225,12 +303,16 @@ export function WorkflowDetailPage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="heading-md">Publish check</div>
-                  <div className="body-sm text-text-muted">This combines light draft-form guidance with server-side runtime validation.</div>
+                  <div className="body-sm text-text-muted">
+                    This combines draft guidance with server-side runtime validation.
+                  </div>
                 </div>
                 {draftValidation?.hasDraft ? (
-                  draftValidation.isValid && clientSideErrors.length === 0
-                    ? <AppBadge variant="success">Ready to publish</AppBadge>
-                    : <AppBadge variant="danger">Needs fixes</AppBadge>
+                  draftValidation.isValid && clientSideErrors.length === 0 ? (
+                    <AppBadge variant="success">Ready to publish</AppBadge>
+                  ) : (
+                    <AppBadge variant="danger">Needs fixes</AppBadge>
+                  )
                 ) : (
                   <AppBadge variant="neutral">No draft</AppBadge>
                 )}
@@ -240,26 +322,36 @@ export function WorkflowDetailPage() {
               {clientSideErrors.length ? (
                 <div className="space-y-3">
                   {clientSideErrors.map((issue) => (
-                    <div key={issue} className="rounded-lg border border-warning/30 bg-warning/5 p-4">
+                    <div key={issue} className="rounded-xl border border-warning/30 bg-warning/5 p-4">
                       <div className="body-sm text-text">{issue}</div>
                     </div>
                   ))}
                 </div>
               ) : null}
 
-              {!draftValidation?.hasDraft ? <EmptyState title="No draft to validate" description="Create or clone a draft revision to see publish-time validation results." /> : null}
+              {!draftValidation?.hasDraft ? (
+                <EmptyState
+                  compact
+                  title="No draft to validate"
+                  description="Create or clone a draft revision to see publish-time validation results."
+                />
+              ) : null}
 
-              {draftValidation?.hasDraft && draftValidation.isValid && clientSideErrors.length === 0 ? (
-                <div className="rounded-lg border border-border bg-muted p-4">
+              {draftValidation?.hasDraft &&
+              draftValidation.isValid &&
+              clientSideErrors.length === 0 ? (
+                <div className="rounded-xl border border-border bg-muted/35 p-4">
                   <div className="font-medium text-text">This draft is ready to publish.</div>
-                  <div className="body-sm mt-2 text-text-muted">The current trigger and step definitions match the supported runtime contract.</div>
+                  <div className="body-sm mt-2 text-text-muted">
+                    The current trigger and step definitions match the supported runtime contract.
+                  </div>
                 </div>
               ) : null}
 
               {draftValidation?.hasDraft && !draftValidation.isValid ? (
                 <div className="space-y-3">
                   {draftValidation.errors.map((issue) => (
-                    <div key={`${issue.path}-${issue.code}`} className="rounded-lg border border-danger/30 bg-danger/5 p-4">
+                    <div key={`${issue.path}-${issue.code}`} className="rounded-xl border border-danger/30 bg-danger/5 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="font-medium text-text">{issue.code}</div>
                         <div className="text-xs text-text-muted">{issue.path}</div>
@@ -275,50 +367,93 @@ export function WorkflowDetailPage() {
           <AppCard>
             <AppCardHeader>
               <div className="heading-md">Run monitoring</div>
-              <div className="body-sm text-text-muted">Published versions keep durable run logs and version binding for every queued execution.</div>
+              <div className="body-sm text-text-muted">
+                Published versions keep durable run logs and version binding for every queued execution.
+              </div>
             </AppCardHeader>
             <AppCardBody>
               {runsQuery.isLoading ? <LoadingSkeleton lines={6} /> : null}
-              {!runsQuery.isLoading && runs.length === 0 ? <EmptyState title="No workflow runs yet" description="Matching domain events will queue runs here after the workflow is published." /> : null}
+              {!runsQuery.isLoading && runs.length === 0 ? (
+                <EmptyState
+                  compact
+                  title="No workflow runs yet"
+                  description="Matching domain events will queue runs here after the workflow is published."
+                />
+              ) : null}
               <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
                 <div className="space-y-3">
                   {runs.map((run) => (
-                    <button key={run.id} type="button" className={`w-full rounded-lg border p-4 text-left ${selectedRunId === run.id ? 'border-primary bg-surface' : 'border-border bg-muted'}`} onClick={() => setSelectedRunId(run.id)}>
+                    <button
+                      key={run.id}
+                      type="button"
+                      className={`w-full rounded-xl border p-4 text-left ${
+                        selectedRunId === run.id
+                          ? 'border-primary bg-surface'
+                          : 'border-border bg-muted/35'
+                      }`}
+                      onClick={() => setSelectedRunId(run.id)}
+                    >
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <div className="font-medium text-text">{run.triggerEvent}</div>
-                          <div className="text-xs text-text-muted">Subject {run.subjectType} #{run.subjectId}</div>
+                          <div className="text-xs text-text-muted">
+                            Subject {run.subjectType} #{run.subjectId}
+                          </div>
                         </div>
                         <WorkflowStatusBadge status={run.status} />
                       </div>
-                      <div className="mt-2 text-xs text-text-muted">Version {run.workflowVersionId} • queued {run.queuedAt ? new Date(run.queuedAt).toLocaleString() : '—'}</div>
+                      <div className="mt-2 text-xs text-text-muted">
+                        Version {run.workflowVersionId} • queued{' '}
+                        {run.queuedAt ? new Date(run.queuedAt).toLocaleString() : '—'}
+                      </div>
                     </button>
                   ))}
                 </div>
                 <div>
                   {runDetailQuery.isLoading ? <LoadingSkeleton lines={5} /> : null}
-                  {!runDetail && !runDetailQuery.isLoading ? <EmptyState title="Select a run" description="Choose a queued or completed run to inspect execution logs." /> : null}
+                  {!runDetail && !runDetailQuery.isLoading ? (
+                    <EmptyState
+                      compact
+                      title="Select a run"
+                      description="Choose a queued or completed run to inspect execution logs."
+                    />
+                  ) : null}
                   {runDetail ? (
                     <div className="space-y-3">
-                      <div className="rounded-lg border border-border bg-muted p-4">
+                      <div className="rounded-xl border border-border bg-muted/35 p-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
                             <div className="font-medium text-text">Run {runDetail.run.id}</div>
-                            <div className="text-xs text-text-muted">Workflow version {runDetail.run.workflowVersionId}</div>
+                            <div className="text-xs text-text-muted">
+                              Workflow version {runDetail.run.workflowVersionId}
+                            </div>
                           </div>
                           <WorkflowStatusBadge status={runDetail.run.status} />
                         </div>
-                        <div className="mt-2 text-xs text-text-muted">Correlation {runDetail.run.correlationId || 'none'} • failure {runDetail.run.failedAt ? new Date(runDetail.run.failedAt).toLocaleString() : 'not failed'}</div>
+                        <div className="mt-2 text-xs text-text-muted">
+                          Correlation {runDetail.run.correlationId || 'none'} • failure{' '}
+                          {runDetail.run.failedAt
+                            ? new Date(runDetail.run.failedAt).toLocaleString()
+                            : 'not failed'}
+                        </div>
                       </div>
                       {runDetail.logs.map((log) => (
-                        <div key={log.id} className="rounded-lg border border-border bg-muted p-4">
+                        <div key={log.id} className="rounded-xl border border-border bg-muted/35 p-4">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div className="font-medium text-text">{log.logType}</div>
-                            <div className="text-xs text-text-muted">step {log.stepIndex ?? '—'}</div>
+                            <div className="text-xs text-text-muted">
+                              step {log.stepIndex ?? '—'}
+                            </div>
                           </div>
                           <div className="body-sm mt-2 text-text-muted">{log.message}</div>
-                          <div className="mt-2 text-xs text-text-muted">{log.occurredAt ? new Date(log.occurredAt).toLocaleString() : '—'}</div>
-                          <pre className="mt-3 overflow-x-auto rounded-md bg-surface p-3 text-xs text-text-muted">{pretty(log.payloadSnapshot)}</pre>
+                          <div className="mt-2 text-xs text-text-muted">
+                            {log.occurredAt
+                              ? new Date(log.occurredAt).toLocaleString()
+                              : '—'}
+                          </div>
+                          <pre className="mt-3 overflow-x-auto rounded-md bg-surface p-3 text-xs text-text-muted">
+                            {pretty(log.payloadSnapshot)}
+                          </pre>
                         </div>
                       ))}
                     </div>
@@ -334,7 +469,7 @@ export function WorkflowDetailPage() {
                 if (!payload || !draftVersion) return
                 const nextBuilderState = parseWorkflowContractToBuilderState(
                   (draftVersion.triggerDefinition ?? {}) as Record<string, unknown>,
-                  (draftVersion.stepsDefinition ?? []) as Array<Record<string, unknown>>
+                  (draftVersion.stepsDefinition ?? []) as Array<Record<string, unknown>>,
                 )
                 setName(payload.workflow.name)
                 setDescription(payload.workflow.description ?? '')
@@ -347,18 +482,45 @@ export function WorkflowDetailPage() {
           ) : null}
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-5">
           <AppCard>
             <AppCardHeader>
               <div className="heading-md">Publish summary</div>
-              <div className="body-sm text-text-muted">Publishing freezes the draft into an immutable version used by future runs.</div>
+              <div className="body-sm text-text-muted">
+                Publishing freezes the draft into an immutable version used by future runs.
+              </div>
             </AppCardHeader>
             <AppCardBody className="space-y-2 body-sm text-text-muted">
-              <p>Event: <span className="font-medium text-text">{builderState.trigger.event || '—'}</span></p>
-              <p>Subject type: <span className="font-medium text-text">{builderState.trigger.subjectType || '—'}</span></p>
-              <p>Trigger filters: <span className="font-medium text-text">{builderState.trigger.filters.length}</span></p>
-              <p>Workflow steps: <span className="font-medium text-text">{builderState.steps.length}</span></p>
-              <p>Latest published version: <span className="font-medium text-text">v{payload.workflow.latestPublishedVersionNumber ?? '—'}</span></p>
+              <p>
+                Event:{' '}
+                <span className="font-medium text-text">
+                  {builderState.trigger.event || '—'}
+                </span>
+              </p>
+              <p>
+                Subject type:{' '}
+                <span className="font-medium text-text">
+                  {builderState.trigger.subjectType || '—'}
+                </span>
+              </p>
+              <p>
+                Trigger filters:{' '}
+                <span className="font-medium text-text">
+                  {builderState.trigger.filters.length}
+                </span>
+              </p>
+              <p>
+                Workflow steps:{' '}
+                <span className="font-medium text-text">
+                  {builderState.steps.length}
+                </span>
+              </p>
+              <p>
+                Latest published version:{' '}
+                <span className="font-medium text-text">
+                  v{payload.workflow.latestPublishedVersionNumber ?? '—'}
+                </span>
+              </p>
             </AppCardBody>
           </AppCard>
 
@@ -367,55 +529,102 @@ export function WorkflowDetailPage() {
               <div className="heading-md">Runtime posture</div>
             </AppCardHeader>
             <AppCardBody className="body-sm space-y-2 text-text-muted">
-              <p>Workflow key: <span className="font-medium text-text">{payload.workflow.workflowKey}</span></p>
-              <p>Status: <span className="font-medium text-text">{payload.workflow.status}</span></p>
-              <p>Current trigger summary: <span className="font-medium text-text">{payload.workflow.triggerSummary}</span></p>
-              <p>Current draft version: <span className="font-medium text-text">v{payload.workflow.currentDraftVersionNumber ?? '—'}</span></p>
+              <p>
+                Workflow key:{' '}
+                <span className="font-medium text-text">
+                  {payload.workflow.workflowKey}
+                </span>
+              </p>
+              <p>
+                Status:{' '}
+                <span className="font-medium text-text">{payload.workflow.status}</span>
+              </p>
+              <p>
+                Current trigger summary:{' '}
+                <span className="font-medium text-text">
+                  {payload.workflow.triggerSummary}
+                </span>
+              </p>
+              <p>
+                Current draft version:{' '}
+                <span className="font-medium text-text">
+                  v{payload.workflow.currentDraftVersionNumber ?? '—'}
+                </span>
+              </p>
             </AppCardBody>
           </AppCard>
 
           <AppCard>
             <AppCardHeader>
               <div className="heading-md">Version history</div>
-              <div className="body-sm text-text-muted">Every published version remains immutable and reviewable.</div>
+              <div className="body-sm text-text-muted">
+                Every published version remains immutable and reviewable.
+              </div>
             </AppCardHeader>
             <AppCardBody>
               <div className="space-y-3">
                 {payload.versions.map((version) => (
-                  <div key={version.id} className="rounded-lg border border-border bg-muted p-4">
+                  <div key={version.id} className="rounded-xl border border-border bg-muted/35 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <div className="font-medium text-text">Version {version.versionNumber}</div>
-                        <div className="text-xs text-text-muted">checksum {version.checksum.slice(0, 12)}…</div>
+                        <div className="font-medium text-text">
+                          Version {version.versionNumber}
+                        </div>
+                        <div className="text-xs text-text-muted">
+                          checksum {version.checksum.slice(0, 12)}…
+                        </div>
                       </div>
                       <WorkflowStatusBadge status={version.lifecycleState} />
                     </div>
-                    <div className="mt-2 text-xs text-text-muted">Published: {version.publishedAt ? new Date(version.publishedAt).toLocaleString() : 'Not published'} • by {version.publishedBy ?? '—'}</div>
-                    <pre className="mt-3 overflow-x-auto rounded-md bg-surface p-3 text-xs text-text-muted">{pretty({ triggerDefinition: version.triggerDefinition, stepsDefinition: version.stepsDefinition })}</pre>
+                    <div className="mt-2 text-xs text-text-muted">
+                      Published:{' '}
+                      {version.publishedAt
+                        ? new Date(version.publishedAt).toLocaleString()
+                        : 'Not published'}{' '}
+                      • by {version.publishedBy ?? '—'}
+                    </div>
+                    <pre className="mt-3 overflow-x-auto rounded-md bg-surface p-3 text-xs text-text-muted">
+                      {pretty({
+                        triggerDefinition: version.triggerDefinition,
+                        stepsDefinition: version.stepsDefinition,
+                      })}
+                    </pre>
                   </div>
                 ))}
               </div>
             </AppCardBody>
           </AppCard>
         </div>
-      </div>
+      </PageGrid>
 
       <AppDialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
         <AppDialogContent>
           <div className="space-y-4">
             <div>
               <div className="heading-md">Publish workflow version?</div>
-              <div className="body-sm mt-1 text-text-muted">Publishing freezes this draft into an immutable version. New runs will use the published version.</div>
+              <div className="body-sm mt-1 text-text-muted">
+                Publishing freezes this draft into an immutable version. New runs will use the published version.
+              </div>
             </div>
             <div className="flex justify-end gap-2">
-              <AppButton type="button" variant="secondary" onClick={() => setPublishDialogOpen(false)}>Cancel</AppButton>
-              <AppButton type="button" onClick={() => publishMutation.mutate()} disabled={publishBlocked}>
+              <AppButton
+                type="button"
+                variant="secondary"
+                onClick={() => setPublishDialogOpen(false)}
+              >
+                Cancel
+              </AppButton>
+              <AppButton
+                type="button"
+                onClick={() => publishMutation.mutate()}
+                disabled={publishBlocked}
+              >
                 {publishMutation.isPending ? 'Publishing…' : 'Publish version'}
               </AppButton>
             </div>
           </div>
         </AppDialogContent>
       </AppDialog>
-    </div>
+    </PageCanvas>
   )
 }

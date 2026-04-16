@@ -7,6 +7,7 @@ export * from '@/components/ui/dialog/dialog'
 export * from '@/components/ui/drawer/drawer'
 export * from '@/components/ui/tabs/tabs'
 export * from '@/components/ui/page-header/page-header'
+export * from '@/components/ui/page-layout/page-layout'
 export * from '@/components/ui/skeleton/loading-skeleton'
 export * from '@/components/ui/empty-state/empty-state'
 

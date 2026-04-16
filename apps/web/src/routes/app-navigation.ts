@@ -30,13 +30,15 @@ type AppNavigationRouteKey =
   | 'workflows'
   | 'audit'
 
+export type AppNavigationGroup = 'operations' | 'settings' | 'governance'
+
 type AppNavigationItem = {
   routeKey: AppNavigationRouteKey
   to: string
   label: string
   icon: LucideIcon
   permissions: readonly PermissionCode[]
-  group: 'operations' | 'administration'
+  group: AppNavigationGroup
 }
 
 export const appNavigationItems = [
@@ -86,7 +88,7 @@ export const appNavigationItems = [
     label: 'My Profile',
     icon: UserRound,
     permissions: routeMeta.settingsProfile.permissions ?? [],
-    group: 'administration',
+    group: 'settings',
   },
   {
     routeKey: 'settingsAccounts',
@@ -94,7 +96,7 @@ export const appNavigationItems = [
     label: 'Accounts',
     icon: Settings,
     permissions: routeMeta.settingsAccounts.permissions ?? [],
-    group: 'administration',
+    group: 'settings',
   },
   {
     routeKey: 'settingsTheme',
@@ -102,7 +104,7 @@ export const appNavigationItems = [
     label: 'Branding',
     icon: Palette,
     permissions: routeMeta.settingsTheme.permissions ?? [],
-    group: 'administration',
+    group: 'settings',
   },
   {
     routeKey: 'settingsIndustryConfigurations',
@@ -110,7 +112,7 @@ export const appNavigationItems = [
     label: 'Industry Config',
     icon: Network,
     permissions: routeMeta.settingsIndustryConfigurations.permissions ?? [],
-    group: 'administration',
+    group: 'settings',
   },
   {
     routeKey: 'rules',
@@ -118,7 +120,7 @@ export const appNavigationItems = [
     label: 'Rules Library',
     icon: Library,
     permissions: routeMeta.rules.permissions ?? [],
-    group: 'administration',
+    group: 'governance',
   },
   {
     routeKey: 'workflows',
@@ -126,7 +128,7 @@ export const appNavigationItems = [
     label: 'Workflow Builder',
     icon: Workflow,
     permissions: routeMeta.workflows.permissions ?? [],
-    group: 'administration',
+    group: 'governance',
   },
   {
     routeKey: 'audit',
@@ -134,7 +136,7 @@ export const appNavigationItems = [
     label: 'Audit',
     icon: Shield,
     permissions: routeMeta.audit.permissions ?? [],
-    group: 'administration',
+    group: 'governance',
   },
 ] satisfies readonly AppNavigationItem[]
 

@@ -7,18 +7,21 @@ export function AppShellLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   return (
-    <div className="flex min-h-screen bg-background text-text" data-testid="app-shell">
+    <div
+      className="flex min-h-screen overflow-x-hidden bg-muted/30 text-text"
+      data-testid="app-shell"
+    >
       <AppSidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((current) => !current)}
       />
-      <div className="flex min-h-screen flex-1 flex-col">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <AppHeader />
-        <div className="flex flex-1">
-          <main className="flex-1 p-6">
+        <main className="flex-1 px-5 pb-8 pt-5 sm:px-6 xl:px-8">
+          <div className="mx-auto w-full max-w-[1600px]">
             <Outlet />
-          </main>
-        </div>
+          </div>
+        </main>
       </div>
     </div>
   )
