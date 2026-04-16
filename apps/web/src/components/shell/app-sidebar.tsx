@@ -63,10 +63,10 @@ function NavigationGroup({
   }
 
   return (
-    <section className="space-y-2">
+    <section className="space-y-2.5">
       {!collapsed ? (
         <div className="space-y-0.5 px-2">
-          <div className="label-sm uppercase tracking-[0.18em] text-text-muted">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted">
             {title}
           </div>
           <div className="text-[12px] leading-4 text-text-muted">
@@ -85,11 +85,11 @@ function NavigationGroup({
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  'group flex items-center gap-3 rounded-xl border border-transparent text-sm transition motion-base',
-                  collapsed ? 'h-10 justify-center px-0' : 'h-11 px-3',
+                  'group flex items-center gap-2.5 rounded-lg border text-sm transition motion-base',
+                  collapsed ? 'h-10 justify-center px-0' : 'h-10 px-3',
                   isActive
                     ? 'border-border bg-background text-text shadow-xs'
-                    : 'text-text-muted hover:border-border/60 hover:bg-background/80 hover:text-text',
+                    : 'border-transparent text-text-muted hover:border-border/50 hover:bg-background/70 hover:text-text',
                 )
               }
               title={collapsed ? item.label : undefined}
@@ -98,7 +98,7 @@ function NavigationGroup({
                 <>
                   <div
                     className={cn(
-                      'flex size-7 shrink-0 items-center justify-center rounded-lg',
+                      'flex size-7 shrink-0 items-center justify-center rounded-md',
                       isActive ? 'bg-muted text-text' : 'text-current',
                     )}
                   >
@@ -137,21 +137,23 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   return (
     <aside
       className={cn(
-        'sticky top-0 hidden h-screen shrink-0 border-r border-border bg-surface px-4 py-4 transition-all duration-200 lg:flex lg:flex-col',
-        collapsed ? 'w-[92px]' : 'w-[246px]',
+        'sticky top-0 hidden h-screen shrink-0 border-r border-border bg-surface px-3 py-3 transition-all duration-200 lg:flex lg:flex-col',
+        collapsed ? 'w-[88px]' : 'w-[244px]',
       )}
     >
       <div
         className={cn(
-          'mb-5 flex items-start gap-3',
+          'mb-4 flex items-start gap-3',
           collapsed ? 'justify-center' : 'justify-between',
         )}
       >
         <div className={cn('overflow-hidden', collapsed && 'sr-only')}>
-          <div className="label-sm uppercase tracking-[0.18em] text-text-muted">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted">
             Snowball
           </div>
-          <div className="display-sm text-text">CRM Platform</div>
+          <div className="mt-1 text-[15px] font-semibold leading-5 text-text">
+            CRM Platform
+          </div>
           <div className="mt-1 text-[12px] leading-4 text-text-muted">
             Governed operations and controls
           </div>
@@ -161,6 +163,7 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           type="button"
           variant="secondary"
           size="sm"
+          className="shrink-0"
           onClick={onToggle}
           aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
         >
@@ -168,7 +171,7 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         </AppButton>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-5" aria-label="Primary">
+      <nav className="flex flex-1 flex-col gap-4" aria-label="Primary">
         <NavigationGroup
           collapsed={collapsed}
           title={sectionCopy.operations.title}
@@ -189,15 +192,15 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         />
       </nav>
 
-      <div className="mt-5 border-t border-border/80 pt-4">
+      <div className="mt-4 border-t border-border/80 pt-3">
         <div
           className={cn(
-            'rounded-2xl border border-border bg-background/80 px-3 py-3',
-            collapsed ? 'flex justify-center px-2' : 'flex items-center gap-3',
+            'rounded-lg border border-border bg-background/70 px-3 py-2.5',
+            collapsed ? 'flex justify-center px-2.5' : 'flex items-center gap-2.5',
           )}
           title={collapsed ? `${displayName} · ${workspaceName}` : undefined}
         >
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold uppercase tracking-[0.08em] text-text">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold uppercase tracking-[0.08em] text-text">
             {initials}
           </div>
 
