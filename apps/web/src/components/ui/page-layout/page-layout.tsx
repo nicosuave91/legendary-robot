@@ -36,11 +36,11 @@ export function PageSplit({
       className={cn(
         'grid gap-5',
         variant === 'cockpit' &&
-          'xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.95fr)]',
+          'items-start xl:grid-cols-[minmax(0,1.7fr)_minmax(340px,0.8fr)]',
         variant === 'workspace' &&
-          'xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,0.85fr)]',
+          'items-start xl:grid-cols-[minmax(0,1.75fr)_minmax(300px,0.8fr)]',
         variant === 'governance' &&
-          'xl:grid-cols-[minmax(0,1.25fr)_420px]',
+          'items-start xl:grid-cols-[minmax(0,1.25fr)_420px]',
         variant === 'audit' && 'grid-cols-1',
         className,
       )}
