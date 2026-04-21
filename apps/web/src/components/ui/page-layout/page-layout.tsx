@@ -6,8 +6,10 @@ type PageCanvasProps = HTMLAttributes<HTMLDivElement> & {
 }
 
 type PageSplitProps = HTMLAttributes<HTMLDivElement> & {
-  variant?: 'cockpit' | 'workspace' | 'governance' | 'audit'
+  variant?: 'cockpit' | 'workspace' | 'settings' | 'governance' | 'audit'
 }
+
+type PageTemplateProps = PageCanvasProps
 
 export function PageCanvas({
   className,
@@ -39,6 +41,8 @@ export function PageSplit({
           'items-start xl:grid-cols-[minmax(0,1.7fr)_minmax(340px,0.8fr)]',
         variant === 'workspace' &&
           'items-start xl:grid-cols-[minmax(0,1.75fr)_minmax(300px,0.8fr)]',
+        variant === 'settings' &&
+          'items-start xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]',
         variant === 'governance' &&
           'items-start xl:grid-cols-[minmax(0,1.25fr)_420px]',
         variant === 'audit' && 'grid-cols-1',
@@ -47,4 +51,24 @@ export function PageSplit({
       {...props}
     />
   )
+}
+
+export function CockpitPageTemplate(props: PageTemplateProps) {
+  return <PageCanvas density="standard" {...props} />
+}
+
+export function WorkspacePageTemplate(props: PageTemplateProps) {
+  return <PageCanvas density="standard" {...props} />
+}
+
+export function SettingsPageTemplate(props: PageTemplateProps) {
+  return <PageCanvas density="compact" {...props} />
+}
+
+export function GovernancePageTemplate(props: PageTemplateProps) {
+  return <PageCanvas density="standard" {...props} />
+}
+
+export function AuditPageTemplate(props: PageTemplateProps) {
+  return <PageCanvas density="compact" {...props} />
 }
