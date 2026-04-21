@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use App\Modules\Onboarding\Http\Controllers\Api\V1\OnboardingController;
 
-Route::prefix('api/v1/onboarding')
+Route::prefix('v1/onboarding')
     ->middleware(['api', 'auth:sanctum'])
     ->group(function (): void {
         Route::get('state', [OnboardingController::class, 'state']);
