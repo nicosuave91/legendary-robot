@@ -1,4 +1,4 @@
-import type { HTMLAttributes, TdHTMLAttributes, ThHTMLAttributes, TableHTMLAttributes } from 'react'
+import type { HTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes, TableHTMLAttributes } from 'react'
 import { cn } from '@/lib/utils/cn'
 
 type TableDensity = 'compact' | 'default'
@@ -90,7 +90,7 @@ export function AppTableEmptyState({
   children,
 }: {
   colSpan: number
-  children: React.ReactNode
+  children: ReactNode
 }) {
   return (
     <tr>
