@@ -21,11 +21,11 @@ type PageHeaderProps = {
 }
 
 const wrapperClasses: Record<PageHeaderVariant, string> = {
-  cockpit: 'rounded-2xl border border-border bg-surface shadow-sm',
-  workspace: 'rounded-2xl border border-border bg-surface shadow-sm',
-  settings: 'rounded-2xl border border-border bg-surface shadow-sm',
-  governance: 'rounded-2xl border border-border bg-surface shadow-sm',
-  audit: 'rounded-2xl border border-border bg-surface shadow-sm',
+  cockpit: 'rounded-xl border border-border bg-surface shadow-sm',
+  workspace: 'rounded-xl border border-border bg-surface shadow-sm',
+  settings: 'rounded-xl border border-border bg-surface shadow-sm',
+  governance: 'rounded-xl border border-border bg-surface shadow-sm',
+  audit: 'rounded-xl border border-border bg-surface shadow-sm',
 }
 
 const titleClasses: Record<PageHeaderVariant, string> = {
@@ -57,7 +57,7 @@ export function PageHeader({
                 {eyebrow}
               </div>
             ) : null}
-            <div className={titleClasses[variant]}>{title}</div>
+            <h1 className={titleClasses[variant]}>{title}</h1>
             {description ? (
               <p className="max-w-3xl body-md text-text-muted">{description}</p>
             ) : null}
