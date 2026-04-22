@@ -10,6 +10,8 @@ export type StatusBadgeStatus =
   | 'queued'
   | 'running'
   | 'waiting'
+  | 'scheduled'
+  | 'cancelled'
   | 'success'
   | 'complete'
   | 'completed'
@@ -26,32 +28,51 @@ export type StatusBadgeStatus =
   | 'applied'
   | 'clean'
   | 'quarantined'
+  | 'uploaded'
+  | 'validation_queued'
+  | 'validating'
+  | 'ready_to_commit'
+  | 'validation_failed'
+  | 'commit_queued'
+  | 'committing'
+  | 'committed'
+  | 'commit_failed'
   | string
 
 const statusMap: Record<string, { label: string; variant: BadgeVariant }> = {
   draft: { label: 'Draft', variant: 'info' },
   published: { label: 'Published', variant: 'success' },
   retired: { label: 'Retired', variant: 'warning' },
+
   pending: { label: 'Pending', variant: 'info' },
   queued: { label: 'Queued', variant: 'info' },
   running: { label: 'Running', variant: 'info' },
   waiting: { label: 'Waiting', variant: 'warning' },
+  scheduled: { label: 'Scheduled', variant: 'info' },
+  cancelled: { label: 'Cancelled', variant: 'warning' },
+
   success: { label: 'Success', variant: 'success' },
   complete: { label: 'Complete', variant: 'success' },
   completed: { label: 'Completed', variant: 'success' },
+
   warning: { label: 'Warning', variant: 'warning' },
   blocked: { label: 'Blocked', variant: 'warning' },
   skipped: { label: 'Skipped', variant: 'neutral' },
+
   failed: { label: 'Failed', variant: 'danger' },
   rejected: { label: 'Rejected', variant: 'danger' },
   danger: { label: 'Danger', variant: 'danger' },
+
   active: { label: 'Active', variant: 'success' },
   inactive: { label: 'Inactive', variant: 'warning' },
+
   lead: { label: 'Lead', variant: 'neutral' },
   qualified: { label: 'Qualified', variant: 'info' },
   applied: { label: 'Applied', variant: 'info' },
+
   clean: { label: 'Clean', variant: 'success' },
   quarantined: { label: 'Quarantined', variant: 'danger' },
+
   uploaded: { label: 'Uploaded', variant: 'neutral' },
   validation_queued: { label: 'Validation queued', variant: 'info' },
   validating: { label: 'Validating', variant: 'info' },
@@ -79,7 +100,11 @@ export function StatusBadge({
   variant?: BadgeVariant
 }) {
   const normalized = String(status ?? 'draft').toLowerCase()
-  const config = statusMap[normalized] ?? { label: fallbackLabel(normalized), variant: 'neutral' as BadgeVariant }
+  const config =
+    statusMap[normalized] ?? {
+      label: fallbackLabel(normalized),
+      variant: 'neutral' as BadgeVariant,
+    }
 
   return <AppBadge variant={variant ?? config.variant}>{label ?? config.label}</AppBadge>
 }
