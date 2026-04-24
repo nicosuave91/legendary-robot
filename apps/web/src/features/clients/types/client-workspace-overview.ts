@@ -1,11 +1,12 @@
 import type {
   ApplicationRuleSummary,
   ApplicationStatusSummary,
+  ClientWorkspaceResponse,
   DeliveryStatusProjection,
   EventTaskSummary,
   WorkflowDetailEnvelope,
-  WorkflowDraftValidationSummary,
 } from '@/lib/api/generated/client'
+import type { WorkflowDraftValidationSummary } from '@/lib/api/client'
 
 export type ClientWorkspaceRecommendedAction = {
   code: string
@@ -50,11 +51,15 @@ export type ClientWorkspaceRecentNote = {
 }
 
 export type ClientWorkspaceOverview = {
-  recommendedAction: ClientWorkspaceRecommendedAction
+  recommendedAction: ClientWorkspaceRecommendedAction | null
   latestCommunication: ClientWorkspaceLatestCommunication | null
   nextEvent: ClientWorkspaceNextEvent | null
   leadApplication: ClientWorkspaceLeadApplication | null
   recentNote: ClientWorkspaceRecentNote | null
+}
+
+export type ClientWorkspaceResponseWithOverview = ClientWorkspaceResponse & {
+  overview?: ClientWorkspaceOverview
 }
 
 export type WorkflowDetailEnvelopeAligned = WorkflowDetailEnvelope & {
