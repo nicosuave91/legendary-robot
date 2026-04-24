@@ -10,6 +10,7 @@ import {
   getClientCommunications,
   getClientEvents,
   getClients,
+  getCommunicationsInbox,
   getDashboardProduction,
   getDashboardSummary,
   getEvent,
@@ -31,6 +32,7 @@ import {
   getWorkflowRuns,
   getWorkflows,
   patchClient,
+  patchCommunicationAttachmentScanStatus,
   patchEvent,
   patchOnboardingIndustrySelection,
   patchOnboardingProfileConfirmation,
@@ -111,11 +113,6 @@ import {
   type WorkflowRunDetailEnvelope,
   type WorkflowRunListEnvelope,
 } from '@/lib/api/generated/client'
-import {
-  getCommunicationsInbox,
-  patchCommunicationAttachmentScanStatus,
-  type CommunicationsInboxQuery,
-} from '@/lib/api/generated/communications-client'
 
 export type WorkflowDraftValidationIssue = {
   code: string
@@ -144,7 +141,7 @@ export type ClientCommunicationsQuery = {
   cursor?: string
 }
 
-export type { CommunicationsInboxQuery }
+export type CommunicationsInboxQuery = NonNullable<Parameters<typeof getCommunicationsInbox>[1]>
 export type CommunicationAttachmentScanStatusUpdateRequest = UpdateCommunicationAttachmentScanStatusRequest
 
 export const authApi = {
