@@ -7,8 +7,10 @@ import {
   getClient,
   getClientApplication,
   getClientApplications,
+  getClientCommunications,
   getClientEvents,
   getClients,
+  getCommunicationsInbox,
   getDashboardProduction,
   getDashboardSummary,
   getEvent,
@@ -30,6 +32,7 @@ import {
   getWorkflowRuns,
   getWorkflows,
   patchClient,
+  patchCommunicationAttachmentScanStatus,
   patchEvent,
   patchOnboardingIndustrySelection,
   patchOnboardingProfileConfirmation,
@@ -65,6 +68,8 @@ import {
   postWorkflows,
   type AuditListEnvelope,
   type ClientCommunicationsEnvelope,
+  type CommunicationAttachmentGovernanceEnvelope,
+  type CommunicationsInboxEnvelope,
   type CreateAccountRequest,
   type CreateApplicationRequest,
   type CreateClientNoteRequest,
@@ -97,6 +102,7 @@ import {
   type TransitionApplicationStatusRequest,
   type UpdateAccountRequest,
   type UpdateClientRequest,
+  type UpdateCommunicationAttachmentScanStatusRequest,
   type UpdateEventRequest,
   type UpdateProfileRequest,
   type UpdateRuleDraftRequest,
@@ -107,11 +113,6 @@ import {
   type WorkflowRunDetailEnvelope,
   type WorkflowRunListEnvelope,
 } from '@/lib/api/generated/client'
-
-type ApiMeta = {
-  apiVersion: string
-  correlationId: string
-}
 
 export type WorkflowDraftValidationIssue = {
   code: string
@@ -148,67 +149,7 @@ export type CommunicationsInboxQuery = {
   cursor?: string
 }
 
-export type CommunicationAttachmentScanStatusUpdateRequest = {
-  status: 'pending' | 'clean' | 'rejected' | 'quarantined'
-  engine?: string | null
-  detail?: string | null
-  quarantineReason?: string | null
-}
-
-export type CommunicationAttachmentGovernanceSummary = {
-  id: string
-  originalFilename: string
-  mimeType: string
-  sizeBytes: number
-  scanStatus: string
-  scanRequestedAt: string | null
-  scannedAt: string | null
-  scanEngine: string | null
-  scanResultDetail: string | null
-  quarantineReason: string | null
-}
-
-export type CommunicationAttachmentGovernanceEnvelope = {
-  data: CommunicationAttachmentGovernanceSummary
-  meta: ApiMeta
-}
-
-export type CommunicationsInboxItem = {
-  client: {
-    id: string
-    displayName: string
-    status: string
-    ownerDisplayName: string | null
-    primaryEmail: string | null
-    primaryPhone: string | null
-    lastActivityAt: string | null
-  }
-  timelineItem: CommunicationTimelineItem
-}
-
-export type CommunicationsInboxEnvelope = {
-  data: {
-    items: CommunicationsInboxItem[]
-    paging: {
-      nextCursor: string | null
-      hasMore: boolean
-    }
-    filters: {
-      search: string | null
-      channel: string
-      status: string
-    }
-    refresh: {
-      hasPendingRecentItems: boolean
-      recommendedPollSeconds: number | null
-    }
-    summary: {
-      clientCount: number
-      itemCount: number
-    }
-  }
-  meta: ApiMeta
-}
+export type CommunicationAttachmentScanStatusUpdateRequest = UpdateCommunicationAttachmentScanStatusRequest
 
 export const authApi = {
   me: () => getAuthMe(apiHttpClient),
@@ -273,28 +214,18 @@ export const clientsApi = {
 }
 
 export const communicationsApi = {
-  inbox: (queryParams?: CommunicationsInboxQuery) =>
-    apiHttpClient.request<CommunicationsInboxEnvelope>({
-      path: '/api/v1/communications/inbox',
-      method: 'GET',
-      queryParams
-    }),
-  list: (clientId: string, queryParams?: ClientCommunicationsQuery) =>
-    apiHttpClient.request<ClientCommunicationsEnvelope>({
-      path: `/api/v1/clients/${clientId}/communications`,
-      method: 'GET',
-      queryParams
-    }),
+  inbox: (queryParams?: CommunicationsInboxQuery): Promise<CommunicationsInboxEnvelope> =>
+    getCommunicationsInbox(apiHttpClient, queryParams),
+  list: (clientId: string, queryParams?: ClientCommunicationsQuery): Promise<ClientCommunicationsEnvelope> =>
+    getClientCommunications(apiHttpClient, { clientId }, queryParams),
   sendSms: (clientId: string, body: FormData) => postClientCommunicationsSms(apiHttpClient, { clientId }, body),
   sendEmail: (clientId: string, body: FormData) => postClientCommunicationsEmail(apiHttpClient, { clientId }, body),
   startCall: (clientId: string, body: StartCallRequest) => postClientCommunicationsCall(apiHttpClient, { clientId }, body),
-  updateAttachmentScanStatus: (attachmentId: string, body: CommunicationAttachmentScanStatusUpdateRequest) =>
-    apiHttpClient.request<CommunicationAttachmentGovernanceEnvelope>({
-      path: `/api/v1/communications/attachments/${attachmentId}/scan-status`,
-      method: 'PATCH',
-      body,
-      contentType: 'application/json'
-    })
+  updateAttachmentScanStatus: (
+    attachmentId: string,
+    body: CommunicationAttachmentScanStatusUpdateRequest,
+  ): Promise<CommunicationAttachmentGovernanceEnvelope> =>
+    patchCommunicationAttachmentScanStatus(apiHttpClient, { attachmentId }, body)
 }
 
 export const applicationsApi = {
