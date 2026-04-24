@@ -38,16 +38,32 @@ export type WorkflowEmailStepState = {
   bodyTemplate: string
 }
 
-export type WorkflowBuilderStepState = {
-  id: string
-  type: WorkflowBuilderStepType
-  definition:
-    | WorkflowConditionStepState
-    | WorkflowWaitStepState
-    | WorkflowClientNoteStepState
-    | WorkflowSmsStepState
-    | WorkflowEmailStepState
-}
+export type WorkflowBuilderStepState =
+  | {
+      id: string
+      type: 'condition'
+      definition: WorkflowConditionStepState
+    }
+  | {
+      id: string
+      type: 'wait'
+      definition: WorkflowWaitStepState
+    }
+  | {
+      id: string
+      type: 'create_client_note'
+      definition: WorkflowClientNoteStepState
+    }
+  | {
+      id: string
+      type: 'send_sms'
+      definition: WorkflowSmsStepState
+    }
+  | {
+      id: string
+      type: 'send_email'
+      definition: WorkflowEmailStepState
+    }
 
 export type WorkflowBuilderState = {
   trigger: WorkflowTriggerBuilderState
