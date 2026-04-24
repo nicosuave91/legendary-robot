@@ -1,7 +1,7 @@
 {
   "name": "snowball-crm-platform",
   "private": true,
-  "packageManager": "pnpm@10.8.0",
+  "packageManager": "npm@10.x",
   "workspaces": [
     "apps/*",
     "packages/*"
