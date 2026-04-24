@@ -1,35 +1,155 @@
-web-validation:
-  runs-on: ubuntu-latest
-  defaults:
-    run:
-      working-directory: .
-  steps:
-    - uses: actions/checkout@v4
+name: Release Verification
 
-    - name: Set up Node
-      uses: actions/setup-node@v4
-      with:
-        node-version: '22'
-        cache: 'npm'
-        cache-dependency-path: package-lock.json
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
 
-    - name: Install frontend dependencies
-      run: npm ci
+jobs:
+  api-validation:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
 
-    - name: Publish and generate contracts
-      run: npm run contracts:sync
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
 
-    - name: Verify communications contract sync
-      run: npm run verify:communications:contract-sync
+      - name: Prepare API environment
+        run: |
+          cp .env.example .env
+          mkdir -p database
+          touch database/database.sqlite
+          {
+            echo ""
+            echo "DB_CONNECTION=sqlite"
+            echo "DB_DATABASE=${GITHUB_WORKSPACE}/apps/api/database/database.sqlite"
+            echo "CACHE_STORE=array"
+            echo "SESSION_DRIVER=file"
+            echo "SESSION_DOMAIN=127.0.0.1"
+            echo "SANCTUM_STATEFUL_DOMAINS=127.0.0.1:5173,localhost:5173,127.0.0.1,localhost"
+            echo "CORS_ALLOWED_ORIGINS=http://127.0.0.1:5173"
+          } >> .env
 
-    - name: Guard handwritten API usage
-      run: npm run guard:no-handwritten-api
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist
 
-    - name: Typecheck
-      run: npm --workspace apps/web run typecheck
+      - name: Generate application key
+        run: php artisan key:generate --force
 
-    - name: Run Vitest
-      run: npm --workspace apps/web run test
+      - name: Run migrations and seed
+        run: php artisan migrate:fresh --seed --force
 
-    - name: Build frontend
-      run: npm --workspace apps/web run build
+      - name: Publish OpenAPI artifact
+        run: composer run contracts:publish
+
+      - name: Run PHPUnit
+        run: composer test
+
+      - name: Run Larastan
+        run: ./vendor/bin/phpstan analyse
+
+  web-validation:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Publish and generate contracts
+        run: npm run contracts:sync
+
+      - name: Verify communications contract sync
+        run: npm run verify:communications:contract-sync
+
+      - name: Guard handwritten API usage
+        run: npm run guard:no-handwritten-api
+
+      - name: Typecheck
+        run: npm --workspace apps/web run typecheck
+
+      - name: Run Vitest
+        run: npm --workspace apps/web run test
+
+      - name: Build frontend
+        run: npm --workspace apps/web run build
+
+  e2e-smoke:
+    runs-on: ubuntu-latest
+    needs: [api-validation, web-validation]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Prepare API environment
+        working-directory: apps/api
+        run: |
+          cp .env.example .env
+          mkdir -p database
+          touch database/database.sqlite
+          {
+            echo ""
+            echo "DB_CONNECTION=sqlite"
+            echo "DB_DATABASE=${GITHUB_WORKSPACE}/apps/api/database/database.sqlite"
+            echo "CACHE_STORE=array"
+            echo "SESSION_DRIVER=file"
+            echo "SESSION_DOMAIN=127.0.0.1"
+            echo "SANCTUM_STATEFUL_DOMAINS=127.0.0.1:5173,localhost:5173,127.0.0.1,localhost"
+            echo "CORS_ALLOWED_ORIGINS=http://127.0.0.1:5173"
+          } >> .env
+
+      - name: Install API dependencies
+        working-directory: apps/api
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Bootstrap API
+        working-directory: apps/api
+        run: |
+          php artisan key:generate --force
+          php artisan migrate:fresh --seed --force
+
+      - name: Start API server
+        working-directory: apps/api
+        run: php artisan serve --host=127.0.0.1 --port=8000 > /tmp/snowball-api.log 2>&1 &
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Publish and generate contracts
+        run: npm run contracts:sync
+
+      - name: Install Playwright browsers
+        run: npm --workspace apps/web exec -- playwright install --with-deps chromium
+
+      - name: Run release smoke journeys
+        env:
+          VITE_API_BASE_URL: http://127.0.0.1:8000
+        run: npm --workspace apps/web exec -- playwright test e2e/release-critical-journeys.spec.ts
