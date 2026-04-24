@@ -22,7 +22,7 @@ export type RouteMeta = {
   shellSectionDescription?: string
 }
 
-export const routeMeta = {
+export const routeMeta: Record<string, RouteMeta> = {
   signIn: { title: 'Sign in' },
   onboarding: {
     title: 'Complete onboarding',
@@ -162,4 +162,4 @@ export const routeMeta = {
     shellSectionLabel: 'Governance',
     shellSectionDescription: 'Rules, workflows, and investigations',
   },
-} satisfies Record<string, RouteMeta>
+}
