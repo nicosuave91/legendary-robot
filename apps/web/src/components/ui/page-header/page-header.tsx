@@ -14,6 +14,7 @@ type PageHeaderProps = {
   eyebrow?: string
   actions?: ReactNode
   secondaryActions?: ReactNode
+  status?: ReactNode
   statusSummary?: ReactNode
   filterRegion?: ReactNode
   className?: string
@@ -42,11 +43,14 @@ export function PageHeader({
   eyebrow,
   actions,
   secondaryActions,
+  status,
   statusSummary,
   filterRegion,
   className,
   variant = 'workspace',
 }: PageHeaderProps) {
+  const resolvedStatusSummary = statusSummary ?? status
+
   return (
     <section className={cn(wrapperClasses[variant], className)}>
       <div className="px-5 py-4 xl:px-6">
@@ -63,11 +67,11 @@ export function PageHeader({
             ) : null}
           </div>
 
-          {(statusSummary || actions || secondaryActions) ? (
+          {(resolvedStatusSummary || actions || secondaryActions) ? (
             <div className="flex w-full flex-col gap-3 xl:w-auto xl:min-w-[260px] xl:items-end">
-              {statusSummary ? (
+              {resolvedStatusSummary ? (
                 <div className="flex w-full flex-wrap gap-2 xl:justify-end">
-                  {statusSummary}
+                  {resolvedStatusSummary}
                 </div>
               ) : null}
               {(actions || secondaryActions) ? (

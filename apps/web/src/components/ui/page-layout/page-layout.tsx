@@ -1,21 +1,23 @@
 import type { HTMLAttributes } from 'react'
 import { cn } from '@/lib/utils/cn'
 
+type PageVariant = 'cockpit' | 'workspace' | 'settings' | 'governance' | 'audit'
+
 type PageCanvasProps = HTMLAttributes<HTMLDivElement> & {
   density?: 'standard' | 'compact'
 }
 
 type PageSplitProps = HTMLAttributes<HTMLDivElement> & {
-  variant?: 'cockpit' | 'workspace' | 'settings' | 'governance' | 'audit'
+  variant?: PageVariant
+}
+
+type PageGridProps = HTMLAttributes<HTMLDivElement> & {
+  layout?: PageVariant
 }
 
 type PageTemplateProps = PageCanvasProps
 
-export function PageCanvas({
-  className,
-  density = 'standard',
-  ...props
-}: PageCanvasProps) {
+export function PageCanvas({ className, density = 'standard', ...props }: PageCanvasProps) {
   return (
     <div
       className={cn(
@@ -28,29 +30,25 @@ export function PageCanvas({
   )
 }
 
-export function PageSplit({
-  className,
-  variant = 'workspace',
-  ...props
-}: PageSplitProps) {
+export function PageSplit({ className, variant = 'workspace', ...props }: PageSplitProps) {
   return (
     <div
       className={cn(
         'grid gap-5',
-        variant === 'cockpit' &&
-          'items-start xl:grid-cols-[minmax(0,1.7fr)_minmax(340px,0.8fr)]',
-        variant === 'workspace' &&
-          'items-start xl:grid-cols-[minmax(0,1.75fr)_minmax(300px,0.8fr)]',
-        variant === 'settings' &&
-          'items-start xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]',
-        variant === 'governance' &&
-          'items-start xl:grid-cols-[minmax(0,1.25fr)_420px]',
+        variant === 'cockpit' && 'items-start xl:grid-cols-[minmax(0,1.7fr)_minmax(340px,0.8fr)]',
+        variant === 'workspace' && 'items-start xl:grid-cols-[minmax(0,1.75fr)_minmax(300px,0.8fr)]',
+        variant === 'settings' && 'items-start xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]',
+        variant === 'governance' && 'items-start xl:grid-cols-[minmax(0,1.25fr)_420px]',
         variant === 'audit' && 'grid-cols-1',
         className,
       )}
       {...props}
     />
   )
+}
+
+export function PageGrid({ layout = 'workspace', ...props }: PageGridProps) {
+  return <PageSplit variant={layout} {...props} />
 }
 
 export function CockpitPageTemplate(props: PageTemplateProps) {
