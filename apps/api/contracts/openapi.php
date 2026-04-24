@@ -11,9 +11,10 @@ $sprint8 = require __DIR__ . '/openapi.rules_workflows.php';
 $sprint9 = require __DIR__ . '/openapi.phase9.php';
 $sprint11 = require __DIR__ . '/openapi.calendar_tasks.php';
 $workflowClosure = require __DIR__ . '/openapi.workflow_closure.php';
+$releaseStabilization = require __DIR__ . '/openapi.release_stabilization.php';
 
-$base['info']['version'] = '15.4.0';
-$base['info']['description'] = 'Post-merge build stabilization, generated-client drift prevention, client status contract alignment, and account onboarding contract compatibility layered onto the verified Sprint 15 platform baseline.';
+$base['info']['version'] = '15.5.0';
+$base['info']['description'] = 'Post-merge build stabilization, generated-client drift prevention, complete release-critical contract overlays, client status contract alignment, and account onboarding contract compatibility layered onto the verified Sprint 15 platform baseline.';
 $base['paths'] = array_replace_recursive(
     $base['paths'] ?? [],
     $clients['paths'] ?? [],
@@ -23,6 +24,7 @@ $base['paths'] = array_replace_recursive(
     $sprint9['paths'] ?? [],
     $sprint11['paths'] ?? [],
     $workflowClosure['paths'] ?? [],
+    $releaseStabilization['paths'] ?? [],
 );
 $base['components']['schemas'] = array_replace(
     $base['components']['schemas'] ?? [],
@@ -34,6 +36,7 @@ $base['components']['schemas'] = array_replace(
     $sprint9['components']['schemas'] ?? [],
     $sprint11['components']['schemas'] ?? [],
     $workflowClosure['components']['schemas'] ?? [],
+    $releaseStabilization['components']['schemas'] ?? [],
 );
 
 return $base;
