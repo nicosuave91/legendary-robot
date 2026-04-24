@@ -17,6 +17,7 @@ final class WorkflowRunService
     public function __construct(
         private readonly AuditLogger $auditLogger,
         private readonly WorkflowTriggerMatcher $triggerMatcher,
+        private readonly WorkflowRuntimeContextResolver $runtimeContextResolver,
     ) {
     }
 
@@ -58,7 +59,7 @@ final class WorkflowRunService
             return $existing;
         }
 
-        $run = WorkflowRun::query()->create([
+        $run = new WorkflowRun([
             'id' => (string) Str::uuid(),
             'tenant_id' => $tenantId,
             'workflow_id' => (string) $workflow->id,
@@ -74,6 +75,9 @@ final class WorkflowRunService
             'runtime_context' => $payload,
             'queued_at' => now(),
         ]);
+
+        $run->runtime_context = $this->runtimeContextResolver->resolveForRun($run, $payload);
+        $run->save();
 
         $this->appendLog(
             $run,
