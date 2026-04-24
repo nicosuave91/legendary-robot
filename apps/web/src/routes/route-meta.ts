@@ -162,4 +162,4 @@ export const routeMeta = {
     shellSectionLabel: 'Governance',
     shellSectionDescription: 'Rules, workflows, and investigations',
   },
-} as const
+} satisfies Record<string, RouteMeta>
