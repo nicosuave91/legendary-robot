@@ -27,6 +27,7 @@ function buildFallbackDayResponse(events: CalendarEventSummary[]): CalendarDayRe
       openTaskCount: events.reduce((total, event) => total + event.taskSummary.open, 0),
       completedTaskCount: events.reduce((total, event) => total + event.taskSummary.completed, 0),
       blockedTaskCount: events.reduce((total, event) => total + event.taskSummary.blocked, 0),
+      skippedTaskCount: events.reduce((total, event) => total + event.taskSummary.skipped, 0),
     },
     events,
   }
