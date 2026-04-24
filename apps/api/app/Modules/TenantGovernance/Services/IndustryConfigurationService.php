@@ -30,6 +30,20 @@ final class IndustryConfigurationService
             ->all();
     }
 
+    public function activeVersionForTenantAndIndustry(string $tenantId, string $industry): ?TenantIndustryConfiguration
+    {
+        return TenantIndustryConfiguration::query()
+            ->withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->where('industry', $industry)
+            ->where('status', 'published')
+            ->where('is_active', true)
+            ->orderByDesc('activated_at')
+            ->orderByDesc('published_at')
+            ->orderByDesc('created_at')
+            ->first();
+    }
+
     /**
      * @param array<string, mixed> $payload
      * @return array<string, mixed>
