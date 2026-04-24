@@ -72,11 +72,15 @@ describe('AuthProvider', () => {
     mockedAuthApi.me.mockResolvedValueOnce({
       data: {
         isAuthenticated: true,
-        userId: 'user-1',
-        email: 'user@example.com',
-        displayName: 'Runtime User',
-        tenantId: 'tenant-1',
-        tenantName: 'Default Workspace',
+        user: {
+          id: 'user-1',
+          email: 'user@example.com',
+          displayName: 'Runtime User',
+        },
+        tenant: {
+          id: 'tenant-1',
+          name: 'Default Workspace',
+        },
         roles: ['user'],
         permissions: ['calendar.read'],
         onboardingState: 'completed',
