@@ -32,8 +32,11 @@ final class AuthService
 
         $request->session()->regenerate();
 
-        /** @var User $user */
         $user = Auth::guard('web')->user();
+        if (!$user instanceof User) {
+            throw new AuthenticationException('Unable to resolve authenticated user.');
+        }
+
         $user->loadMissing(['tenant.themeSetting', 'roles.permissions', 'profile', 'onboardingState', 'industryAssignment']);
 
         if (($user->status ?? 'active') !== 'active') {
@@ -62,8 +65,7 @@ final class AuthService
 
     public function signOut(Request $request, string $correlationId): void
     {
-        /** @var User|null $user */
-        $user = $request->user();
+        $user = $this->authenticatedUserOrNull($request);
 
         if ($user !== null) {
             $this->auditLogger->record([
@@ -85,11 +87,28 @@ final class AuthService
 
     public function me(Request $request): AuthContextData
     {
-        /** @var User $user */
-        $user = Auth::guard('web')->user();
+        $user = $this->authenticatedUser($request);
         $user->loadMissing(['tenant.themeSetting', 'roles.permissions', 'profile', 'onboardingState', 'industryAssignment']);
 
         return $this->buildContext($user);
+    }
+
+    private function authenticatedUser(Request $request): User
+    {
+        $user = $request->user() ?? Auth::guard('web')->user();
+
+        if (!$user instanceof User) {
+            throw new AuthenticationException('Unauthenticated.');
+        }
+
+        return $user;
+    }
+
+    private function authenticatedUserOrNull(Request $request): ?User
+    {
+        $user = $request->user() ?? Auth::guard('web')->user();
+
+        return $user instanceof User ? $user : null;
     }
 
     private function buildContext(User $user): AuthContextData
