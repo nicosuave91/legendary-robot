@@ -9,7 +9,9 @@
  * the monolithic generated client is reconciled by the full contract generation flow.
  */
 
-import type { ApiHttpClient, CommunicationTimelineItem, ResponseMeta } from './client'
+import type { ApiHttpClient, ClientCommunicationsEnvelope, ResponseMeta } from './client'
+
+export type CommunicationTimelineItem = ClientCommunicationsEnvelope['data']['items'][number]
 
 export type UpdateCommunicationAttachmentScanStatusRequest = {
   "status": "pending" | "clean" | "rejected" | "quarantined";
@@ -104,6 +106,5 @@ export async function patchCommunicationAttachmentScanStatus(
     path: '/api/v1/communications/attachments/{attachmentId}/scan-status',
     pathParams,
     body,
-    contentType: 'application/json',
   });
 }
