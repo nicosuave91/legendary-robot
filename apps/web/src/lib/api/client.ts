@@ -10,7 +10,6 @@ import {
   getClientCommunications,
   getClientEvents,
   getClients,
-  getCommunicationsInbox,
   getDashboardProduction,
   getDashboardSummary,
   getEvent,
@@ -32,7 +31,6 @@ import {
   getWorkflowRuns,
   getWorkflows,
   patchClient,
-  patchCommunicationAttachmentScanStatus,
   patchEvent,
   patchOnboardingIndustrySelection,
   patchOnboardingProfileConfirmation,
@@ -68,8 +66,6 @@ import {
   postWorkflows,
   type AuditListEnvelope,
   type ClientCommunicationsEnvelope,
-  type CommunicationAttachmentGovernanceEnvelope,
-  type CommunicationsInboxEnvelope,
   type CreateAccountRequest,
   type CreateApplicationRequest,
   type CreateClientNoteRequest,
@@ -102,7 +98,6 @@ import {
   type TransitionApplicationStatusRequest,
   type UpdateAccountRequest,
   type UpdateClientRequest,
-  type UpdateCommunicationAttachmentScanStatusRequest,
   type UpdateEventRequest,
   type UpdateProfileRequest,
   type UpdateRuleDraftRequest,
@@ -113,6 +108,13 @@ import {
   type WorkflowRunDetailEnvelope,
   type WorkflowRunListEnvelope,
 } from '@/lib/api/generated/client'
+import {
+  getCommunicationsInbox,
+  patchCommunicationAttachmentScanStatus,
+  type CommunicationAttachmentGovernanceEnvelope,
+  type CommunicationsInboxEnvelope,
+  type UpdateCommunicationAttachmentScanStatusRequest,
+} from '@/lib/api/generated/communications-client'
 
 export type WorkflowDraftValidationIssue = {
   code: string
