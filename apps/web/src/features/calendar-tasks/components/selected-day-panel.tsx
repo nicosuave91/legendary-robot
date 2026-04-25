@@ -20,8 +20,11 @@ type SelectedDayPanelProps = {
 }
 
 function buildFallbackDayResponse(events: CalendarEventSummary[]): CalendarDayResponse {
+  const selectedDate = events[0]?.startsAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10)
+
   return {
-    selectedDate: events[0]?.startsAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+    selectedDate,
+    isToday: selectedDate === new Date().toISOString().slice(0, 10),
     summary: {
       eventCount: events.length,
       openTaskCount: events.reduce((total, event) => total + event.taskSummary.open, 0),

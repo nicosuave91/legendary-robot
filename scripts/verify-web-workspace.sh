@@ -13,6 +13,15 @@ npm cache verify
 echo "[web] installing workspace dependencies from lockfile"
 npm ci
 
+echo "[web] publishing OpenAPI and regenerating web client"
+npm run contracts:sync
+
+echo "[web] verifying communications contract sync"
+npm run verify:communications:contract-sync
+
+echo "[web] guarding handwritten API usage"
+npm run guard:no-handwritten-api
+
 echo "[web] typechecking"
 npm run --workspace apps/web typecheck
 

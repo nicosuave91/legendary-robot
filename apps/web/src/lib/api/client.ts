@@ -66,8 +66,6 @@ import {
   postWorkflows,
   type AuditListEnvelope,
   type ClientCommunicationsEnvelope,
-  type CommunicationAttachmentGovernanceEnvelope,
-  type CommunicationsInboxEnvelope,
   type CreateAccountRequest,
   type CreateApplicationRequest,
   type CreateClientNoteRequest,
@@ -100,7 +98,6 @@ import {
   type TransitionApplicationStatusRequest,
   type UpdateAccountRequest,
   type UpdateClientRequest,
-  type UpdateCommunicationAttachmentScanStatusRequest,
   type UpdateEventRequest,
   type UpdateProfileRequest,
   type UpdateRuleDraftRequest,
@@ -111,6 +108,13 @@ import {
   type WorkflowRunDetailEnvelope,
   type WorkflowRunListEnvelope,
 } from '@/lib/api/generated/client'
+import {
+  getCommunicationsInbox,
+  patchCommunicationAttachmentScanStatus,
+  type CommunicationAttachmentGovernanceEnvelope,
+  type CommunicationsInboxEnvelope,
+  type UpdateCommunicationAttachmentScanStatusRequest,
+} from '@/lib/api/generated/communications-client'
 
 export type WorkflowDraftValidationIssue = {
   code: string
@@ -139,37 +143,8 @@ export type ClientCommunicationsQuery = {
   cursor?: string
 }
 
-export type CommunicationsInboxQuery = {
-  search?: string
-  channel?: 'all' | 'sms' | 'email' | 'voice'
-  status?: 'all' | 'pending' | 'failed'
-  limit?: number
-  cursor?: string
-}
-
+export type CommunicationsInboxQuery = NonNullable<Parameters<typeof getCommunicationsInbox>[1]>
 export type CommunicationAttachmentScanStatusUpdateRequest = UpdateCommunicationAttachmentScanStatusRequest
-
-function getCommunicationsInboxFallback(
-  queryParams?: CommunicationsInboxQuery,
-): Promise<CommunicationsInboxEnvelope> {
-  return apiHttpClient.request<CommunicationsInboxEnvelope>({
-    method: 'GET',
-    path: '/api/v1/communications/inbox',
-    queryParams,
-  })
-}
-
-function patchCommunicationAttachmentScanStatusFallback(
-  attachmentId: string,
-  body: CommunicationAttachmentScanStatusUpdateRequest,
-): Promise<CommunicationAttachmentGovernanceEnvelope> {
-  return apiHttpClient.request<CommunicationAttachmentGovernanceEnvelope>({
-    method: 'PATCH',
-    path: '/api/v1/communications/attachments/{attachmentId}/scan-status',
-    pathParams: { attachmentId },
-    body,
-  })
-}
 
 export const authApi = {
   me: () => getAuthMe(apiHttpClient),
@@ -235,7 +210,7 @@ export const clientsApi = {
 
 export const communicationsApi = {
   inbox: (queryParams?: CommunicationsInboxQuery): Promise<CommunicationsInboxEnvelope> =>
-    getCommunicationsInboxFallback(queryParams),
+    getCommunicationsInbox(apiHttpClient, queryParams),
   list: (clientId: string, queryParams?: ClientCommunicationsQuery): Promise<ClientCommunicationsEnvelope> =>
     getClientCommunications(apiHttpClient, { clientId }, queryParams),
   sendSms: (clientId: string, body: FormData) => postClientCommunicationsSms(apiHttpClient, { clientId }, body),
@@ -245,7 +220,7 @@ export const communicationsApi = {
     attachmentId: string,
     body: CommunicationAttachmentScanStatusUpdateRequest,
   ): Promise<CommunicationAttachmentGovernanceEnvelope> =>
-    patchCommunicationAttachmentScanStatusFallback(attachmentId, body)
+    patchCommunicationAttachmentScanStatus(apiHttpClient, { attachmentId }, body)
 }
 
 export const applicationsApi = {

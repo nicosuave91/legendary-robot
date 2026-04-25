@@ -270,7 +270,7 @@ export function ClientWorkspacePage() {
                 <div className="body-sm text-text-muted">{overview.recommendedAction.description}</div>
               </div>
               <AppButton asChild type="button">
-                <Link to={overview.recommendedAction.ctaHref}>{overview.recommendedAction.ctaLabel}</Link>
+                <Link to={overview.recommendedAction.ctaHref ?? `/app/clients/${payload.client.id}`}>{overview.recommendedAction.ctaLabel}</Link>
               </AppButton>
             </div>
           ) : (
@@ -291,7 +291,7 @@ export function ClientWorkspacePage() {
                 <AppBadge>{overview.latestCommunication.channel.toUpperCase()}</AppBadge>
                 <AppBadge variant="neutral">{overview.latestCommunication.direction}</AppBadge>
                 <AppBadge variant={toneToBadgeVariant(overview.latestCommunication.status.tone)}>
-                  {overview.latestCommunication.status.label}
+                  {overview.latestCommunication.status.displayLabel}
                 </AppBadge>
               </div>
               <div className="body-sm text-text-muted">{overview.latestCommunication.preview ?? 'No preview available.'}</div>
