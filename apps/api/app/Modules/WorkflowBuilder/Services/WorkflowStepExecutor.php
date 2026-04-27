@@ -23,6 +23,7 @@ final class WorkflowStepExecutor
         private readonly WorkflowExecutionActorResolver $actorResolver,
         private readonly ClientNoteService $clientNoteService,
         private readonly CommunicationCommandService $communicationCommandService,
+        private readonly WorkflowRuntimeContextResolver $runtimeContextResolver,
     ) {
     }
 
@@ -40,7 +41,7 @@ final class WorkflowStepExecutor
         $step = $steps[$stepIndex];
         $type = (string) ($step['type'] ?? 'unknown');
         $definition = is_array($step['definition'] ?? null) ? $step['definition'] : [];
-        $context = (array) ($run->runtime_context ?? []);
+        $context = $this->hydrateRuntimeContext($run);
 
         $run->forceFill(['status' => 'running', 'started_at' => $run->started_at ?? now()])->save();
         $this->runService->appendLog($run, $stepIndex, 'step_started', 'Executing workflow step.', ['type' => $type]);
@@ -251,6 +252,21 @@ final class WorkflowStepExecutor
         }
 
         throw new \RuntimeException(sprintf('Workflow runs for subject type [%s] cannot resolve a client target.', (string) $run->subject_type));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function hydrateRuntimeContext(WorkflowRun $run): array
+    {
+        $context = (array) ($run->runtime_context ?? []);
+        $hydrated = $this->runtimeContextResolver->resolveForRun($run, $context);
+
+        if ($hydrated !== $context) {
+            $run->forceFill(['runtime_context' => $hydrated])->save();
+        }
+
+        return $hydrated;
     }
 
     private function renderTemplate(string $template, array $context, WorkflowRun $run): string
