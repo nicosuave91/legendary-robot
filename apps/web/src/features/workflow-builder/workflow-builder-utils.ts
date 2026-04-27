@@ -7,6 +7,8 @@ import type {
   WorkflowTriggerFilter
 } from '@/features/workflow-builder/workflow-builder-types'
 
+export const WORKFLOW_RUNTIME_CLIENT_SUBJECT_TYPES = ['client', 'application'] as const
+
 export const WORKFLOW_STEP_TYPE_LABELS: Record<WorkflowBuilderStepType, string> = {
   condition: 'Condition',
   wait: 'Wait',

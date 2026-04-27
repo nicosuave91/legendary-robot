@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 API_DIR="$ROOT_DIR/apps/api"
 COMPOSER_BIN="${COMPOSER_BIN:-composer}"
+ENV_FILE="$API_DIR/.env"
 DB_PATH="$API_DIR/database/database.sqlite"
 
 cd "$API_DIR"
@@ -16,12 +17,38 @@ mkdir -p storage/framework/testing
 mkdir -p storage/framework/views
 mkdir -p database
 
-echo "[api] preparing env and sqlite database"
-if [[ ! -f .env ]]; then
+echo "[api] preparing deterministic local environment"
+if [[ ! -f "$ENV_FILE" ]]; then
   cp .env.example .env
 fi
+
 touch "$DB_PATH"
-php -r '$env=file_get_contents(".env"); $updates=["DB_CONNECTION"=>"sqlite","DB_DATABASE"=>realpath("database/database.sqlite"),"CACHE_STORE"=>"array","SESSION_DRIVER"=>"file","SESSION_DOMAIN"=>"127.0.0.1","SANCTUM_STATEFUL_DOMAINS"=>"127.0.0.1:5173,localhost:5173,127.0.0.1,localhost"]; foreach($updates as $k=>$v){$line=$k."=".$v; if(preg_match("/^".preg_quote($k,"/")."=.*/m",$env)){$env=preg_replace("/^".preg_quote($k,"/")."=.*/m",$line,$env);}else{$env=rtrim($env).PHP_EOL.$line.PHP_EOL;}} file_put_contents(".env",$env);'
+
+python - <<'PY'
+from pathlib import Path
+import os
+
+api_dir = Path(os.environ.get('API_DIR_OVERRIDE', '.')).resolve()
+env = api_dir / '.env'
+db = (api_dir / 'database' / 'database.sqlite').resolve()
+text = env.read_text()
+updates = {
+    'DB_CONNECTION': 'sqlite',
+    'DB_DATABASE': str(db),
+    'CACHE_STORE': 'array',
+    'SESSION_DRIVER': 'file',
+    'SESSION_DOMAIN': '127.0.0.1',
+    'SANCTUM_STATEFUL_DOMAINS': '127.0.0.1:5173,localhost:5173,127.0.0.1,localhost',
+    'CORS_ALLOWED_ORIGINS': 'http://127.0.0.1:5173,http://localhost:5173',
+}
+for key, value in updates.items():
+    line = f'{key}={value}'
+    if any(existing.startswith(f'{key}=') for existing in text.splitlines()):
+        text = '\n'.join(line if existing.startswith(f'{key}=') else existing for existing in text.splitlines())
+    else:
+        text = text.rstrip() + '\n' + line + '\n'
+env.write_text(text)
+PY
 
 echo "[api] installing dependencies"
 "$COMPOSER_BIN" install --no-interaction --prefer-dist
