@@ -15,14 +15,23 @@ function pascalCase(value) {
     .replace(/^[a-z]/, (c) => c.toUpperCase())
 }
 
+function uniqueUnion(parts) {
+  const normalized = []
+  for (const part of parts.flatMap((entry) => String(entry).split('|').map((value) => value.trim()))) {
+    if (!part || normalized.includes(part)) continue
+    normalized.push(part)
+  }
+  return normalized.join(' | ') || 'unknown'
+}
+
 function withNullable(type, schema) {
-  return schema?.nullable ? `${type} | null` : type
+  return schema?.nullable ? uniqueUnion([type, 'null']) : type
 }
 
 function normalizeNullableEnum(enumValues = []) {
   const cleaned = enumValues.filter((entry) => entry !== null)
   const base = cleaned.map((entry) => JSON.stringify(entry)).join(' | ') || 'never'
-  return enumValues.includes(null) ? `${base} | null` : base
+  return enumValues.includes(null) ? uniqueUnion([base, 'null']) : base
 }
 
 function tsTypeFromSchema(schema, nameHint = 'Anonymous') {
@@ -31,21 +40,22 @@ function tsTypeFromSchema(schema, nameHint = 'Anonymous') {
     const ref = schema.$ref.split('/').pop()
     return withNullable(ref, schema)
   }
+  if (schema.type === 'null') return 'null'
   if (Array.isArray(schema.type)) {
     const nonNullTypes = schema.type.filter((entry) => entry !== 'null')
     if (nonNullTypes.length === 1) {
-      return `${tsTypeFromSchema({ ...schema, type: nonNullTypes[0] }, nameHint)} | null`
+      return uniqueUnion([tsTypeFromSchema({ ...schema, type: nonNullTypes[0] }, nameHint), 'null'])
     }
-    return schema.type.map((entry) => entry === 'null' ? 'null' : tsTypeFromSchema({ ...schema, type: entry }, nameHint)).join(' | ')
+    return uniqueUnion(schema.type.map((entry) => entry === 'null' ? 'null' : tsTypeFromSchema({ ...schema, type: entry }, nameHint)))
   }
   if (schema.enum) {
     return withNullable(normalizeNullableEnum(schema.enum), schema)
   }
   if (schema.oneOf) {
-    return withNullable(schema.oneOf.map((entry) => tsTypeFromSchema(entry, nameHint)).join(' | '), schema)
+    return withNullable(uniqueUnion(schema.oneOf.map((entry) => tsTypeFromSchema(entry, nameHint))), schema)
   }
   if (schema.anyOf) {
-    return withNullable(schema.anyOf.map((entry) => tsTypeFromSchema(entry, nameHint)).join(' | '), schema)
+    return withNullable(uniqueUnion(schema.anyOf.map((entry) => tsTypeFromSchema(entry, nameHint))), schema)
   }
   if (schema.format === 'binary') return 'File'
   if (schema.type === 'string') return withNullable('string', schema)
@@ -54,6 +64,9 @@ function tsTypeFromSchema(schema, nameHint = 'Anonymous') {
   if (schema.type === 'array') return withNullable(`(${tsTypeFromSchema(schema.items, `${nameHint}Item`)})[]`, schema)
   if (schema.type === 'object' || schema.properties) {
     const properties = schema.properties ?? {}
+    if (Object.keys(properties).length === 0) {
+      return withNullable('Record<string, unknown>', schema)
+    }
     const required = new Set(schema.required ?? [])
     const lines = Object.entries(properties).map(([key, value]) => {
       const optional = required.has(key) ? '' : '?'
