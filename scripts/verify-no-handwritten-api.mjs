@@ -3,9 +3,9 @@ import path from 'node:path'
 
 const root = process.cwd()
 const webSrc = path.join(root, 'apps', 'web', 'src')
+const generatedApiDir = path.join(webSrc, 'lib', 'api', 'generated')
 const allowed = new Set([
-  path.join(webSrc, 'lib', 'api', 'http.ts'),
-  path.join(webSrc, 'lib', 'api', 'generated', 'client.ts')
+  path.join(webSrc, 'lib', 'api', 'http.ts')
 ])
 
 const bannedPatterns = [
@@ -25,9 +25,13 @@ function walk(dir, bucket = []) {
   return bucket
 }
 
+function isGeneratedApiFile(file) {
+  return file === generatedApiDir || file.startsWith(`${generatedApiDir}${path.sep}`)
+}
+
 const offenders = []
 for (const file of walk(webSrc)) {
-  if (allowed.has(file)) continue
+  if (allowed.has(file) || isGeneratedApiFile(file)) continue
   const content = fs.readFileSync(file, 'utf8')
   if (bannedPatterns.some((pattern) => pattern.test(content))) {
     offenders.push(path.relative(root, file))

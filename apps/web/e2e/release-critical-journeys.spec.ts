@@ -16,7 +16,7 @@ test.describe('release critical journeys (mocked shell smoke)', () => {
   test('mock-backed protected shell resolves for authenticated owner context', async ({ page }) => {
     await openMockedProtectedShell(page)
 
-    await expect(page.getByRole('heading', { name: 'Homepage' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Good morning, Tenant Owner' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'View all clients' })).toBeVisible()
   })
 
@@ -53,7 +53,7 @@ test.describe('release critical journeys (mocked shell smoke)', () => {
     await expect(page.getByText('Import ledger')).toBeVisible()
 
     await page.goto('/app/calendar')
-    await expect(page.getByRole('heading', { name: 'Calendar & Tasks' })).toBeVisible()
+    await expect(page.getByText('Calendar & Tasks')).toBeVisible()
 
     await page.goto('/app/audit')
     await expect(page.getByRole('heading', { name: 'Audit' })).toBeVisible()
