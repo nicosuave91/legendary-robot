@@ -91,7 +91,7 @@ export function SettingsAccountsPage() {
   const accounts = useMemo(() => accountsQuery.data?.data ?? [], [accountsQuery.data])
   const activeCount = accounts.filter((account) => account.status === 'active').length
   const onboardingRequiredCount = accounts.filter(
-    (account) => account.onboardingState !== 'completed' && account.onboardingState !== 'exempt',
+    (account) => account.onboardingState !== 'completed' && account.onboardingState !== 'not_applicable',
   ).length
 
   const onSubmit = async (values: CreateAccountValues) => {

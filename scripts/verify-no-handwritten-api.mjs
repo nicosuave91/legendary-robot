@@ -11,7 +11,9 @@ const allowed = new Set([
 const bannedPatterns = [
   /\bfetch\s*\(/,
   /\baxios\s*\./,
-  /\baxios\s*\(/
+  /\baxios\s*\(/,
+  /\bapiHttpClient\.request\s*</,
+  /\bapiHttpClient\.request\s*\(/
 ]
 
 function walk(dir, bucket = []) {

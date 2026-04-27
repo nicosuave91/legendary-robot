@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
 
 jobs:
   api-validation:
@@ -57,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: apps/web
+        working-directory: .
     steps:
       - uses: actions/checkout@v4
 
@@ -66,19 +68,28 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: apps/web/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Publish and generate contracts
+        run: npm run contracts:sync
+
+      - name: Verify communications contract sync
+        run: npm run verify:communications:contract-sync
+
+      - name: Guard handwritten API usage
+        run: npm run guard:no-handwritten-api
+
       - name: Typecheck
-        run: npm run typecheck
+        run: npm --workspace apps/web run typecheck
 
       - name: Run Vitest
-        run: npm run test
+        run: npm --workspace apps/web run test
 
       - name: Build frontend
-        run: npm run build
+        run: npm --workspace apps/web run build
 
   e2e-smoke:
     runs-on: ubuntu-latest
@@ -96,7 +107,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: apps/web/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Prepare API environment
         working-directory: apps/api
@@ -129,16 +140,16 @@ jobs:
         working-directory: apps/api
         run: php artisan serve --host=127.0.0.1 --port=8000 > /tmp/snowball-api.log 2>&1 &
 
-      - name: Install web dependencies
-        working-directory: apps/web
+      - name: Install frontend dependencies
         run: npm ci
 
+      - name: Publish and generate contracts
+        run: npm run contracts:sync
+
       - name: Install Playwright browsers
-        working-directory: apps/web
-        run: npx playwright install --with-deps chromium
+        run: npm --workspace apps/web exec -- playwright install --with-deps chromium
 
       - name: Run release smoke journeys
-        working-directory: apps/web
         env:
           VITE_API_BASE_URL: http://127.0.0.1:8000
-        run: npx playwright test e2e/release-critical-journeys.spec.ts
+        run: npm --workspace apps/web exec -- playwright test e2e/release-critical-journeys.spec.ts
